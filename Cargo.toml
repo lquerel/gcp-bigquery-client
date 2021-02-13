@@ -1,0 +1,29 @@
+[package]
+name = "gcp-bigquery-client"
+version = "0.1.0"
+authors = ["Laurent Querel <laurent.querel@gmail.com>"]
+edition = "2018"
+license = "MIT or Apache-2.0"
+description = """
+A GCP BigQuery Client with an idiomatic API.
+"""
+repository = "https://github.com/lquerel/gcp-bigquery-client"
+documentation = "https://docs.rs/gcp-bigquery-client"
+readme = "README.md"
+exclude = ["/.github/*"]
+keywords = ["gcp", "bigquery", "google cloud platform"]
+categories = ["database"]
+
+[dependencies]
+yup-oauth2 = "5.0.3"
+hyper = "0.14.4"
+hyper-rustls = "0.22.1"
+thiserror = "1.0.23"
+tokio = { version = "1.2.0", features = ["full"] }
+reqwest = { version = "0.11.0", features = ["json"] }
+url = "2.2.0"
+serde = "1.0.123"
+serde_json = "1.0.62"
+
+[dev-dependencies]
+tokio-test = "0.4.0"
