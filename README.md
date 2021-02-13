@@ -9,7 +9,8 @@ The following example performs the following operations:
 * Init the BigQuery client
 * Create a dataset in the GCP project $PROJECT_ID
 * Create a table in the previously created dataset (table schema)
-* Insert a set of rows in the previously created table via the BigQuery Streaming API
+* Insert a set of rows in the previously created table via the BigQuery Streaming API. The inserted 
+rows are based on a regular Rust struct implementing the trait Serialize. 
 * Perform a select query on the previously created table
 * Drop the table previously created
 * Drop the dataset previously created 
