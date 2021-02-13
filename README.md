@@ -2,6 +2,16 @@ GCP BigQuery Client (Rust)
 ==========================
 
 This library provides an idiomatic access to GCP BigQuery.
+<br>
+Currently this crate only supports authentication based on GCP Service Account Key. 
+
+---
+**NOTE**
+This is my first crate. I did my best to make this API as idiomatic as possible.But please if you have any suggestions 
+to improve it I encourage you to add a comment to this Reddit (TBD) discussion. 
+
+Most of the Rust structures defined in the model directory are derived from this [Google API Explorer document](https://bigquery.googleapis.com/discovery/v1/apis/bigquery/v2/rest). 
+---
 
 ## Example
 The following example performs the following operations:
@@ -163,7 +173,51 @@ client.table().delete(project_id, dataset_id, table_id).await?;
 client.dataset().delete(project_id, dataset_id, true).await?;
 ```
 
-#### License
+## Status
+List of endpoints implemented:
+- [X] Dataset
+  - [X] Delete
+  - [X] Get
+  - [X] Insert (create)
+  - [X] List
+  - [X] Patch
+  - [X] Update
+- [X] Table
+  - [X] Delete
+  - [X] Get
+  - [X] GetIamPolicy
+  - [X] Insert
+  - [X] List
+  - [X] Patch
+  - [X] SetIamPolicy
+  - [X] TestIamPermissions
+  - [X] Update
+- [] Tabledata 
+  - [X] InsertAll
+  - [] List
+- [] Job
+  - [] Cancel
+  - [] Get
+  - [] GetQueryResult
+  - [] Insert
+  - [] List
+  - [X] Query 
+- [] Model
+  - [] Delete
+  - [] Get
+  - [] List
+  - [] Patch
+- [] Project
+  - [] GetServiceAccount
+  - [] List 
+- [] Routine  
+  - [] Delete
+  - [] Get
+  - [] Insert
+  - [] List
+  - [] Update
+
+## License
 
 <sup>
 Licensed under either of <a href="LICENSE-APACHE">Apache License, Version
