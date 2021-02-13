@@ -112,40 +112,6 @@ insert_request.add_row(
         },
     },
 )?;
-insert_request.add_row(
-    None,
-    MyRow {
-        int_value: 3,
-        float_value: 3.0,
-        bool_value: false,
-        string_value: "third".into(),
-        record_value: FirstRecordLevel {
-            int_value: 12,
-            string_value: "sub_level_1.3".into(),
-            record_value: SecondRecordLevel {
-                int_value: 22,
-                string_value: "leaf".to_string(),
-            },
-        },
-    },
-)?;
-insert_request.add_row(
-    None,
-    MyRow {
-        int_value: 4,
-        float_value: 4.0,
-        bool_value: true,
-        string_value: "fourth".into(),
-        record_value: FirstRecordLevel {
-            int_value: 13,
-            string_value: "sub_level_1.4".into(),
-            record_value: SecondRecordLevel {
-                int_value: 23,
-                string_value: "leaf".to_string(),
-            },
-        },
-    },
-)?;
 
 client
     .tabledata()
@@ -193,30 +159,30 @@ List of endpoints implemented:
   - [X] SetIamPolicy
   - [X] TestIamPermissions
   - [X] Update
-- [] Tabledata 
+- [ ] Tabledata 
   - [X] InsertAll
-  - [] List
-- [] Job
-  - [] Cancel
-  - [] Get
-  - [] GetQueryResult
-  - [] Insert
-  - [] List
+  - [ ] List
+- [ ] Job
+  - [ ] Cancel
+  - [ ] Get
+  - [ ] GetQueryResult
+  - [ ] Insert
+  - [ ] List
   - [X] Query 
-- [] Model
-  - [] Delete
-  - [] Get
-  - [] List
-  - [] Patch
-- [] Project
-  - [] GetServiceAccount
-  - [] List 
-- [] Routine  
-  - [] Delete
-  - [] Get
-  - [] Insert
-  - [] List
-  - [] Update
+- [ ] Model
+  - [ ] Delete
+  - [ ] Get
+  - [ ] List
+  - [ ] Patch
+- [ ] Project
+  - [ ] GetServiceAccount
+  - [ ] List 
+- [ ] Routine  
+  - [ ] Delete
+  - [ ] Get
+  - [ ] Insert
+  - [ ] List
+  - [ ] Update
 
 ## License
 
