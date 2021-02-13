@@ -4,6 +4,16 @@ GCP BigQuery Client (Rust)
 This library provides an idiomatic access to GCP BigQuery.
 
 ## Example
+The following example performs the following operations:
+* Load a set of environment variables to set $PROJECT_ID, $DATASET_ID, $TABLE_ID and $GCP_SA_KEY
+* Init the BigQuery client
+* Create a dataset in the GCP project $PROJECT_ID
+* Create a table in the previously created dataset (table schema)
+* Insert a set of rows in the previously created table via the BigQuery Streaming API
+* Perform a select query on the previously created table
+* Drop the table previously created
+* Drop the dataset previously created 
+
 ```rust
 // Read configuration parameters from environment variables
 let (ref project_id, ref dataset_id, ref table_id, ref gcp_sa_key) = env_vars();
