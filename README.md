@@ -1,14 +1,14 @@
 GCP BigQuery Client (Rust)
 ==========================
 
-This library provides an idiomatic access to GCP BigQuery.
+This async library provides an idiomatic access to GCP BigQuery.
 <br>
-Currently this crate only supports authentication based on GCP Service Account Key. 
+Currently this crate only supports authentication based on GCP Service Account Key. Other OAuth flows will be added later. 
 
 ---
 **NOTE**
-This is my first crate. I did my best to make this API as idiomatic as possible.But please if you have any suggestions 
-to improve it I encourage you to add a comment to this GitHub [discussion section](https://github.com/lquerel/gcp-bigquery-client/discussions). 
+This is my first crate and it's still a **work-in-progress**. So please post your suggestions and ideas on this 
+GitHub [discussion section](https://github.com/lquerel/gcp-bigquery-client/discussions).  
 
 Most of the Rust structures defined in the directory 'model' are derived from this [Google API Explorer document](https://bigquery.googleapis.com/discovery/v1/apis/bigquery/v2/rest). 
 
@@ -139,6 +139,14 @@ client.table().delete(project_id, dataset_id, table_id).await?;
 // Delete the dataset previously created
 client.dataset().delete(project_id, dataset_id, true).await?;
 ```
+
+## Main dependencies
+* Yup-OAuth2 5.x
+* Hyper 0.14 (+ RusTLS)
+* Tokio 1.x
+* Reqwest 0.11
+* Serde JSON 1.x
+* ThisError 1.x
 
 ## Status
 List of endpoints implemented:
