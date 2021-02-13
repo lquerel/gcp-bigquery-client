@@ -16,9 +16,9 @@ Most of the Rust structures defined in the directory 'model' are derived from th
 
 ## Example
 The following example performs the following operations:
-* Load a set of environment variables to set $PROJECT_ID, $DATASET_ID, $TABLE_ID and $GCP_SA_KEY
+* Load a set of environment variables to set `$PROJECT_ID`, `$DATASET_ID`, `$TABLE_ID` and `$GCP_SA_KEY`
 * Init the BigQuery client
-* Create a dataset in the GCP project $PROJECT_ID
+* Create a dataset in the GCP project `$PROJECT_ID`
 * Create a table in the previously created dataset (table schema)
 * Insert a set of rows in the previously created table via the BigQuery Streaming API. The inserted 
 rows are based on a regular Rust struct implementing the trait Serialize. 
