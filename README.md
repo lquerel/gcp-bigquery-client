@@ -10,7 +10,8 @@ Currently this crate only supports authentication based on GCP Service Account K
 This is my first crate. I did my best to make this API as idiomatic as possible.But please if you have any suggestions 
 to improve it I encourage you to add a comment to this Reddit (TBD) discussion. 
 
-Most of the Rust structures defined in the model directory are derived from this [Google API Explorer document](https://bigquery.googleapis.com/discovery/v1/apis/bigquery/v2/rest). 
+Most of the Rust structures defined in the directory 'model' are derived from this [Google API Explorer document](https://bigquery.googleapis.com/discovery/v1/apis/bigquery/v2/rest). 
+
 ---
 
 ## Example
