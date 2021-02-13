@@ -1,5 +1,5 @@
-use serde::{Serialize, Deserialize};
 use crate::model::dataset_reference::DatasetReference;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -26,13 +26,27 @@ pub struct Dataset {
 impl Dataset {
     pub fn new(id: &str) -> Self {
         Self {
-            dataset_reference: DatasetReference { dataset_id: id.into(), project_id: None },
+            dataset_reference: DatasetReference {
+                dataset_id: id.into(),
+                project_id: None,
+            },
             friendly_name: None,
             id: None,
             kind: None,
             labels: None,
-            location: None
+            location: None,
         }
+    }
+
+    pub fn project_id(&self) -> &String {
+        self.dataset_reference
+            .project_id
+            .as_ref()
+            .expect("project id not defined")
+    }
+
+    pub fn dataset_id(&self) -> &String {
+        &self.dataset_reference.dataset_id
     }
 
     pub fn friendly_name(&mut self, friendly_name: String) -> &mut Dataset {

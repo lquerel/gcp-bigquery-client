@@ -1,7 +1,7 @@
-use serde::{Serialize,Deserialize};
 use crate::model::connection_property::ConnectionProperty;
 use crate::model::dataset_reference::DatasetReference;
 use crate::model::query_parameter::QueryParameter;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -70,8 +70,8 @@ impl QueryRequest {
             query_parameters: None,
             request_id: None,
             timeout_ms: None,
-            use_legacy_sql: false,  // force standard SQL by default
-            use_query_cache: None
+            use_legacy_sql: false, // force standard SQL by default
+            use_query_cache: None,
         }
     }
 }

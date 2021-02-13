@@ -1,9 +1,9 @@
-use serde::{Serialize, Deserialize};
-use crate::model::hive_partitioning_options::HivePartitioningOptions;
-use crate::model::table_schema::TableSchema;
-use crate::model::google_sheets_options::GoogleSheetsOptions;
 use crate::model::bigtable_options::BigtableOptions;
 use crate::model::csv_options::CsvOptions;
+use crate::model::google_sheets_options::GoogleSheetsOptions;
+use crate::model::hive_partitioning_options::HivePartitioningOptions;
+use crate::model::table_schema::TableSchema;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

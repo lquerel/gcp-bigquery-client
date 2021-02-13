@@ -1,6 +1,6 @@
-use serde::{Serialize, Deserialize};
 use crate::model::encryption_configuration::EncryptionConfiguration;
 use crate::model::table_reference::TableReference;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

@@ -1,6 +1,6 @@
-use serde::{Serialize, Deserialize};
-use crate::model::table_data_insert_all_request_rows::TableDataInsertAllRequestRows;
 use crate::error::BQError;
+use crate::model::table_data_insert_all_request_rows::TableDataInsertAllRequestRows;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -54,5 +54,11 @@ impl TableDataInsertAllRequest {
     pub fn template_suffix(&mut self, suffix: impl Into<String>) -> &mut Self {
         self.template_suffix = Some(suffix.into());
         self
+    }
+}
+
+impl Default for TableDataInsertAllRequest {
+    fn default() -> Self {
+        Self::new()
     }
 }

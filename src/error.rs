@@ -16,19 +16,23 @@ pub enum BQError {
     RequestError(#[from] reqwest::Error),
 
     #[error("Response error")]
-    ResponseError {error: serde_json::Value},
+    ResponseError { error: serde_json::Value },
 
     #[error("No data available. The result set is positioned before the first or after the last row. Try to call the method next on your result set.")]
     NoDataAvailable,
 
     #[error("Invalid column index")]
-    InvalidColumnIndex {col_index: usize},
+    InvalidColumnIndex { col_index: usize },
 
     #[error("Invalid column name")]
-    InvalidColumnName {col_name: String},
+    InvalidColumnName { col_name: String },
 
     #[error("Data conversion error")]
-    InvalidColumnType {col_index: usize, column_type: String, type_requested: String},
+    InvalidColumnType {
+        col_index: usize,
+        column_type: String,
+        type_requested: String,
+    },
 
     #[error("Serialization error")]
     SerializationError(#[from] serde_json::Error),

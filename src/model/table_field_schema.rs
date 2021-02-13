@@ -1,7 +1,7 @@
-use serde::{Serialize,Deserialize};
+use crate::model::field_type::FieldType;
 use crate::model::table_field_schema_categories::TableFieldSchemaCategories;
 use crate::model::table_field_schema_policy::TableFieldSchemaPolicyTags;
-use crate::model::field_type::FieldType;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -46,7 +46,7 @@ impl TableFieldSchema {
             mode: None,
             name: field_name.into(),
             policy_tags: None,
-            r#type: FieldType::Integer
+            r#type: FieldType::Integer,
         }
     }
 
@@ -58,7 +58,7 @@ impl TableFieldSchema {
             mode: None,
             name: field_name.into(),
             policy_tags: None,
-            r#type: FieldType::Float
+            r#type: FieldType::Float,
         }
     }
 
@@ -70,7 +70,7 @@ impl TableFieldSchema {
             mode: None,
             name: field_name.into(),
             policy_tags: None,
-            r#type: FieldType::Bool
+            r#type: FieldType::Bool,
         }
     }
 
@@ -82,7 +82,7 @@ impl TableFieldSchema {
             mode: None,
             name: field_name.into(),
             policy_tags: None,
-            r#type: FieldType::String
+            r#type: FieldType::String,
         }
     }
 
@@ -94,7 +94,7 @@ impl TableFieldSchema {
             mode: None,
             name: field_name.into(),
             policy_tags: None,
-            r#type: FieldType::Record
+            r#type: FieldType::Record,
         }
     }
 
@@ -106,7 +106,7 @@ impl TableFieldSchema {
             mode: None,
             name: field_name.into(),
             policy_tags: None,
-            r#type: FieldType::Bytes
+            r#type: FieldType::Bytes,
         }
     }
 
@@ -118,7 +118,7 @@ impl TableFieldSchema {
             mode: None,
             name: field_name.into(),
             policy_tags: None,
-            r#type: FieldType::Numeric
+            r#type: FieldType::Numeric,
         }
     }
 
@@ -130,7 +130,7 @@ impl TableFieldSchema {
             mode: None,
             name: field_name.into(),
             policy_tags: None,
-            r#type: FieldType::Bignumeric
+            r#type: FieldType::Bignumeric,
         }
     }
 
@@ -142,7 +142,7 @@ impl TableFieldSchema {
             mode: None,
             name: field_name.into(),
             policy_tags: None,
-            r#type: FieldType::Timestamp
+            r#type: FieldType::Timestamp,
         }
     }
 
@@ -154,7 +154,7 @@ impl TableFieldSchema {
             mode: None,
             name: field_name.into(),
             policy_tags: None,
-            r#type: FieldType::Date
+            r#type: FieldType::Date,
         }
     }
 
@@ -166,7 +166,7 @@ impl TableFieldSchema {
             mode: None,
             name: field_name.into(),
             policy_tags: None,
-            r#type: FieldType::Time
+            r#type: FieldType::Time,
         }
     }
 
@@ -178,8 +178,7 @@ impl TableFieldSchema {
             mode: None,
             name: field_name.into(),
             policy_tags: None,
-            r#type: FieldType::Datetime
+            r#type: FieldType::Datetime,
         }
     }
 }
-

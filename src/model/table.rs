@@ -1,16 +1,16 @@
-use serde::{Serialize, Deserialize};
 use crate::model::clustering::Clustering;
 use crate::model::encryption_configuration::EncryptionConfiguration;
 use crate::model::external_data_configuration::ExternalDataConfiguration;
-use crate::model::range_partitioning::RangePartitioning;
-use crate::model::table_schema::TableSchema;
-use crate::model::table_reference::TableReference;
-use crate::model::time_partitioning::TimePartitioning;
-use crate::model::view_definition::ViewDefinition;
 use crate::model::materialized_view_definition::MaterializedViewDefinition;
 use crate::model::model_definition::ModelDefinition;
+use crate::model::range_partitioning::RangePartitioning;
 use crate::model::snapshot_definition::SnapshotDefinition;
 use crate::model::streamingbuffer::Streamingbuffer;
+use crate::model::table_reference::TableReference;
+use crate::model::table_schema::TableSchema;
+use crate::model::time_partitioning::TimePartitioning;
+use crate::model::view_definition::ViewDefinition;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -121,7 +121,19 @@ impl Table {
             table_reference: TableReference::new(project_id, dataset_id, table_id),
             time_partitioning: None,
             r#type: None,
-            view: None
+            view: None,
         }
+    }
+
+    pub fn project_id(&self) -> &String {
+        &self.table_reference.project_id
+    }
+
+    pub fn dataset_id(&self) -> &String {
+        &self.table_reference.dataset_id
+    }
+
+    pub fn table_id(&self) -> &String {
+        &self.table_reference.table_id
     }
 }

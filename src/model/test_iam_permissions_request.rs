@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 /// TestIamPermissionsRequest : Request message for `TestIamPermissions` method.
 
@@ -10,4 +10,3 @@ pub struct TestIamPermissionsRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub permissions: Option<Vec<String>>,
 }
-

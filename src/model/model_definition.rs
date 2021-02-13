@@ -1,6 +1,6 @@
-use serde::{Serialize, Deserialize};
-use crate::model::model_definition_model_options::ModelDefinitionModelOptions;
 use crate::model::bqml_training_run::BqmlTrainingRun;
+use crate::model::model_definition_model_options::ModelDefinitionModelOptions;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -11,5 +11,3 @@ pub struct ModelDefinition {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub training_runs: Option<Vec<BqmlTrainingRun>>,
 }
-
-

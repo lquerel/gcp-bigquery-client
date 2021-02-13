@@ -1,8 +1,8 @@
-use serde::{Serialize, Deserialize};
-use crate::model::job_configuration_table_copy::JobConfigurationTableCopy;
 use crate::model::job_configuration_extract::JobConfigurationExtract;
 use crate::model::job_configuration_load::JobConfigurationLoad;
 use crate::model::job_configuration_query::JobConfigurationQuery;
+use crate::model::job_configuration_table_copy::JobConfigurationTableCopy;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

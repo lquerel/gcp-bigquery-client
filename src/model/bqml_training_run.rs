@@ -1,6 +1,6 @@
-use serde::{Serialize, Deserialize};
-use crate::model::bqml_training_run_training_options::BqmlTrainingRunTrainingOptions;
 use crate::model::bqml_iteration_result::BqmlIterationResult;
+use crate::model::bqml_training_run_training_options::BqmlTrainingRunTrainingOptions;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

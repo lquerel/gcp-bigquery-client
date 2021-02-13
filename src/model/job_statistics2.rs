@@ -1,13 +1,13 @@
-use serde::{Serialize, Deserialize};
-use crate::model::table_reference::TableReference;
-use crate::model::table_schema::TableSchema;
-use crate::model::query_parameter::QueryParameter;
-use crate::model::row_access_policy_reference::RowAccessPolicyReference;
 use crate::model::bigquery_model_training::BigQueryModelTraining;
 use crate::model::explain_query_stage::ExplainQueryStage;
-use crate::model::routine_reference::RoutineReference;
 use crate::model::job_statistics_reservation_usage::JobStatisticsReservationUsage;
+use crate::model::query_parameter::QueryParameter;
 use crate::model::query_timeline_sample::QueryTimelineSample;
+use crate::model::routine_reference::RoutineReference;
+use crate::model::row_access_policy_reference::RowAccessPolicyReference;
+use crate::model::table_reference::TableReference;
+use crate::model::table_schema::TableSchema;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

@@ -1,5 +1,5 @@
-use serde::{Serialize, Deserialize};
 use crate::model::range_partitioning_range::RangePartitioningRange;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

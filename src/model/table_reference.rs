@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -16,7 +16,7 @@ impl TableReference {
         Self {
             dataset_id: dataset_id.into(),
             project_id: project_id.into(),
-            table_id: table_id.into()
+            table_id: table_id.into(),
         }
     }
 }

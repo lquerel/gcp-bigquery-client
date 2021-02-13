@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -10,4 +10,3 @@ pub struct JobStatisticsReservationUsage {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub slot_ms: Option<String>,
 }
-

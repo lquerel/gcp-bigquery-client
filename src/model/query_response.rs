@@ -1,11 +1,11 @@
-use serde::{Serialize, Deserialize};
+use crate::error::BQError;
 use crate::model::error_proto::ErrorProto;
 use crate::model::job_reference::JobReference;
 use crate::model::table_row::TableRow;
 use crate::model::table_schema::TableSchema;
-use std::collections::HashMap;
-use crate::error::BQError;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::HashMap;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -63,12 +63,7 @@ impl ResultSet {
         let fields: HashMap<String, usize> = table_fields
             .iter()
             .enumerate()
-            .map(|(pos, field)| {
-                (
-                    field.name.clone(),
-                    pos,
-                )
-            })
+            .map(|(pos, field)| (field.name.clone(), pos))
             .collect();
         Self {
             cursor: -1,
@@ -85,7 +80,7 @@ impl ResultSet {
     /// Moves the cursor froward one row from its current position.
     /// A ResultSet cursor is initially positioned before the first row; the first call to the method next makes the
     /// first row the current row; the second call makes the second row the current row, and so on.
-    pub fn next(&mut self) -> bool {
+    pub fn next_row(&mut self) -> bool {
         if self.cursor == (self.row_count - 1) {
             false
         } else {
@@ -101,33 +96,41 @@ impl ResultSet {
 
     /// List of column names for this result set.
     pub fn column_names(&self) -> Vec<String> {
-        self.fields.keys().map(|name| name.clone()).collect()
+        self.fields.keys().cloned().collect()
     }
 
     pub fn get_i64(&self, col_index: usize) -> Result<Option<i64>, BQError> {
         let json_value = self.get_json_value(col_index)?;
         match &json_value {
             None => Ok(None),
-            Some(json_value) => {
-                match json_value {
-                    serde_json::Value::Number(value) => Ok(value.as_i64()),
-                    serde_json::Value::String(value) => {
-                        let value : Result<i64, _> = value.parse();
-                        match &value {
-                            Err(_) => Err(BQError::InvalidColumnType { col_index, column_type: ResultSet::json_type(json_value), type_requested: "I64".into() }),
-                            Ok(value) => Ok(Some(*value)),
-                        }
-                    },
-                    _ =>  Err(BQError::InvalidColumnType { col_index, column_type: ResultSet::json_type(&json_value), type_requested: "I64".into() })
+            Some(json_value) => match json_value {
+                serde_json::Value::Number(value) => Ok(value.as_i64()),
+                serde_json::Value::String(value) => {
+                    let value: Result<i64, _> = value.parse();
+                    match &value {
+                        Err(_) => Err(BQError::InvalidColumnType {
+                            col_index,
+                            column_type: ResultSet::json_type(json_value),
+                            type_requested: "I64".into(),
+                        }),
+                        Ok(value) => Ok(Some(*value)),
+                    }
                 }
-            }
+                _ => Err(BQError::InvalidColumnType {
+                    col_index,
+                    column_type: ResultSet::json_type(&json_value),
+                    type_requested: "I64".into(),
+                }),
+            },
         }
     }
 
     pub fn get_i64_by_name(&self, col_name: &str) -> Result<Option<i64>, BQError> {
         let col_index = self.fields.get(col_name);
         match col_index {
-            None => Err(BQError::InvalidColumnName { col_name: col_name.into() }),
+            None => Err(BQError::InvalidColumnName {
+                col_name: col_name.into(),
+            }),
             Some(col_index) => self.get_i64(*col_index),
         }
     }
@@ -136,26 +139,34 @@ impl ResultSet {
         let json_value = self.get_json_value(col_index)?;
         match &json_value {
             None => Ok(None),
-            Some(json_value) => {
-                match json_value {
-                    serde_json::Value::Number(value) => Ok(value.as_f64()),
-                    serde_json::Value::String(value) => {
-                        let value : Result<f64, _> = value.parse();
-                        match &value {
-                            Err(_) => Err(BQError::InvalidColumnType { col_index, column_type: ResultSet::json_type(json_value), type_requested: "F64".into() }),
-                            Ok(value) => Ok(Some(*value)),
-                        }
-                    },
-                    _ =>  Err(BQError::InvalidColumnType { col_index, column_type: ResultSet::json_type(&json_value), type_requested: "F64".into() })
+            Some(json_value) => match json_value {
+                serde_json::Value::Number(value) => Ok(value.as_f64()),
+                serde_json::Value::String(value) => {
+                    let value: Result<f64, _> = value.parse();
+                    match &value {
+                        Err(_) => Err(BQError::InvalidColumnType {
+                            col_index,
+                            column_type: ResultSet::json_type(json_value),
+                            type_requested: "F64".into(),
+                        }),
+                        Ok(value) => Ok(Some(*value)),
+                    }
                 }
-            }
+                _ => Err(BQError::InvalidColumnType {
+                    col_index,
+                    column_type: ResultSet::json_type(&json_value),
+                    type_requested: "F64".into(),
+                }),
+            },
         }
     }
 
     pub fn get_f64_by_name(&self, col_name: &str) -> Result<Option<f64>, BQError> {
         let col_index = self.fields.get(col_name);
         match col_index {
-            None => Err(BQError::InvalidColumnName { col_name: col_name.into() }),
+            None => Err(BQError::InvalidColumnName {
+                col_name: col_name.into(),
+            }),
             Some(col_index) => self.get_f64(*col_index),
         }
     }
@@ -164,26 +175,34 @@ impl ResultSet {
         let json_value = self.get_json_value(col_index)?;
         match &json_value {
             None => Ok(None),
-            Some(json_value) => {
-                match json_value {
-                    serde_json::Value::Bool(value) => Ok(Some(*value)),
-                    serde_json::Value::String(value) => {
-                        let value : Result<bool, _> = value.parse();
-                        match &value {
-                            Err(_) => Err(BQError::InvalidColumnType { col_index, column_type: ResultSet::json_type(json_value), type_requested: "Bool".into() }),
-                            Ok(value) => Ok(Some(*value)),
-                        }
-                    },
-                    _ =>  Err(BQError::InvalidColumnType { col_index, column_type: ResultSet::json_type(&json_value), type_requested: "Bool".into() })
+            Some(json_value) => match json_value {
+                serde_json::Value::Bool(value) => Ok(Some(*value)),
+                serde_json::Value::String(value) => {
+                    let value: Result<bool, _> = value.parse();
+                    match &value {
+                        Err(_) => Err(BQError::InvalidColumnType {
+                            col_index,
+                            column_type: ResultSet::json_type(json_value),
+                            type_requested: "Bool".into(),
+                        }),
+                        Ok(value) => Ok(Some(*value)),
+                    }
                 }
-            }
+                _ => Err(BQError::InvalidColumnType {
+                    col_index,
+                    column_type: ResultSet::json_type(&json_value),
+                    type_requested: "Bool".into(),
+                }),
+            },
         }
     }
 
     pub fn get_bool_by_name(&self, col_name: &str) -> Result<Option<bool>, BQError> {
         let col_index = self.fields.get(col_name);
         match col_index {
-            None => Err(BQError::InvalidColumnName { col_name: col_name.into() }),
+            None => Err(BQError::InvalidColumnName {
+                col_name: col_name.into(),
+            }),
             Some(col_index) => self.get_bool(*col_index),
         }
     }
@@ -192,21 +211,25 @@ impl ResultSet {
         let json_value = self.get_json_value(col_index)?;
         match json_value {
             None => Ok(None),
-            Some(json_value) => {
-                match json_value {
-                    serde_json::Value::String(value) => Ok(Some(value.clone())),
-                    serde_json::Value::Number(value) => Ok(Some(value.to_string())),
-                    serde_json::Value::Bool(value) => Ok(Some(value.to_string())),
-                    _ => Err(BQError::InvalidColumnType { col_index, column_type: ResultSet::json_type(&json_value), type_requested: "String".into() }),
-                }
-            }
+            Some(json_value) => match json_value {
+                serde_json::Value::String(value) => Ok(Some(value)),
+                serde_json::Value::Number(value) => Ok(Some(value.to_string())),
+                serde_json::Value::Bool(value) => Ok(Some(value.to_string())),
+                _ => Err(BQError::InvalidColumnType {
+                    col_index,
+                    column_type: ResultSet::json_type(&json_value),
+                    type_requested: "String".into(),
+                }),
+            },
         }
     }
 
     pub fn get_string_by_name(&self, col_name: &str) -> Result<Option<String>, BQError> {
         let col_index = self.fields.get(col_name);
         match col_index {
-            None => Err(BQError::InvalidColumnName { col_name: col_name.into() }),
+            None => Err(BQError::InvalidColumnName {
+                col_name: col_name.into(),
+            }),
             Some(col_index) => self.get_string(*col_index),
         }
     }
@@ -219,7 +242,10 @@ impl ResultSet {
             return Err(BQError::InvalidColumnIndex { col_index });
         }
 
-        Ok(self.query_response.rows.as_ref()
+        Ok(self
+            .query_response
+            .rows
+            .as_ref()
             .and_then(|rows| rows.get(self.cursor as usize))
             .and_then(|row| row.columns.as_ref())
             .and_then(|cols| cols.get(col_index))
@@ -229,7 +255,9 @@ impl ResultSet {
     pub fn get_json_value_by_name(&self, col_name: &str) -> Result<Option<serde_json::Value>, BQError> {
         let col_pos = self.fields.get(col_name);
         match col_pos {
-            None => Err(BQError::InvalidColumnName { col_name: col_name.into() }),
+            None => Err(BQError::InvalidColumnName {
+                col_name: col_name.into(),
+            }),
             Some(col_pos) => self.get_json_value(*col_pos),
         }
     }

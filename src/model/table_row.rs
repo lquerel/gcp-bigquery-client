@@ -1,5 +1,5 @@
-use serde::{Serialize, Deserialize};
 use crate::model::table_cell::TableCell;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

@@ -1,11 +1,11 @@
-use serde::{Serialize, Deserialize};
-use crate::model::job_statistics4::JobStatistics4;
-use crate::model::job_statistics3::JobStatistics3;
 use crate::model::job_statistics2::JobStatistics2;
+use crate::model::job_statistics3::JobStatistics3;
+use crate::model::job_statistics4::JobStatistics4;
 use crate::model::job_statistics_reservation_usage::JobStatisticsReservationUsage;
 use crate::model::row_level_security_statistics::RowLevelSecurityStatistics;
-use crate::model::transaction_info::TransactionInfo;
 use crate::model::script_statistics::ScriptStatistics;
+use crate::model::transaction_info::TransactionInfo;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

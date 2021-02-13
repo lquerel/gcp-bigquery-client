@@ -1,7 +1,7 @@
-use crate::model::datasets::Datasets;
-use crate::{urlencode, process_response};
-use crate::model::dataset::Dataset;
 use crate::error::BQError;
+use crate::model::dataset::Dataset;
+use crate::model::datasets::Datasets;
+use crate::{process_response, urlencode};
 use reqwest::Client;
 
 pub struct DatasetApi {
@@ -11,19 +11,20 @@ pub struct DatasetApi {
 
 impl DatasetApi {
     pub(crate) fn new(client: Client, access_token: String) -> Self {
-        Self {
-            client,
-            access_token,
-        }
+        Self { client, access_token }
     }
 
     /// Creates a new empty dataset.
     /// # Argument
     /// * `project-id` - Project ID of the new dataset
     pub async fn create(&self, project_id: &str, dataset: Dataset) -> Result<Dataset, BQError> {
-        let req_url = &format!("https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets", project_id = urlencode(project_id));
+        let req_url = &format!(
+            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets",
+            project_id = urlencode(project_id)
+        );
 
-        let request = self.client
+        let request = self
+            .client
             .post(req_url.as_str())
             .bearer_auth(&self.access_token)
             .json(&dataset)
@@ -39,24 +40,25 @@ impl DatasetApi {
     /// * `project_id` - Project ID of the datasets to be listed
     /// * `options` - Options
     pub async fn list(&self, project_id: &str, options: ListOptions) -> Result<Datasets, BQError> {
-        let req_url = &format!("https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets", project_id = urlencode(project_id));
+        let req_url = &format!(
+            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets",
+            project_id = urlencode(project_id)
+        );
 
-        let mut request = self.client
-            .get(req_url)
-            .bearer_auth(&self.access_token);
+        let mut request = self.client.get(req_url).bearer_auth(&self.access_token);
 
         // process options
         if let Some(max_results) = options.max_results {
             request = request.query(&[("maxResults", max_results.to_string())]);
         }
         if let Some(page_token) = options.page_token {
-            request = request.query(&[("pageToken", page_token.clone())]);
+            request = request.query(&[("pageToken", page_token)]);
         }
         if let Some(all) = options.all {
             request = request.query(&[("all", all.to_string())]);
         }
         if let Some(filter) = options.filter {
-            request = request.query(&[("filter", filter.clone())]);
+            request = request.query(&[("filter", filter)]);
         }
 
         let request = request.build()?;
@@ -73,9 +75,14 @@ impl DatasetApi {
     /// * `dataset_id` - Dataset ID of dataset being deleted
     /// * `delete_contents` - If True, delete all the tables in the dataset. If False and the dataset contains tables, the request will fail. Default is False
     pub async fn delete(&self, project_id: &str, dataset_id: &str, delete_contents: bool) -> Result<(), BQError> {
-        let req_url = &format!("https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets/{dataset_id}", project_id = urlencode(project_id), dataset_id = urlencode(dataset_id));
+        let req_url = &format!(
+            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets/{dataset_id}",
+            project_id = urlencode(project_id),
+            dataset_id = urlencode(dataset_id)
+        );
 
-        let request = self.client
+        let request = self
+            .client
             .delete(req_url)
             .bearer_auth(&self.access_token)
             .query(&[("deleteContents", delete_contents.to_string())])
@@ -85,7 +92,9 @@ impl DatasetApi {
         if response.status().is_success() {
             Ok(())
         } else {
-            Err(BQError::ResponseError { error: response.json().await? })
+            Err(BQError::ResponseError {
+                error: response.json().await?,
+            })
         }
     }
 
@@ -94,12 +103,13 @@ impl DatasetApi {
     /// * `project_id` - Project ID of the requested dataset
     /// * `dataset_id` - Dataset ID of the requested dataset
     pub async fn get(&self, project_id: &str, dataset_id: &str) -> Result<Dataset, BQError> {
-        let req_url = &format!("https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets/{dataset_id}", project_id = urlencode(project_id), dataset_id = urlencode(dataset_id));
+        let req_url = &format!(
+            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets/{dataset_id}",
+            project_id = urlencode(project_id),
+            dataset_id = urlencode(dataset_id)
+        );
 
-        let request = self.client
-            .get(req_url)
-            .bearer_auth(&self.access_token)
-            .build()?;
+        let request = self.client.get(req_url).bearer_auth(&self.access_token).build()?;
         let response = self.client.execute(request).await?;
 
         process_response(response).await
@@ -111,9 +121,14 @@ impl DatasetApi {
     /// # Arguments
     /// * dataset - The request body contains an instance of Dataset.
     pub async fn patch(&self, project_id: &str, dataset_id: &str, dataset: Dataset) -> Result<Dataset, BQError> {
-        let req_url = &format!("https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets/{dataset_id}", project_id = urlencode(project_id), dataset_id = urlencode(dataset_id));
+        let req_url = &format!(
+            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets/{dataset_id}",
+            project_id = urlencode(project_id),
+            dataset_id = urlencode(dataset_id)
+        );
 
-        let request = self.client
+        let request = self
+            .client
             .patch(req_url)
             .bearer_auth(&self.access_token)
             .json(&dataset)
@@ -128,9 +143,14 @@ impl DatasetApi {
     /// # Arguments
     /// * dataset - The request body contains an instance of Dataset.
     pub async fn update(&self, project_id: &str, dataset_id: &str, dataset: Dataset) -> Result<Dataset, BQError> {
-        let req_url = &format!("https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets/{dataset_id}", project_id = urlencode(project_id), dataset_id = urlencode(dataset_id));
+        let req_url = &format!(
+            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets/{dataset_id}",
+            project_id = urlencode(project_id),
+            dataset_id = urlencode(dataset_id)
+        );
 
-        let request = self.client
+        let request = self
+            .client
             .put(req_url)
             .bearer_auth(&self.access_token)
             .json(&dataset)
@@ -190,12 +210,12 @@ impl Default for ListOptions {
 
 #[cfg(test)]
 mod test {
-    use std::rc::Rc;
-    use crate::client::Client;
-    use crate::dataset::{ListOptions};
-    use crate::model::dataset::Dataset;
+    use crate::dataset::ListOptions;
     use crate::error::BQError;
-    use crate::tests::{PROJECT_ID, SA_KEY, DATASET_ID};
+    use crate::model::dataset::Dataset;
+    use crate::tests::{DATASET_ID, PROJECT_ID, SA_KEY};
+    use crate::Client;
+    use std::rc::Rc;
 
     #[tokio::test]
     async fn test() -> Result<(), BQError> {
@@ -218,7 +238,10 @@ mod test {
         assert_eq!(dataset.id, Some(format!("{}:{}", PROJECT_ID, DATASET_ID)));
 
         // List datasets
-        let datasets = client.dataset().list(PROJECT_ID, ListOptions::default().all(true)).await?;
+        let datasets = client
+            .dataset()
+            .list(PROJECT_ID, ListOptions::default().all(true))
+            .await?;
         let mut created_dataset_found = false;
         for dataset in datasets.datasets.iter() {
             if dataset.dataset_reference.dataset_id == DATASET_ID {

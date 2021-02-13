@@ -1,8 +1,8 @@
-use serde::{Serialize, Deserialize};
 use crate::model::job_configuration::JobConfiguration;
 use crate::model::job_reference::JobReference;
 use crate::model::job_statistics::JobStatistics;
 use crate::model::job_status::JobStatus;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -17,7 +17,6 @@ pub struct Job {
     pub status: Option<JobStatus>,
 
     // [Output-only]
-
     /// [Output-only] A hash of this resource.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub etag: Option<String>,

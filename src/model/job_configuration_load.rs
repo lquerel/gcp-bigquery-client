@@ -1,12 +1,12 @@
-use serde::{Serialize,Deserialize};
-use crate::model::encryption_configuration::EncryptionConfiguration;
-use crate::model::table_reference::TableReference;
-use crate::model::table_schema::TableSchema;
+use crate::model::clustering::Clustering;
 use crate::model::destination_table_properties::DestinationTableProperties;
+use crate::model::encryption_configuration::EncryptionConfiguration;
 use crate::model::hive_partitioning_options::HivePartitioningOptions;
 use crate::model::range_partitioning::RangePartitioning;
+use crate::model::table_reference::TableReference;
+use crate::model::table_schema::TableSchema;
 use crate::model::time_partitioning::TimePartitioning;
-use crate::model::clustering::Clustering;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

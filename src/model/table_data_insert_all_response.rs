@@ -1,5 +1,5 @@
-use serde::{Serialize, Deserialize};
 use crate::model::table_data_insert_all_response_insert_errors::TableDataInsertAllResponseInsertErrors;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

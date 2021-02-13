@@ -1,14 +1,14 @@
-use serde::{Serialize, Deserialize};
-use crate::model::dataset_reference::DatasetReference;
+use crate::model::clustering::Clustering;
 use crate::model::connection_property::ConnectionProperty;
+use crate::model::dataset_reference::DatasetReference;
 use crate::model::encryption_configuration::EncryptionConfiguration;
-use crate::model::table_reference::TableReference;
+use crate::model::external_data_configuration::ExternalDataConfiguration;
 use crate::model::query_parameter::QueryParameter;
 use crate::model::range_partitioning::RangePartitioning;
+use crate::model::table_reference::TableReference;
 use crate::model::time_partitioning::TimePartitioning;
 use crate::model::user_defined_function_resource::UserDefinedFunctionResource;
-use crate::model::clustering::Clustering;
-use crate::model::external_data_configuration::ExternalDataConfiguration;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

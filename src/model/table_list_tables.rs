@@ -1,9 +1,9 @@
-use serde::{Serialize, Deserialize};
 use crate::model::clustering::Clustering;
 use crate::model::range_partitioning::RangePartitioning;
+use crate::model::table_list_view::TableListView;
 use crate::model::table_reference::TableReference;
 use crate::model::time_partitioning::TimePartitioning;
-use crate::model::table_list_view::TableListView;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

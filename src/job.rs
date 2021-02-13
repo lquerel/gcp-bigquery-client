@@ -1,9 +1,9 @@
 use crate::error::BQError;
-use crate::model::query_response::{QueryResponse, ResultSet};
-use crate::{urlencode, process_response};
-use crate::model::query_request::QueryRequest;
-use crate::model::job_list::JobList;
 use crate::model::job::Job;
+use crate::model::job_list::JobList;
+use crate::model::query_request::QueryRequest;
+use crate::model::query_response::{QueryResponse, ResultSet};
+use crate::{process_response, urlencode};
 use reqwest::Client;
 
 pub struct JobApi {
@@ -13,10 +13,7 @@ pub struct JobApi {
 
 impl JobApi {
     pub(crate) fn new(client: Client, access_token: String) -> Self {
-        Self {
-            client,
-            access_token,
-        }
+        Self { client, access_token }
     }
 
     /// Runs a BigQuery SQL query synchronously and returns query results if the query completes within a specified
@@ -25,9 +22,13 @@ impl JobApi {
     /// * `project_id` - Project ID of the query request.
     /// * `query_request` - The request body contains an instance of QueryRequest.
     pub async fn query(&self, project_id: &str, query_request: QueryRequest) -> Result<ResultSet, BQError> {
-        let req_url = format!("https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/queries", project_id = urlencode(project_id));
+        let req_url = format!(
+            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/queries",
+            project_id = urlencode(project_id)
+        );
 
-        let request = self.client
+        let request = self
+            .client
             .post(req_url.as_str())
             .bearer_auth(&self.access_token)
             .json(&query_request)
@@ -44,9 +45,13 @@ impl JobApi {
     /// * `project_id` - Project ID of project that will be billed for the job.
     /// * `job` - The request body contains an instance of Job.
     pub async fn insert(&self, project_id: &str, job: Job) -> Result<Job, BQError> {
-        let req_url = format!("https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/jobs", project_id = urlencode(project_id));
+        let req_url = format!(
+            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/jobs",
+            project_id = urlencode(project_id)
+        );
 
-        let request = self.client
+        let request = self
+            .client
             .post(req_url.as_str())
             .bearer_auth(&self.access_token)
             .json(&job)
@@ -63,9 +68,13 @@ impl JobApi {
     /// # Arguments
     /// * `project_id` - Project ID of the jobs to list.
     pub async fn list(&self, project_id: &str) -> Result<JobList, BQError> {
-        let req_url = format!("https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/jobs", project_id = urlencode(project_id));
+        let req_url = format!(
+            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/jobs",
+            project_id = urlencode(project_id)
+        );
 
-        let request = self.client
+        let request = self
+            .client
             .get(req_url.as_str())
             .bearer_auth(&self.access_token)
             .build()?;
@@ -78,17 +87,17 @@ impl JobApi {
 
 #[cfg(test)]
 mod test {
-    use serde::Serialize;
     use crate::error::BQError;
-    use crate::tests::{SA_KEY, PROJECT_ID, DATASET_ID, TABLE_ID};
-    use std::rc::Rc;
-    use crate::client::Client;
     use crate::model::dataset::Dataset;
-    use crate::model::table::Table;
-    use crate::model::table_schema::TableSchema;
-    use crate::model::table_field_schema::TableFieldSchema;
     use crate::model::query_request::QueryRequest;
+    use crate::model::table::Table;
     use crate::model::table_data_insert_all_request::TableDataInsertAllRequest;
+    use crate::model::table_field_schema::TableFieldSchema;
+    use crate::model::table_schema::TableSchema;
+    use crate::tests::{DATASET_ID, PROJECT_ID, SA_KEY, TABLE_ID};
+    use crate::Client;
+    use serde::Serialize;
+    use std::rc::Rc;
 
     #[derive(Serialize)]
     struct MyRow {
@@ -130,79 +139,124 @@ mod test {
         assert_eq!(created_dataset.id, Some(format!("{}:{}", PROJECT_ID, DATASET_ID)));
 
         // Create table
-        let table = Table::new(PROJECT_ID, DATASET_ID, TABLE_ID, TableSchema::new(
-            vec![
+        let table = Table::new(
+            PROJECT_ID,
+            DATASET_ID,
+            TABLE_ID,
+            TableSchema::new(vec![
                 TableFieldSchema::integer("int_value"),
                 TableFieldSchema::float("float_value"),
                 TableFieldSchema::bool("bool_value"),
                 TableFieldSchema::string("string_value"),
-                TableFieldSchema::record("record_value", vec![
-                    TableFieldSchema::integer("int_value"),
-                    TableFieldSchema::string("string_value"),
-                    TableFieldSchema::record("record_value", vec![
+                TableFieldSchema::record(
+                    "record_value",
+                    vec![
                         TableFieldSchema::integer("int_value"),
                         TableFieldSchema::string("string_value"),
-                    ]),
-                ]),
-            ]
-        ));
+                        TableFieldSchema::record(
+                            "record_value",
+                            vec![
+                                TableFieldSchema::integer("int_value"),
+                                TableFieldSchema::string("string_value"),
+                            ],
+                        ),
+                    ],
+                ),
+            ]),
+        );
 
         let created_table = client.table().create(PROJECT_ID, DATASET_ID, table).await?;
         assert_eq!(created_table.table_reference.table_id, TABLE_ID.to_string());
 
         // Insert data
         let mut insert_request = TableDataInsertAllRequest::new();
-        insert_request.add_row(None, MyRow {
-            int_value: 1,
-            float_value: 1.0,
-            bool_value: false,
-            string_value: "first".into(),
-            record_value: FirstRecordLevel {
-                int_value: 10,
-                string_value: "sub_level_1.1".into(),
-                record_value: SecondRecordLevel { int_value: 20, string_value: "leaf".to_string() }
-            }
-        })?;
-        insert_request.add_row(None, MyRow {
-            int_value: 2,
-            float_value: 2.0,
-            bool_value: true,
-            string_value: "second".into(),
-            record_value: FirstRecordLevel {
-                int_value: 11,
-                string_value: "sub_level_1.2".into(),
-                record_value: SecondRecordLevel { int_value: 21, string_value: "leaf".to_string() }
-            }
-        })?;
-        insert_request.add_row(None, MyRow {
-            int_value: 3,
-            float_value: 3.0,
-            bool_value: false,
-            string_value: "third".into(),
-            record_value: FirstRecordLevel {
-                int_value: 12,
-                string_value: "sub_level_1.3".into(),
-                record_value: SecondRecordLevel { int_value: 22, string_value: "leaf".to_string() }
-            }
-        })?;
-        insert_request.add_row(None, MyRow {
-            int_value: 4,
-            float_value: 4.0,
-            bool_value: true,
-            string_value: "fourth".into(),
-            record_value: FirstRecordLevel {
-                int_value: 13,
-                string_value: "sub_level_1.4".into(),
-                record_value: SecondRecordLevel { int_value: 23, string_value: "leaf".to_string() }
-            }
-        })?;
+        insert_request.add_row(
+            None,
+            MyRow {
+                int_value: 1,
+                float_value: 1.0,
+                bool_value: false,
+                string_value: "first".into(),
+                record_value: FirstRecordLevel {
+                    int_value: 10,
+                    string_value: "sub_level_1.1".into(),
+                    record_value: SecondRecordLevel {
+                        int_value: 20,
+                        string_value: "leaf".to_string(),
+                    },
+                },
+            },
+        )?;
+        insert_request.add_row(
+            None,
+            MyRow {
+                int_value: 2,
+                float_value: 2.0,
+                bool_value: true,
+                string_value: "second".into(),
+                record_value: FirstRecordLevel {
+                    int_value: 11,
+                    string_value: "sub_level_1.2".into(),
+                    record_value: SecondRecordLevel {
+                        int_value: 21,
+                        string_value: "leaf".to_string(),
+                    },
+                },
+            },
+        )?;
+        insert_request.add_row(
+            None,
+            MyRow {
+                int_value: 3,
+                float_value: 3.0,
+                bool_value: false,
+                string_value: "third".into(),
+                record_value: FirstRecordLevel {
+                    int_value: 12,
+                    string_value: "sub_level_1.3".into(),
+                    record_value: SecondRecordLevel {
+                        int_value: 22,
+                        string_value: "leaf".to_string(),
+                    },
+                },
+            },
+        )?;
+        insert_request.add_row(
+            None,
+            MyRow {
+                int_value: 4,
+                float_value: 4.0,
+                bool_value: true,
+                string_value: "fourth".into(),
+                record_value: FirstRecordLevel {
+                    int_value: 13,
+                    string_value: "sub_level_1.4".into(),
+                    record_value: SecondRecordLevel {
+                        int_value: 23,
+                        string_value: "leaf".to_string(),
+                    },
+                },
+            },
+        )?;
 
-        client.tabledata().insert_all(PROJECT_ID, DATASET_ID, TABLE_ID, insert_request).await?;
+        client
+            .tabledata()
+            .insert_all(PROJECT_ID, DATASET_ID, TABLE_ID, insert_request)
+            .await?;
 
         // Query
-        let mut rs = client.job().query(PROJECT_ID, QueryRequest::new(format!("SELECT COUNT(*) AS c FROM `{}.{}.{}`", PROJECT_ID, DATASET_ID, TABLE_ID))).await?;
-//        dbg!(&rs);
-        while rs.next() {
+        let mut rs = client
+            .job()
+            .query(
+                PROJECT_ID,
+                QueryRequest::new(format!(
+                    "SELECT COUNT(*) AS c FROM `{}.{}.{}`",
+                    PROJECT_ID, DATASET_ID, TABLE_ID
+                )),
+            )
+            .await?;
+        //        dbg!(&rs);
+        while rs.next_row() {
             assert_eq!(rs.get_i64_by_name("c")?, Some(4));
         }
 

@@ -1,6 +1,6 @@
-use serde::{Serialize, Deserialize};
-use crate::model::table_reference::TableReference;
 use crate::model::model_reference::ModelReference;
+use crate::model::table_reference::TableReference;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

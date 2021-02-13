@@ -1,7 +1,7 @@
-use yup_oauth2::authenticator::Authenticator;
+use crate::error::BQError;
 use hyper::client::HttpConnector;
 use hyper_rustls::HttpsConnector;
-use crate::error::BQError;
+use yup_oauth2::authenticator::Authenticator;
 
 pub struct ServiceAccountAuthenticator {
     auth: Authenticator<HttpsConnector<HttpConnector>>,
@@ -15,17 +15,18 @@ impl ServiceAccountAuthenticator {
     }
 }
 
-pub async fn service_account_authenticator(scopes: Vec<&str>, sa_key_file: &str) -> Result<ServiceAccountAuthenticator, BQError> {
+pub async fn service_account_authenticator(
+    scopes: Vec<&str>,
+    sa_key_file: &str,
+) -> Result<ServiceAccountAuthenticator, BQError> {
     let sa_key = yup_oauth2::read_service_account_key(sa_key_file).await?;
-    let auth = yup_oauth2::ServiceAccountAuthenticator::builder(sa_key)
-        .build().await;
+    let auth = yup_oauth2::ServiceAccountAuthenticator::builder(sa_key).build().await;
 
     match auth {
         Err(err) => Err(BQError::InvalidServiceAccountAuthenticator(err)),
         Ok(auth) => Ok(ServiceAccountAuthenticator {
             auth,
             scopes: scopes.iter().map(|scope| scope.to_string()).collect(),
-        })
+        }),
     }
 }
-
