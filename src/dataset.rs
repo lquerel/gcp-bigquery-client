@@ -199,7 +199,7 @@ mod test {
 
     #[tokio::test]
     async fn test() -> Result<(), BQError> {
-        let client = Rc::new(Client::new(SA_KEY).await);
+        let client = Client::new(SA_KEY).await;
 
         // Create dataset
         let created_dataset = client.dataset().create(PROJECT_ID, Dataset::new(DATASET_ID)).await?;

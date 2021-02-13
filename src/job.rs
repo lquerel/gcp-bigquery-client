@@ -117,7 +117,7 @@ mod test {
         // ToDo
         // Support des repeated fields, a mettre dans l'exemple
         // Faire un example
-        let client = Rc::new(Client::new(SA_KEY).await);
+        let client = Client::new(SA_KEY).await;
 
         // Delete the dataset if needed
         let result = client.dataset().delete(PROJECT_ID, DATASET_ID, true).await;
