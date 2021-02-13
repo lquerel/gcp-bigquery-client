@@ -110,7 +110,7 @@ impl ResultSet {
                     match &value {
                         Err(_) => Err(BQError::InvalidColumnType {
                             col_index,
-                            column_type: ResultSet::json_type(json_value),
+                            col_type: ResultSet::json_type(json_value),
                             type_requested: "I64".into(),
                         }),
                         Ok(value) => Ok(Some(*value)),
@@ -118,7 +118,7 @@ impl ResultSet {
                 }
                 _ => Err(BQError::InvalidColumnType {
                     col_index,
-                    column_type: ResultSet::json_type(&json_value),
+                    col_type: ResultSet::json_type(&json_value),
                     type_requested: "I64".into(),
                 }),
             },
@@ -146,7 +146,7 @@ impl ResultSet {
                     match &value {
                         Err(_) => Err(BQError::InvalidColumnType {
                             col_index,
-                            column_type: ResultSet::json_type(json_value),
+                            col_type: ResultSet::json_type(json_value),
                             type_requested: "F64".into(),
                         }),
                         Ok(value) => Ok(Some(*value)),
@@ -154,7 +154,7 @@ impl ResultSet {
                 }
                 _ => Err(BQError::InvalidColumnType {
                     col_index,
-                    column_type: ResultSet::json_type(&json_value),
+                    col_type: ResultSet::json_type(&json_value),
                     type_requested: "F64".into(),
                 }),
             },
@@ -182,7 +182,7 @@ impl ResultSet {
                     match &value {
                         Err(_) => Err(BQError::InvalidColumnType {
                             col_index,
-                            column_type: ResultSet::json_type(json_value),
+                            col_type: ResultSet::json_type(json_value),
                             type_requested: "Bool".into(),
                         }),
                         Ok(value) => Ok(Some(*value)),
@@ -190,7 +190,7 @@ impl ResultSet {
                 }
                 _ => Err(BQError::InvalidColumnType {
                     col_index,
-                    column_type: ResultSet::json_type(&json_value),
+                    col_type: ResultSet::json_type(&json_value),
                     type_requested: "Bool".into(),
                 }),
             },
@@ -217,7 +217,7 @@ impl ResultSet {
                 serde_json::Value::Bool(value) => Ok(Some(value.to_string())),
                 _ => Err(BQError::InvalidColumnType {
                     col_index,
-                    column_type: ResultSet::json_type(&json_value),
+                    col_type: ResultSet::json_type(&json_value),
                     type_requested: "String".into(),
                 }),
             },
