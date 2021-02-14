@@ -12,7 +12,7 @@ repository = "https://github.com/lquerel/gcp-bigquery-client"
 documentation = "https://docs.rs/gcp-bigquery-client"
 readme = "README.md"
 exclude = ["/.github/*"]
-keywords = ["gcp", "bigquery", "google-cloud-platform"]
+keywords = ["gcp", "bigquery", "google-cloud"]
 categories = ["database"]
 
 [dependencies]
