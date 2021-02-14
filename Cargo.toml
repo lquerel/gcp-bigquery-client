@@ -5,8 +5,9 @@ authors = ["Laurent Querel <laurent.querel@gmail.com>"]
 edition = "2018"
 license = "MIT or Apache-2.0"
 description = """
-A GCP BigQuery Client with an idiomatic API.
+An ergonomic async client library for GCP BigQuery.
 """
+homepage = "https://github.com/lquerel/gcp-bigquery-client"
 repository = "https://github.com/lquerel/gcp-bigquery-client"
 documentation = "https://docs.rs/gcp-bigquery-client"
 readme = "README.md"
