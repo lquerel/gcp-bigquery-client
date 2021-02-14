@@ -2,7 +2,7 @@ GCP BigQuery Client (Rust)
 ==========================
 
 An ergonomic async client library for GCP BigQuery.
-* Support for dataset, table, streaming API and query
+* Support for dataset, table, streaming API and query (see [status section](#status) for an exhaustive list of supported API endpoints)
 * Support Service Account Key authentication (other OAuth flows will be added later)
 * Create tables and rows via builder patterns
 * Persist complex Rust structs in structured BigQuery tables
