@@ -75,13 +75,6 @@ impl Client {
 pub mod tests {
     use std::env;
 
-    use crate::auth::service_account_authenticator;
-
-    pub const PROJECT_ID: &str = "XXX";
-    pub const DATASET_ID: &str = "test_ds";
-    pub const TABLE_ID: &str = "test_table";
-    pub const SA_KEY: &str = "XXX";
-
     pub fn env_vars() -> (String, String, String, String) {
         let project_id = env::var("PROJECT_ID").expect("PROJECT_ID env var not defined");
         let dataset_id = env::var("DATASET_ID").expect("DATASET_ID env var not defined");

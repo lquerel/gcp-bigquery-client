@@ -94,10 +94,9 @@ mod test {
     use crate::model::table_data_insert_all_request::TableDataInsertAllRequest;
     use crate::model::table_field_schema::TableFieldSchema;
     use crate::model::table_schema::TableSchema;
-    use crate::tests::{DATASET_ID, PROJECT_ID, SA_KEY, TABLE_ID};
+    use crate::tests::env_vars;
     use crate::Client;
     use serde::Serialize;
-    use std::rc::Rc;
 
     #[derive(Serialize)]
     struct MyRow {
@@ -123,26 +122,25 @@ mod test {
 
     #[tokio::test]
     async fn test() -> Result<(), BQError> {
-        // ToDo
-        // Support des repeated fields, a mettre dans l'exemple
-        // Faire un example
-        let client = Client::new(SA_KEY).await;
+        let (ref project_id, ref dataset_id, ref table_id, ref sa_key) = env_vars();
+
+        let client = Client::new(sa_key).await;
 
         // Delete the dataset if needed
-        let result = client.dataset().delete(PROJECT_ID, DATASET_ID, true).await;
+        let result = client.dataset().delete(project_id, dataset_id, true).await;
         if let Ok(_) = result {
-            println!("Removed previous dataset '{}'", DATASET_ID);
+            println!("Removed previous dataset '{}'", dataset_id);
         }
 
         // Create dataset
-        let created_dataset = client.dataset().create(PROJECT_ID, Dataset::new(DATASET_ID)).await?;
-        assert_eq!(created_dataset.id, Some(format!("{}:{}", PROJECT_ID, DATASET_ID)));
+        let created_dataset = client.dataset().create(project_id, Dataset::new(dataset_id)).await?;
+        assert_eq!(created_dataset.id, Some(format!("{}:{}", project_id, dataset_id)));
 
         // Create table
         let table = Table::new(
-            PROJECT_ID,
-            DATASET_ID,
-            TABLE_ID,
+            project_id,
+            dataset_id,
+            table_id,
             TableSchema::new(vec![
                 TableFieldSchema::integer("int_value"),
                 TableFieldSchema::float("float_value"),
@@ -165,8 +163,8 @@ mod test {
             ]),
         );
 
-        let created_table = client.table().create(PROJECT_ID, DATASET_ID, table).await?;
-        assert_eq!(created_table.table_reference.table_id, TABLE_ID.to_string());
+        let created_table = client.table().create(project_id, dataset_id, table).await?;
+        assert_eq!(created_table.table_reference.table_id, table_id.to_string());
 
         // Insert data
         let mut insert_request = TableDataInsertAllRequest::new();
@@ -241,17 +239,17 @@ mod test {
 
         client
             .tabledata()
-            .insert_all(PROJECT_ID, DATASET_ID, TABLE_ID, insert_request)
+            .insert_all(project_id, dataset_id, table_id, insert_request)
             .await?;
 
         // Query
         let mut rs = client
             .job()
             .query(
-                PROJECT_ID,
+                project_id,
                 QueryRequest::new(format!(
                     "SELECT COUNT(*) AS c FROM `{}.{}.{}`",
-                    PROJECT_ID, DATASET_ID, TABLE_ID
+                    project_id, dataset_id, table_id
                 )),
             )
             .await?;

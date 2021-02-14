@@ -213,45 +213,46 @@ mod test {
     use crate::dataset::ListOptions;
     use crate::error::BQError;
     use crate::model::dataset::Dataset;
-    use crate::tests::{DATASET_ID, PROJECT_ID, SA_KEY};
+    use crate::tests::env_vars;
     use crate::Client;
-    use std::rc::Rc;
 
     #[tokio::test]
     async fn test() -> Result<(), BQError> {
-        let client = Client::new(SA_KEY).await;
+        let (ref project_id, ref dataset_id, ref table_id, ref sa_key) = env_vars();
+
+        let client = Client::new(sa_key).await;
 
         // Create dataset
-        let created_dataset = client.dataset().create(PROJECT_ID, Dataset::new(DATASET_ID)).await?;
-        assert_eq!(created_dataset.id, Some(format!("{}:{}", PROJECT_ID, DATASET_ID)));
+        let created_dataset = client.dataset().create(project_id, Dataset::new(dataset_id)).await?;
+        assert_eq!(created_dataset.id, Some(format!("{}:{}", project_id, dataset_id)));
 
         // Get dataset
-        let dataset = client.dataset().get(PROJECT_ID, DATASET_ID).await?;
-        assert_eq!(dataset.id, Some(format!("{}:{}", PROJECT_ID, DATASET_ID)));
+        let dataset = client.dataset().get(project_id, dataset_id).await?;
+        assert_eq!(dataset.id, Some(format!("{}:{}", project_id, dataset_id)));
 
         // Patch dataset
-        let dataset = client.dataset().patch(PROJECT_ID, DATASET_ID, dataset).await?;
-        assert_eq!(dataset.id, Some(format!("{}:{}", PROJECT_ID, DATASET_ID)));
+        let dataset = client.dataset().patch(project_id, dataset_id, dataset).await?;
+        assert_eq!(dataset.id, Some(format!("{}:{}", project_id, dataset_id)));
 
         // Update dataset
-        let dataset = client.dataset().update(PROJECT_ID, DATASET_ID, dataset).await?;
-        assert_eq!(dataset.id, Some(format!("{}:{}", PROJECT_ID, DATASET_ID)));
+        let dataset = client.dataset().update(project_id, dataset_id, dataset).await?;
+        assert_eq!(dataset.id, Some(format!("{}:{}", project_id, dataset_id)));
 
         // List datasets
         let datasets = client
             .dataset()
-            .list(PROJECT_ID, ListOptions::default().all(true))
+            .list(project_id, ListOptions::default().all(true))
             .await?;
         let mut created_dataset_found = false;
         for dataset in datasets.datasets.iter() {
-            if dataset.dataset_reference.dataset_id == DATASET_ID {
+            if dataset.dataset_reference.dataset_id == *dataset_id {
                 created_dataset_found = true;
             }
         }
         assert!(created_dataset_found);
 
         // Delete dataset
-        client.dataset().delete(PROJECT_ID, DATASET_ID, true).await?;
+        client.dataset().delete(project_id, dataset_id, true).await?;
 
         Ok(())
     }

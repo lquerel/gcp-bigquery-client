@@ -324,23 +324,24 @@ mod test {
     use crate::model::table_field_schema::TableFieldSchema;
     use crate::model::table_schema::TableSchema;
     use crate::table::ListOptions;
-    use crate::tests::{DATASET_ID, PROJECT_ID, SA_KEY, TABLE_ID};
+    use crate::tests::env_vars;
     use crate::Client;
-    use std::rc::Rc;
 
     #[tokio::test]
     async fn test() -> Result<(), BQError> {
-        let client = Client::new(SA_KEY).await;
+        let (ref project_id, ref dataset_id, ref table_id, ref sa_key) = env_vars();
+
+        let client = Client::new(sa_key).await;
 
         // Create dataset
-        let created_dataset = client.dataset().create(PROJECT_ID, Dataset::new(DATASET_ID)).await?;
-        assert_eq!(created_dataset.id, Some(format!("{}:{}", PROJECT_ID, DATASET_ID)));
+        let created_dataset = client.dataset().create(project_id, Dataset::new(dataset_id)).await?;
+        assert_eq!(created_dataset.id, Some(format!("{}:{}", project_id, dataset_id)));
 
         // Create table
         let table = Table::new(
-            PROJECT_ID,
-            DATASET_ID,
-            TABLE_ID,
+            project_id,
+            dataset_id,
+            table_id,
             TableSchema::new(vec![
                 TableFieldSchema::new("col1", FieldType::String),
                 TableFieldSchema::new("col2", FieldType::Int64),
@@ -348,35 +349,35 @@ mod test {
                 TableFieldSchema::new("col4", FieldType::Datetime),
             ]),
         );
-        let created_table = client.table().create(PROJECT_ID, DATASET_ID, table).await?;
-        assert_eq!(created_table.table_reference.table_id, TABLE_ID.to_string());
+        let created_table = client.table().create(project_id, dataset_id, table).await?;
+        assert_eq!(created_table.table_reference.table_id, table_id.to_string());
 
-        let table = client.table().get(PROJECT_ID, DATASET_ID, TABLE_ID, None).await?;
-        assert_eq!(table.table_reference.table_id, TABLE_ID.to_string());
+        let table = client.table().get(project_id, dataset_id, table_id, None).await?;
+        assert_eq!(table.table_reference.table_id, table_id.to_string());
 
-        let table = client.table().update(PROJECT_ID, DATASET_ID, TABLE_ID, table).await?;
-        assert_eq!(table.table_reference.table_id, TABLE_ID.to_string());
+        let table = client.table().update(project_id, dataset_id, table_id, table).await?;
+        assert_eq!(table.table_reference.table_id, table_id.to_string());
 
-        let table = client.table().patch(PROJECT_ID, DATASET_ID, TABLE_ID, table).await?;
-        assert_eq!(table.table_reference.table_id, TABLE_ID.to_string());
+        let table = client.table().patch(project_id, dataset_id, table_id, table).await?;
+        assert_eq!(table.table_reference.table_id, table_id.to_string());
 
         // List tables
         let tables = client
             .table()
-            .list(PROJECT_ID, DATASET_ID, ListOptions::default())
+            .list(project_id, dataset_id, ListOptions::default())
             .await?;
         let mut created_table_found = false;
         for table_list_tables in tables.tables.unwrap().iter() {
-            if &table_list_tables.table_reference.dataset_id == DATASET_ID {
+            if &table_list_tables.table_reference.dataset_id == dataset_id {
                 created_table_found = true;
             }
         }
         assert!(created_table_found);
 
-        client.table().delete(PROJECT_ID, DATASET_ID, TABLE_ID).await?;
+        client.table().delete(project_id, dataset_id, table_id).await?;
 
         // Delete dataset
-        client.dataset().delete(PROJECT_ID, DATASET_ID, true).await?;
+        client.dataset().delete(project_id, dataset_id, true).await?;
 
         Ok(())
     }
