@@ -19,7 +19,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: test
-      - env:
+        env:
           PROJECT_ID: lquerel-test
           DATASET_ID: gcp_bigquery_client
           TABLE_ID: test
