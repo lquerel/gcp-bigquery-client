@@ -24,7 +24,7 @@ jobs:
           command: test
         env:
           PROJECT_ID: lquerel-test
-          DATASET_ID: gcp_bigquery_client_test
+          DATASET_ID: gcp_bq_client_test
           TABLE_ID: test
           GOOGLE_APPLICATION_CREDENTIALS: GOOGLE_APPLICATION_CREDENTIALS.json
 
@@ -79,6 +79,6 @@ jobs:
           args: '--ignore-tests'
         env:
           PROJECT_ID: lquerel-test
-          DATASET_ID: gcp_bigquery_client_coverage
+          DATASET_ID: gcp_bq_client_coverage
           TABLE_ID: test
           GOOGLE_APPLICATION_CREDENTIALS: GOOGLE_APPLICATION_CREDENTIALS.json
