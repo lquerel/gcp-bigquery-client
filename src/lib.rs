@@ -82,6 +82,11 @@ pub mod tests {
         let gcp_sa_key =
             env::var("GOOGLE_APPLICATION_CREDENTIALS").expect("GOOGLE_APPLICATION_CREDENTIALS env var not defined");
 
+        println!("PROJECT_ID: {}", project_id);
+        println!("DATASET_ID: {}", dataset_id);
+        println!("TABLE_ID: {}", table_id);
+        println!("GOOGLE_APPLICATION_CREDENTIALS: {}", gcp_sa_key);
+
         (project_id, dataset_id, table_id, gcp_sa_key)
     }
 }

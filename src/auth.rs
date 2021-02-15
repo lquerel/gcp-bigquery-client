@@ -1,6 +1,7 @@
 use crate::error::BQError;
 use hyper::client::HttpConnector;
 use hyper_rustls::HttpsConnector;
+use std::fs;
 use yup_oauth2::authenticator::Authenticator;
 
 pub struct ServiceAccountAuthenticator {
@@ -19,6 +20,13 @@ pub async fn service_account_authenticator(
     scopes: Vec<&str>,
     sa_key_file: &str,
 ) -> Result<ServiceAccountAuthenticator, BQError> {
+    // tmp
+    let content = fs::read_to_string(sa_key_file);
+    match content {
+        Err(err) => println!("Error file: {}, err: {}", sa_key_file, err),
+        Ok(content) => println!("content: {}", content),
+    }
+
     let sa_key = yup_oauth2::read_service_account_key(sa_key_file).await?;
     let auth = yup_oauth2::ServiceAccountAuthenticator::builder(sa_key).build().await;
 
