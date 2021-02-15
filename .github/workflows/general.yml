@@ -10,11 +10,6 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
     steps:
-      - env:
-          PROJECT_ID: lquerel-test
-          DATASET_ID: gcp_bigquery_client
-          TABLE_ID: test
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
@@ -24,6 +19,11 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: test
+      - env:
+          PROJECT_ID: lquerel-test
+          DATASET_ID: gcp_bigquery_client
+          TABLE_ID: test
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
 
   fmt:
     name: Rustfmt
