@@ -20,13 +20,6 @@ pub async fn service_account_authenticator(
     scopes: Vec<&str>,
     sa_key_file: &str,
 ) -> Result<ServiceAccountAuthenticator, BQError> {
-    // tmp
-    let content = fs::read_to_string(sa_key_file);
-    match content {
-        Err(err) => println!("Error file: {}, err: {}", sa_key_file, err),
-        Ok(content) => println!("content: {}", content.len()),
-    }
-
     let sa_key = yup_oauth2::read_service_account_key(sa_key_file).await?;
     let auth = yup_oauth2::ServiceAccountAuthenticator::builder(sa_key).build().await;
 

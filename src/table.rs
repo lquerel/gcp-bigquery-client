@@ -333,6 +333,12 @@ mod test {
 
         let client = Client::new(sa_key).await;
 
+        // Delete the dataset if needed
+        let result = client.dataset().delete(project_id, dataset_id, true).await;
+        if let Ok(_) = result {
+            println!("Removed previous dataset '{}'", dataset_id);
+        }
+
         // Create dataset
         let created_dataset = client.dataset().create(project_id, Dataset::new(dataset_id)).await?;
         assert_eq!(created_dataset.id, Some(format!("{}:{}", project_id, dataset_id)));
