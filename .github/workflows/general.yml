@@ -72,3 +72,8 @@ jobs:
         uses: actions-rs/tarpaulin@v0.1
         with:
           args: '--ignore-tests'
+        env:
+          PROJECT_ID: lquerel-test
+          DATASET_ID: gcp_bigquery_client
+          TABLE_ID: test
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}

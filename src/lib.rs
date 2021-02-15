@@ -79,7 +79,7 @@ pub mod tests {
         let project_id = env::var("PROJECT_ID").expect("PROJECT_ID env var not defined");
         let dataset_id = env::var("DATASET_ID").expect("DATASET_ID env var not defined");
         let table_id = env::var("TABLE_ID").expect("TABLE_ID env var not defined");
-        let gcp_sa_key = env::var("GCP_SA_KEY").expect("GCP_SA_KEY env var not defined");
+        let gcp_sa_key = env::var("GOOGLE_APPLICATION_CREDENTIALS").expect("GOOGLE_APPLICATION_CREDENTIALS env var not defined");
 
         (project_id, dataset_id, table_id, gcp_sa_key)
     }
