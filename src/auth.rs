@@ -1,7 +1,6 @@
 use crate::error::BQError;
 use hyper::client::HttpConnector;
 use hyper_rustls::HttpsConnector;
-use std::fs;
 use yup_oauth2::authenticator::Authenticator;
 
 pub struct ServiceAccountAuthenticator {

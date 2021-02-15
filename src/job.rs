@@ -123,6 +123,7 @@ mod test {
     #[tokio::test]
     async fn test() -> Result<(), BQError> {
         let (ref project_id, ref dataset_id, ref table_id, ref sa_key) = env_vars();
+        let dataset_id = &format!("{}_job", dataset_id);
 
         let client = Client::new(sa_key).await;
 
