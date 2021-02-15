@@ -1,3 +1,4 @@
+//! List of the BigQuery errors supported by this crate.
 #[derive(thiserror::Error, Debug)]
 pub enum BQError {
     #[error("Invalid service account key (error: {0})")]

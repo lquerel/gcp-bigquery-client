@@ -1,9 +1,11 @@
+//! Manage BigQuery dataset.
 use crate::error::BQError;
 use crate::model::dataset::Dataset;
 use crate::model::datasets::Datasets;
 use crate::{process_response, urlencode};
 use reqwest::Client;
 
+/// A dataset API handler.
 pub struct DatasetApi {
     client: Client,
     access_token: String,
@@ -161,6 +163,7 @@ impl DatasetApi {
     }
 }
 
+/// A list of options used to create a dataset API handler.
 pub struct ListOptions {
     max_results: Option<u64>,
     page_token: Option<String>,

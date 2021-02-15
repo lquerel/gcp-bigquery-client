@@ -1,3 +1,19 @@
+//! [<img alt="github" src="https://img.shields.io/badge/github-lquerel/gcp_bigquery_client-8da0cb?style=for-the-badge&labelColor=555555&logo=github" height="20">](https://github.com/lquerel/gcp-bigquery-client)
+//! [<img alt="crates.io" src="https://img.shields.io/crates/v/gcp_bigquery_client.svg?style=for-the-badge&color=fc8d62&logo=rust" height="20">](https://crates.io/crates/gcp-bigquery-client)
+//! [<img alt="build status" src="https://img.shields.io/github/workflow/status/lquerel/gcp-bigquery-client/Rust/main?style=for-the-badge" height="20">](https://github.com/lquerel/gcp-bigquery-client/actions?query=branch%3Amain)
+//!
+//! An ergonomic async client library for GCP BigQuery.
+//! * Support for dataset, table, streaming API and query (see [status section](#status) for an exhaustive list of supported API endpoints)
+//! * Support Service Account Key authentication (other OAuth flows will be added later)
+//! * Create tables and rows via builder patterns
+//! * Persist complex Rust structs in structured BigQuery tables
+//! * Async API
+//!
+//! <br>
+//!
+//! Other OAuth flows will be added later.
+//!
+//! For a detailed tutorial on the different ways to use GCP BigQuery Client please check out the [GitHub repository](https://github.com/lquerel/gcp-bigquery-client).
 use reqwest::Response;
 use serde::Deserialize;
 
@@ -16,20 +32,7 @@ pub mod model;
 pub mod table;
 pub mod tabledata;
 
-pub fn urlencode<T: AsRef<str>>(s: T) -> String {
-    url::form_urlencoded::byte_serialize(s.as_ref().as_bytes()).collect()
-}
-
-async fn process_response<T: for<'de> Deserialize<'de>>(resp: Response) -> Result<T, BQError> {
-    if resp.status().is_success() {
-        Ok(resp.json().await?)
-    } else {
-        Err(BQError::ResponseError {
-            error: resp.json().await?,
-        })
-    }
-}
-
+/// An asynchronous BigQuery client.
 pub struct Client {
     dataset_api: DatasetApi,
     table_api: TableApi,
@@ -38,6 +41,9 @@ pub struct Client {
 }
 
 impl Client {
+    /// Constructs a new BigQuery client.
+    /// # Argument
+    /// * `sa_key_file` - A GCP Service Account Key file.
     pub async fn new(sa_key_file: &str) -> Self {
         let scopes = vec!["https://www.googleapis.com/auth/bigquery"];
         let sa_auth = service_account_authenticator(scopes, sa_key_file)
@@ -54,20 +60,38 @@ impl Client {
         }
     }
 
+    /// Returns a dataset API handler.
     pub fn dataset(&self) -> &DatasetApi {
         &self.dataset_api
     }
 
+    /// Returns a table API handler.
     pub fn table(&self) -> &TableApi {
         &self.table_api
     }
 
+    /// Returns a job API handler.
     pub fn job(&self) -> &JobApi {
         &self.job_api
     }
 
+    /// Returns a table data API handler.
     pub fn tabledata(&self) -> &TableDataApi {
         &self.tabledata_api
+    }
+}
+
+pub(crate) fn urlencode<T: AsRef<str>>(s: T) -> String {
+    url::form_urlencoded::byte_serialize(s.as_ref().as_bytes()).collect()
+}
+
+async fn process_response<T: for<'de> Deserialize<'de>>(resp: Response) -> Result<T, BQError> {
+    if resp.status().is_success() {
+        Ok(resp.json().await?)
+    } else {
+        Err(BQError::ResponseError {
+            error: resp.json().await?,
+        })
     }
 }
 

@@ -1,21 +1,24 @@
+//! Helpers to manage GCP authentication.
 use crate::error::BQError;
 use hyper::client::HttpConnector;
 use hyper_rustls::HttpsConnector;
 use yup_oauth2::authenticator::Authenticator;
 
+/// A service account authenticator.
 pub struct ServiceAccountAuthenticator {
     auth: Authenticator<HttpsConnector<HttpConnector>>,
     scopes: Vec<String>,
 }
 
 impl ServiceAccountAuthenticator {
+    /// Returns an access token.
     pub async fn access_token(&self) -> Result<String, BQError> {
         let token = self.auth.token(self.scopes.as_ref()).await?;
         Ok(token.as_str().to_string())
     }
 }
 
-pub async fn service_account_authenticator(
+pub(crate) async fn service_account_authenticator(
     scopes: Vec<&str>,
     sa_key_file: &str,
 ) -> Result<ServiceAccountAuthenticator, BQError> {

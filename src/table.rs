@@ -1,3 +1,4 @@
+//! Manage BigQuery table
 use crate::error::BQError;
 use crate::model::get_iam_policy_request::GetIamPolicyRequest;
 use crate::model::policy::Policy;
@@ -9,6 +10,7 @@ use crate::model::test_iam_permissions_response::TestIamPermissionsResponse;
 use crate::{process_response, urlencode};
 use reqwest::Client;
 
+/// A table API handler.
 pub struct TableApi {
     client: Client,
     access_token: String,
@@ -286,6 +288,7 @@ impl TableApi {
     }
 }
 
+/// A list of options to use with the table API handler.
 pub struct ListOptions {
     max_results: Option<u64>,
     page_token: Option<String>,

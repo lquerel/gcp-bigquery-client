@@ -1,3 +1,4 @@
+//! Manage BigQuery jobs.
 use crate::error::BQError;
 use crate::model::job::Job;
 use crate::model::job_list::JobList;
@@ -6,6 +7,7 @@ use crate::model::query_response::{QueryResponse, ResultSet};
 use crate::{process_response, urlencode};
 use reqwest::Client;
 
+/// A job API handler.
 pub struct JobApi {
     client: Client,
     access_token: String,

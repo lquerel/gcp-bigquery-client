@@ -1,3 +1,4 @@
+//! All the object definitions used by the BigQuery REST API.
 pub mod audit_config;
 pub mod audit_log_config;
 pub mod bigquery_model_training;

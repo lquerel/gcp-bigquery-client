@@ -1,9 +1,11 @@
+//! Manage BigQuery streaming API.
 use crate::error::BQError;
 use crate::model::table_data_insert_all_request::TableDataInsertAllRequest;
 use crate::model::table_data_insert_all_response::TableDataInsertAllResponse;
 use crate::{process_response, urlencode};
 use reqwest::Client;
 
+/// A table data API handler.
 pub struct TableDataApi {
     client: Client,
     access_token: String,
