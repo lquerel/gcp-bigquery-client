@@ -24,7 +24,7 @@ pub async fn service_account_authenticator(
     let content = fs::read_to_string(sa_key_file);
     match content {
         Err(err) => println!("Error file: {}, err: {}", sa_key_file, err),
-        Ok(content) => println!("content: {}", content),
+        Ok(content) => println!("content: {}", content.len()),
     }
 
     let sa_key = yup_oauth2::read_service_account_key(sa_key_file).await?;

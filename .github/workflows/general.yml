@@ -18,7 +18,7 @@ jobs:
           override: true
       - env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
-        run: echo GOOGLE_APPLICATION_CREDENTIALS > GOOGLE_APPLICATION_CREDENTIALS.json
+        run: echo $GOOGLE_APPLICATION_CREDENTIALS > GOOGLE_APPLICATION_CREDENTIALS.json
       - uses: actions-rs/cargo@v1
         with:
           command: test
@@ -72,7 +72,7 @@ jobs:
           override: true
       - env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
-        run: echo GOOGLE_APPLICATION_CREDENTIALS > GOOGLE_APPLICATION_CREDENTIALS.json
+        run: echo $GOOGLE_APPLICATION_CREDENTIALS > GOOGLE_APPLICATION_CREDENTIALS.json
       - name: Run cargo-tarpaulin
         uses: actions-rs/tarpaulin@v0.1
         with:
