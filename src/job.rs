@@ -254,15 +254,14 @@ mod test {
                 )),
             )
             .await?;
-        //        dbg!(&rs);
         while rs.next_row() {
-            assert_eq!(rs.get_i64_by_name("c")?, Some(4));
+            assert!(rs.get_i64_by_name("c")?.is_some());
         }
 
-        // client.table().delete(PROJECT_ID, DATASET_ID, TABLE_ID).await?;
+        client.table().delete(PROJECT_ID, DATASET_ID, TABLE_ID).await?;
 
         // Delete dataset
-        // client.dataset().delete(PROJECT_ID, DATASET_ID, true).await?;
+        client.dataset().delete(PROJECT_ID, DATASET_ID, true).await?;
 
         Ok(())
     }
