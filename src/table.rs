@@ -327,8 +327,7 @@ mod test {
     use crate::model::table_field_schema::TableFieldSchema;
     use crate::model::table_schema::TableSchema;
     use crate::table::ListOptions;
-    use crate::tests::env_vars;
-    use crate::Client;
+    use crate::{env_vars, Client};
 
     #[tokio::test]
     async fn test() -> Result<(), BQError> {

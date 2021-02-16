@@ -23,6 +23,7 @@ use crate::error::BQError;
 use crate::job::JobApi;
 use crate::table::TableApi;
 use crate::tabledata::TableDataApi;
+use std::env;
 
 pub mod auth;
 pub mod dataset;
@@ -95,22 +96,12 @@ async fn process_response<T: for<'de> Deserialize<'de>>(resp: Response) -> Resul
     }
 }
 
-#[cfg(test)]
-pub mod tests {
-    use std::env;
+pub fn env_vars() -> (String, String, String, String) {
+    let project_id = env::var("PROJECT_ID").expect("PROJECT_ID env var not defined");
+    let dataset_id = env::var("DATASET_ID").expect("DATASET_ID env var not defined");
+    let table_id = env::var("TABLE_ID").expect("TABLE_ID env var not defined");
+    let gcp_sa_key =
+        env::var("GOOGLE_APPLICATION_CREDENTIALS").expect("GOOGLE_APPLICATION_CREDENTIALS env var not defined");
 
-    pub fn env_vars() -> (String, String, String, String) {
-        let project_id = env::var("PROJECT_ID").expect("PROJECT_ID env var not defined");
-        let dataset_id = env::var("DATASET_ID").expect("DATASET_ID env var not defined");
-        let table_id = env::var("TABLE_ID").expect("TABLE_ID env var not defined");
-        let gcp_sa_key =
-            env::var("GOOGLE_APPLICATION_CREDENTIALS").expect("GOOGLE_APPLICATION_CREDENTIALS env var not defined");
-
-        println!("PROJECT_ID: {}", project_id);
-        println!("DATASET_ID: {}", dataset_id);
-        println!("TABLE_ID: {}", table_id);
-        println!("GOOGLE_APPLICATION_CREDENTIALS: {}", gcp_sa_key);
-
-        (project_id, dataset_id, table_id, gcp_sa_key)
-    }
+    (project_id, dataset_id, table_id, gcp_sa_key)
 }

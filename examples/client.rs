@@ -1,3 +1,4 @@
+use gcp_bigquery_client::env_vars;
 use gcp_bigquery_client::error::BQError;
 use gcp_bigquery_client::model::dataset::Dataset;
 use gcp_bigquery_client::model::query_request::QueryRequest;
@@ -6,7 +7,6 @@ use gcp_bigquery_client::model::table_data_insert_all_request::TableDataInsertAl
 use gcp_bigquery_client::model::table_field_schema::TableFieldSchema;
 use gcp_bigquery_client::model::table_schema::TableSchema;
 use serde::Serialize;
-use std::env;
 
 #[derive(Serialize)]
 struct MyRow {
@@ -179,14 +179,4 @@ async fn main() -> Result<(), BQError> {
     client.dataset().delete(project_id, dataset_id, true).await?;
 
     Ok(())
-}
-
-pub fn env_vars() -> (String, String, String, String) {
-    let project_id = env::var("PROJECT_ID").expect("PROJECT_ID env var not defined");
-    let dataset_id = env::var("DATASET_ID").expect("DATASET_ID env var not defined");
-    let table_id = env::var("TABLE_ID").expect("TABLE_ID env var not defined");
-    let gcp_sa_key =
-        env::var("GOOGLE_APPLICATION_CREDENTIALS").expect("GOOGLE_APPLICATION_CREDENTIALS env var not defined");
-
-    (project_id, dataset_id, table_id, gcp_sa_key)
 }

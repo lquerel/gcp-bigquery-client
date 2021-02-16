@@ -96,8 +96,7 @@ mod test {
     use crate::model::table_data_insert_all_request::TableDataInsertAllRequest;
     use crate::model::table_field_schema::TableFieldSchema;
     use crate::model::table_schema::TableSchema;
-    use crate::tests::env_vars;
-    use crate::Client;
+    use crate::{env_vars, Client};
     use serde::Serialize;
 
     #[derive(Serialize)]

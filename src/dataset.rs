@@ -3,6 +3,7 @@ use crate::error::BQError;
 use crate::model::dataset::Dataset;
 use crate::model::datasets::Datasets;
 use crate::{process_response, urlencode};
+use log::info;
 use reqwest::Client;
 
 /// A dataset API handler.
@@ -19,6 +20,24 @@ impl DatasetApi {
     /// Creates a new empty dataset.
     /// # Argument
     /// * `project-id` - Project ID of the new dataset
+    ///
+    /// # Example
+    /// ```
+    /// # use gcp_bigquery_client::{Client, env_vars};
+    /// # use gcp_bigquery_client::model::dataset::Dataset;
+    /// # use gcp_bigquery_client::error::BQError;
+    ///
+    /// # async fn run() -> Result<(), BQError> {
+    /// let (ref project_id, ref dataset_id, ref _table_id, ref sa_key) = env_vars();
+    /// let dataset_id = &format!("{}_dataset", dataset_id);
+    ///
+    /// let client = Client::new(sa_key).await;
+    ///
+    /// # client.dataset().delete_if_exists(project_id, dataset_id, true);
+    /// client.dataset().create(project_id, Dataset::new(dataset_id)).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn create(&self, project_id: &str, dataset: Dataset) -> Result<Dataset, BQError> {
         let req_url = &format!(
             "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets",
@@ -41,6 +60,27 @@ impl DatasetApi {
     /// # Arguments
     /// * `project_id` - Project ID of the datasets to be listed
     /// * `options` - Options
+    ///
+    /// # Example
+    /// ```
+    /// # use gcp_bigquery_client::{Client, env_vars};
+    /// # use gcp_bigquery_client::model::dataset::Dataset;
+    /// # use gcp_bigquery_client::error::BQError;
+    /// # use gcp_bigquery_client::dataset::ListOptions;
+    ///
+    /// # async fn run() -> Result<(), BQError> {
+    /// let (ref project_id, ref dataset_id, ref _table_id, ref sa_key) = env_vars();
+    /// let dataset_id = &format!("{}_dataset", dataset_id);
+    ///
+    /// let client = Client::new(sa_key).await;
+    ///
+    /// let datasets = client.dataset().list(project_id, ListOptions::default().all(true)).await?;
+    /// for dataset in datasets.datasets.iter() {
+    ///     // Do some stuff
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn list(&self, project_id: &str, options: ListOptions) -> Result<Datasets, BQError> {
         let req_url = &format!(
             "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets",
@@ -76,6 +116,26 @@ impl DatasetApi {
     /// * `project_id` - Project ID of the dataset being deleted
     /// * `dataset_id` - Dataset ID of dataset being deleted
     /// * `delete_contents` - If True, delete all the tables in the dataset. If False and the dataset contains tables, the request will fail. Default is False
+    ///
+    /// # Example
+    /// ```
+    /// # use gcp_bigquery_client::{Client, env_vars};
+    /// # use gcp_bigquery_client::model::dataset::Dataset;
+    /// # use gcp_bigquery_client::error::BQError;
+    /// # use gcp_bigquery_client::dataset::ListOptions;
+    ///
+    /// # async fn run() -> Result<(), BQError> {
+    /// let (ref project_id, ref dataset_id, ref _table_id, ref sa_key) = env_vars();
+    /// let dataset_id = &format!("{}_dataset", dataset_id);
+    ///
+    /// let client = Client::new(sa_key).await;
+    ///
+    /// # client.dataset().delete_if_exists(project_id, dataset_id, true);
+    /// client.dataset().create(project_id, Dataset::new(dataset_id)).await?;
+    /// client.dataset().delete(project_id, dataset_id, true).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn delete(&self, project_id: &str, dataset_id: &str, delete_contents: bool) -> Result<(), BQError> {
         let req_url = &format!(
             "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets/{dataset_id}",
@@ -100,10 +160,66 @@ impl DatasetApi {
         }
     }
 
+    /// Deletes the dataset specified by the datasetId value and returns true or returs false when
+    /// the dataset doesn't exist. Before you can delete a dataset, you must delete all its
+    /// tables, either manually or by specifying deleteContents. Immediately after deletion, you can create another
+    /// dataset with the same name.
+    /// # Arguments
+    /// * `project_id` - Project ID of the dataset being deleted
+    /// * `dataset_id` - Dataset ID of dataset being deleted
+    /// * `delete_contents` - If True, delete all the tables in the dataset. If False and the dataset contains tables, the request will fail. Default is False
+    ///
+    /// # Example
+    /// ```
+    /// # use gcp_bigquery_client::{Client, env_vars};
+    /// # use gcp_bigquery_client::model::dataset::Dataset;
+    /// # use gcp_bigquery_client::error::BQError;
+    /// # use gcp_bigquery_client::dataset::ListOptions;
+    ///
+    /// # async fn run() -> Result<(), BQError> {
+    /// let (ref project_id, ref dataset_id, ref _table_id, ref sa_key) = env_vars();
+    /// let dataset_id = &format!("{}_dataset", dataset_id);
+    ///
+    /// let client = Client::new(sa_key).await;
+    ///
+    /// client.dataset().delete_if_exists(project_id, dataset_id, true);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn delete_if_exists(&self, project_id: &str, dataset_id: &str, delete_contents: bool) -> bool {
+        match self.delete(project_id, dataset_id, delete_contents).await {
+            Err(err) => {
+                info!("delete_if_exists, muted err: {:?}", err);
+                false
+            }
+            Ok(_) => true,
+        }
+    }
+
     /// Returns the dataset specified by datasetID.
     /// # Arguments
     /// * `project_id` - Project ID of the requested dataset
     /// * `dataset_id` - Dataset ID of the requested dataset
+    ///
+    /// # Example
+    /// ```
+    /// # use gcp_bigquery_client::{Client, env_vars};
+    /// # use gcp_bigquery_client::model::dataset::Dataset;
+    /// # use gcp_bigquery_client::error::BQError;
+    /// # use gcp_bigquery_client::dataset::ListOptions;
+    ///
+    /// # async fn run() -> Result<(), BQError> {
+    /// let (ref project_id, ref dataset_id, ref _table_id, ref sa_key) = env_vars();
+    /// let dataset_id = &format!("{}_dataset", dataset_id);
+    ///
+    /// let client = Client::new(sa_key).await;
+    ///
+    /// # client.dataset().delete_if_exists(project_id, dataset_id, true);
+    /// client.dataset().create(project_id, Dataset::new(dataset_id)).await?;
+    /// let dataset = client.dataset().get(project_id, dataset_id).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn get(&self, project_id: &str, dataset_id: &str) -> Result<Dataset, BQError> {
         let req_url = &format!(
             "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets/{dataset_id}",
@@ -216,8 +332,7 @@ mod test {
     use crate::dataset::ListOptions;
     use crate::error::BQError;
     use crate::model::dataset::Dataset;
-    use crate::tests::env_vars;
-    use crate::Client;
+    use crate::{env_vars, Client};
 
     #[tokio::test]
     async fn test() -> Result<(), BQError> {
