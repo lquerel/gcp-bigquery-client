@@ -17,13 +17,14 @@
 use reqwest::Response;
 use serde::Deserialize;
 
-use crate::auth::service_account_authenticator;
+use crate::auth::{service_account_authenticator, ServiceAccountAuthenticator};
 use crate::dataset::DatasetApi;
 use crate::error::BQError;
 use crate::job::JobApi;
 use crate::table::TableApi;
 use crate::tabledata::TableDataApi;
 use std::env;
+use yup_oauth2::ServiceAccountKey;
 
 pub mod auth;
 pub mod dataset;
@@ -59,6 +60,30 @@ impl Client {
             job_api: JobApi::new(client.clone(), access_token.clone()),
             tabledata_api: TableDataApi::new(client, access_token),
         }
+    }
+
+    /// Constructs a new BigQuery client from a [`ServiceAccountKey`].
+    /// # Argument
+    /// * `sa_key` - A GCP Service Account Key `yup-oauth2` object.
+    /// * `readonly` - A boolean setting whether the acquired token scope should be readonly.
+    ///
+    /// [`ServiceAccountKey`]: https://docs.rs/yup-oauth2/*/yup_oauth2/struct.ServiceAccountKey.html
+    pub async fn from_service_account_key(sa_key: ServiceAccountKey, readonly: bool) -> Result<Self, BQError> {
+        let scopes = if readonly {
+            ["https://www.googleapis.com/auth/bigquery.readonly"]
+        } else {
+            ["https://www.googleapis.com/auth/bigquery"]
+        };
+        let sa_auth = ServiceAccountAuthenticator::from_service_account_key(sa_key, &scopes).await?;
+
+        let access_token = sa_auth.access_token().await?;
+        let client = reqwest::Client::new();
+        Ok(Self {
+            dataset_api: DatasetApi::new(client.clone(), access_token.clone()),
+            table_api: TableApi::new(client.clone(), access_token.clone()),
+            job_api: JobApi::new(client.clone(), access_token.clone()),
+            tabledata_api: TableDataApi::new(client, access_token),
+        })
     }
 
     /// Returns a dataset API handler.
