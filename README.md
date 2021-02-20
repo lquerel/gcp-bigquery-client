@@ -43,7 +43,7 @@ rows are based on a regular Rust struct implementing the trait Serialize.
 let (ref project_id, ref dataset_id, ref table_id, ref gcp_sa_key) = env_vars();
 
 // Init BigQuery client
-let client = gcp_bigquery_client::Client::new(gcp_sa_key).await;
+let client = gcp_bigquery_client::Client::from_service_account_key_file(gcp_sa_key).await;
 
 // Create dataset
 let created_dataset = client.dataset().create(project_id, Dataset::new(dataset_id)).await?;
