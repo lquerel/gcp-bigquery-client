@@ -1,5 +1,7 @@
 //! Manage BigQuery jobs.
 use crate::error::BQError;
+use crate::model::get_query_results_parameters::GetQueryResultsParameters;
+use crate::model::get_query_results_response::GetQueryResultsResponse;
 use crate::model::job::Job;
 use crate::model::job_list::JobList;
 use crate::model::query_request::QueryRequest;
@@ -85,6 +87,36 @@ impl JobApi {
 
         process_response(resp).await
     }
+
+    /// RPC to get the results of a query job.
+    /// # Arguments
+    /// * `project_id` - Project ID of the query request.
+    /// * `job_id` - Job ID of the query job.
+    /// * `parameters` - The query parameters for jobs.getQueryResults.
+    pub async fn get_query_results(
+        &self,
+        project_id: &str,
+        job_id: &str,
+        parameters: GetQueryResultsParameters,
+    ) -> Result<GetQueryResultsResponse, BQError> {
+        let req_url = format!(
+            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/queries/{job_id}",
+            project_id = urlencode(project_id),
+            job_id = urlencode(job_id),
+        );
+
+        let request = self
+            .client
+            .get(req_url.as_str())
+            .query(&parameters)
+            .bearer_auth(&self.access_token)
+            .build()?;
+
+        let resp = self.client.execute(request).await?;
+
+        let get_query_results_response: GetQueryResultsResponse = process_response(resp).await?;
+        Ok(get_query_results_response)
+    }
 }
 
 #[cfg(test)]
@@ -92,6 +124,7 @@ mod test {
     use crate::error::BQError;
     use crate::model::dataset::Dataset;
     use crate::model::query_request::QueryRequest;
+    use crate::model::query_response::{QueryResponse, ResultSet};
     use crate::model::table::Table;
     use crate::model::table_data_insert_all_request::TableDataInsertAllRequest;
     use crate::model::table_field_schema::TableFieldSchema;
@@ -256,6 +289,26 @@ mod test {
             )
             .await?;
         while rs.next_row() {
+            assert!(rs.get_i64_by_name("c")?.is_some());
+        }
+
+        // GetQueryResults
+        let job_id = rs
+            .query_response()
+            .job_reference
+            .as_ref()
+            .expect("expected job_reference")
+            .job_id
+            .clone()
+            .expect("expected job_id");
+
+        let query_results = client
+            .job()
+            .get_query_results(project_id, &job_id, Default::default())
+            .await?;
+        let mut query_results_rs = ResultSet::new(QueryResponse::from(query_results));
+        assert_eq!(query_results_rs.row_count(), rs.row_count());
+        while query_results_rs.next_row() {
             assert!(rs.get_i64_by_name("c")?.is_some());
         }
 

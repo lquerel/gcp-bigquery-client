@@ -1,5 +1,6 @@
 use crate::error::BQError;
 use crate::model::error_proto::ErrorProto;
+use crate::model::get_query_results_response::GetQueryResultsResponse;
 use crate::model::job_reference::JobReference;
 use crate::model::table_row::TableRow;
 use crate::model::table_schema::TableSchema;
@@ -41,6 +42,24 @@ pub struct QueryResponse {
     /// The total number of rows in the complete query result set, which can be more than the number of rows in this single page of results.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub total_rows: Option<String>,
+}
+
+impl From<GetQueryResultsResponse> for QueryResponse {
+    fn from(resp: GetQueryResultsResponse) -> Self {
+        Self {
+            cache_hit: resp.cache_hit,
+            errors: resp.errors,
+            job_complete: resp.job_complete,
+            job_reference: resp.job_reference,
+            kind: resp.kind,
+            num_dml_affected_rows: resp.num_dml_affected_rows,
+            page_token: resp.page_token,
+            rows: resp.rows,
+            schema: resp.schema,
+            total_bytes_processed: resp.total_bytes_processed,
+            total_rows: resp.total_rows,
+        }
+    }
 }
 
 /// Set of rows in response to a SQL query
