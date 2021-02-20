@@ -1,4 +1,7 @@
 //! Manage BigQuery jobs.
+use reqwest::Client;
+
+use crate::{process_response, urlencode};
 use crate::error::BQError;
 use crate::model::get_query_results_parameters::GetQueryResultsParameters;
 use crate::model::get_query_results_response::GetQueryResultsResponse;
@@ -6,8 +9,6 @@ use crate::model::job::Job;
 use crate::model::job_list::JobList;
 use crate::model::query_request::QueryRequest;
 use crate::model::query_response::{QueryResponse, ResultSet};
-use crate::{process_response, urlencode};
-use reqwest::Client;
 
 /// A job API handler.
 pub struct JobApi {
@@ -121,6 +122,9 @@ impl JobApi {
 
 #[cfg(test)]
 mod test {
+    use serde::Serialize;
+
+    use crate::{Client, env_vars};
     use crate::error::BQError;
     use crate::model::dataset::Dataset;
     use crate::model::query_request::QueryRequest;
@@ -129,8 +133,6 @@ mod test {
     use crate::model::table_data_insert_all_request::TableDataInsertAllRequest;
     use crate::model::table_field_schema::TableFieldSchema;
     use crate::model::table_schema::TableSchema;
-    use crate::{env_vars, Client};
-    use serde::Serialize;
 
     #[derive(Serialize)]
     struct MyRow {
@@ -159,7 +161,7 @@ mod test {
         let (ref project_id, ref dataset_id, ref table_id, ref sa_key) = env_vars();
         let dataset_id = &format!("{}_job", dataset_id);
 
-        let client = Client::new(sa_key).await;
+        let client = Client::from_service_account_key_file(sa_key).await;
 
         // Delete the dataset if needed
         let result = client.dataset().delete(project_id, dataset_id, true).await;

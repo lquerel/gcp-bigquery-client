@@ -1,3 +1,5 @@
+use serde::Serialize;
+
 use gcp_bigquery_client::env_vars;
 use gcp_bigquery_client::error::BQError;
 use gcp_bigquery_client::model::dataset::Dataset;
@@ -6,7 +8,6 @@ use gcp_bigquery_client::model::table::Table;
 use gcp_bigquery_client::model::table_data_insert_all_request::TableDataInsertAllRequest;
 use gcp_bigquery_client::model::table_field_schema::TableFieldSchema;
 use gcp_bigquery_client::model::table_schema::TableSchema;
-use serde::Serialize;
 
 #[derive(Serialize)]
 struct MyRow {
@@ -36,7 +37,7 @@ async fn main() -> Result<(), BQError> {
     let (ref project_id, ref dataset_id, ref table_id, ref gcp_sa_key) = env_vars();
 
     // Init BigQuery client
-    let client = gcp_bigquery_client::Client::new(gcp_sa_key).await;
+    let client = gcp_bigquery_client::Client::from_service_account_key_file(gcp_sa_key).await;
 
     // Create dataset
     let created_dataset = client.dataset().create(project_id, Dataset::new(dataset_id)).await?;

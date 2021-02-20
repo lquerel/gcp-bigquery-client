@@ -1,4 +1,7 @@
 //! Manage BigQuery table
+use reqwest::Client;
+
+use crate::{process_response, urlencode};
 use crate::error::BQError;
 use crate::model::get_iam_policy_request::GetIamPolicyRequest;
 use crate::model::policy::Policy;
@@ -7,8 +10,6 @@ use crate::model::table::Table;
 use crate::model::table_list::TableList;
 use crate::model::test_iam_permissions_request::TestIamPermissionsRequest;
 use crate::model::test_iam_permissions_response::TestIamPermissionsResponse;
-use crate::{process_response, urlencode};
-use reqwest::Client;
 
 /// A table API handler.
 pub struct TableApi {
@@ -320,6 +321,7 @@ impl Default for ListOptions {
 
 #[cfg(test)]
 mod test {
+    use crate::{Client, env_vars};
     use crate::error::BQError;
     use crate::model::dataset::Dataset;
     use crate::model::field_type::FieldType;
@@ -327,14 +329,13 @@ mod test {
     use crate::model::table_field_schema::TableFieldSchema;
     use crate::model::table_schema::TableSchema;
     use crate::table::ListOptions;
-    use crate::{env_vars, Client};
 
     #[tokio::test]
     async fn test() -> Result<(), BQError> {
         let (ref project_id, ref dataset_id, ref table_id, ref sa_key) = env_vars();
         let dataset_id = &format!("{}_table", dataset_id);
 
-        let client = Client::new(sa_key).await;
+        let client = Client::from_service_account_key_file(sa_key).await;
 
         // Delete the dataset if needed
         let result = client.dataset().delete(project_id, dataset_id, true).await;

@@ -185,7 +185,7 @@ List of endpoints implemented:
 - [ ] Job
   - [ ] Cancel
   - [ ] Get
-  - [ ] GetQueryResult
+  - [X] GetQueryResult
   - [ ] Insert
   - [ ] List
   - [X] Query 

@@ -14,8 +14,11 @@
 //! Other OAuth flows will be added later.
 //!
 //! For a detailed tutorial on the different ways to use GCP BigQuery Client please check out the [GitHub repository](https://github.com/lquerel/gcp-bigquery-client).
+use std::env;
+
 use reqwest::Response;
 use serde::Deserialize;
+use yup_oauth2::ServiceAccountKey;
 
 use crate::auth::{service_account_authenticator, ServiceAccountAuthenticator};
 use crate::dataset::DatasetApi;
@@ -23,8 +26,6 @@ use crate::error::BQError;
 use crate::job::JobApi;
 use crate::table::TableApi;
 use crate::tabledata::TableDataApi;
-use std::env;
-use yup_oauth2::ServiceAccountKey;
 
 pub mod auth;
 pub mod dataset;
@@ -46,7 +47,7 @@ impl Client {
     /// Constructs a new BigQuery client.
     /// # Argument
     /// * `sa_key_file` - A GCP Service Account Key file.
-    pub async fn new(sa_key_file: &str) -> Self {
+    pub async fn from_service_account_key_file(sa_key_file: &str) -> Self {
         let scopes = vec!["https://www.googleapis.com/auth/bigquery"];
         let sa_auth = service_account_authenticator(scopes, sa_key_file)
             .await
