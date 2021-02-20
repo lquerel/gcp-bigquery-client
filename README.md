@@ -182,12 +182,12 @@ List of endpoints implemented:
 - [ ] Tabledata 
   - [X] InsertAll
   - [ ] List
-- [ ] Job
-  - [ ] Cancel
-  - [ ] Get
+- [X] Job
+  - [X] Cancel
+  - [X] Get
   - [X] GetQueryResult
-  - [ ] Insert
-  - [ ] List
+  - [X] Insert
+  - [X] List
   - [X] Query 
 - [ ] Model
   - [ ] Delete

@@ -14,6 +14,10 @@
 //! Other OAuth flows will be added later.
 //!
 //! For a detailed tutorial on the different ways to use GCP BigQuery Client please check out the [GitHub repository](https://github.com/lquerel/gcp-bigquery-client).
+#[macro_use]
+extern crate serde;
+extern crate serde_json;
+
 use std::env;
 
 use reqwest::Response;

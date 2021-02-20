@@ -5,6 +5,7 @@ use crate::error::BQError;
 use crate::model::get_query_results_parameters::GetQueryResultsParameters;
 use crate::model::get_query_results_response::GetQueryResultsResponse;
 use crate::model::job::Job;
+use crate::model::job_cancel_response::JobCancelResponse;
 use crate::model::job_list::JobList;
 use crate::model::query_request::QueryRequest;
 use crate::model::query_response::{QueryResponse, ResultSet};
@@ -117,6 +118,67 @@ impl JobApi {
 
         let get_query_results_response: GetQueryResultsResponse = process_response(resp).await?;
         Ok(get_query_results_response)
+    }
+
+    /// Returns information about a specific job. Job information is available for a six month
+    /// period after creation. Requires that you're the person who ran the job, or have the Is
+    /// Owner project role.
+    /// # Arguments
+    /// * `project_id` - Project ID of the requested job.
+    /// * `job_id` - Job ID of the requested job.
+    /// * `location` - The geographic location of the job. Required except for US and EU. See
+    /// details at https://cloud.google.com/bigquery/docs/locations#specifying_your_location.
+    pub async fn get_job(&self, project_id: &str, job_id: &str, location: Option<&str>) -> Result<Job, BQError> {
+        let req_url = format!(
+            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/jobs/{job_id}",
+            project_id = urlencode(project_id),
+            job_id = urlencode(job_id),
+        );
+
+        let mut request_builder = self.client.get(req_url.as_str());
+
+        if let Some(location) = location {
+            request_builder = request_builder.query(&["location", location]);
+        }
+
+        let request = request_builder.bearer_auth(&self.access_token).build()?;
+
+        let resp = self.client.execute(request).await?;
+
+        process_response(resp).await
+    }
+
+    /// Requests that a job be cancelled. This call will return immediately, and the client will
+    /// need to poll for the job status to see if the cancel completed successfully. Cancelled jobs
+    /// may still incur costs.
+    /// # Arguments
+    /// * `project_id` - Project ID of the job to cancel.
+    /// * `job_id` - Job ID of the job to cancel.
+    /// * `location` - The geographic location of the job. Required except for US and EU. See
+    /// details at https://cloud.google.com/bigquery/docs/locations#specifying_your_location.
+    pub async fn cancel_job(
+        &self,
+        project_id: &str,
+        job_id: &str,
+        location: Option<&str>,
+    ) -> Result<JobCancelResponse, BQError> {
+        let req_url = format!(
+            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/jobs/{job_id}/cancel",
+            project_id = urlencode(project_id),
+            job_id = urlencode(job_id),
+        );
+
+        let mut request_builder = self.client.post(req_url.as_str());
+
+        if let Some(location) = location {
+            request_builder = request_builder.query(&["location", location]);
+        }
+
+        let request = request_builder.bearer_auth(&self.access_token).build()?;
+
+        let resp = self.client.execute(request).await?;
+
+        process_response(resp).await
     }
 }
 
@@ -294,7 +356,7 @@ mod test {
             assert!(rs.get_i64_by_name("c")?.is_some());
         }
 
-        // GetQueryResults
+        // Get job id
         let job_id = rs
             .query_response()
             .job_reference
@@ -304,6 +366,10 @@ mod test {
             .clone()
             .expect("expected job_id");
 
+        let job = client.job_api.get_job(project_id, &job_id, None).await?;
+        assert_eq!(job.status.unwrap().state.unwrap(), "DONE");
+
+        // GetQueryResults
         let query_results = client
             .job()
             .get_query_results(project_id, &job_id, Default::default())

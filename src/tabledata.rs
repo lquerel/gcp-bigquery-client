@@ -27,9 +27,6 @@ impl TableDataApi {
     ) -> Result<TableDataInsertAllResponse, BQError> {
         let req_url = format!("https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets/{dataset_id}/tables/{table_id}/insertAll", project_id=urlencode(project_id), dataset_id=urlencode(dataset_id), table_id=urlencode(table_id));
 
-        let json = serde_json::to_string_pretty(&insert_request).unwrap();
-        println!("{}", json);
-
         let request = self
             .client
             .post(req_url.as_str())
