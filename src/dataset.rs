@@ -2,10 +2,10 @@
 use log::info;
 use reqwest::Client;
 
-use crate::{process_response, urlencode};
 use crate::error::BQError;
 use crate::model::dataset::Dataset;
 use crate::model::datasets::Datasets;
+use crate::{process_response, urlencode};
 
 /// A dataset API handler.
 pub struct DatasetApi {
@@ -330,10 +330,10 @@ impl Default for ListOptions {
 
 #[cfg(test)]
 mod test {
-    use crate::{Client, env_vars};
     use crate::dataset::ListOptions;
     use crate::error::BQError;
     use crate::model::dataset::Dataset;
+    use crate::{env_vars, Client};
 
     #[tokio::test]
     async fn test() -> Result<(), BQError> {

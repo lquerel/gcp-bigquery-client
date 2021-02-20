@@ -1,7 +1,6 @@
 //! Manage BigQuery jobs.
 use reqwest::Client;
 
-use crate::{process_response, urlencode};
 use crate::error::BQError;
 use crate::model::get_query_results_parameters::GetQueryResultsParameters;
 use crate::model::get_query_results_response::GetQueryResultsResponse;
@@ -9,6 +8,7 @@ use crate::model::job::Job;
 use crate::model::job_list::JobList;
 use crate::model::query_request::QueryRequest;
 use crate::model::query_response::{QueryResponse, ResultSet};
+use crate::{process_response, urlencode};
 
 /// A job API handler.
 pub struct JobApi {
@@ -124,7 +124,6 @@ impl JobApi {
 mod test {
     use serde::Serialize;
 
-    use crate::{Client, env_vars};
     use crate::error::BQError;
     use crate::model::dataset::Dataset;
     use crate::model::query_request::QueryRequest;
@@ -133,6 +132,7 @@ mod test {
     use crate::model::table_data_insert_all_request::TableDataInsertAllRequest;
     use crate::model::table_field_schema::TableFieldSchema;
     use crate::model::table_schema::TableSchema;
+    use crate::{env_vars, Client};
 
     #[derive(Serialize)]
     struct MyRow {
