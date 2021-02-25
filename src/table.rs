@@ -1,6 +1,7 @@
 //! Manage BigQuery table
 use reqwest::Client;
 
+use crate::auth::ServiceAccountAuthenticator;
 use crate::error::BQError;
 use crate::model::get_iam_policy_request::GetIamPolicyRequest;
 use crate::model::policy::Policy;
@@ -14,12 +15,12 @@ use crate::{process_response, urlencode};
 /// A table API handler.
 pub struct TableApi {
     client: Client,
-    access_token: String,
+    sa_auth: ServiceAccountAuthenticator,
 }
 
 impl TableApi {
-    pub(crate) fn new(client: Client, access_token: String) -> Self {
-        Self { client, access_token }
+    pub(crate) fn new(client: Client, sa_auth: ServiceAccountAuthenticator) -> Self {
+        Self { client, sa_auth }
     }
 
     /// Creates a new, empty table in the dataset.
@@ -34,10 +35,12 @@ impl TableApi {
             dataset_id = urlencode(dataset_id)
         );
 
+        let access_token = self.sa_auth.access_token().await?;
+
         let request = self
             .client
             .post(req_url.as_str())
-            .bearer_auth(&self.access_token)
+            .bearer_auth(access_token)
             .json(&table)
             .build()?;
 
@@ -59,11 +62,9 @@ impl TableApi {
             table_id = urlencode(table_id)
         );
 
-        let request = self
-            .client
-            .delete(req_url.as_str())
-            .bearer_auth(&self.access_token)
-            .build()?;
+        let access_token = self.sa_auth.access_token().await?;
+
+        let request = self.client.delete(req_url.as_str()).bearer_auth(access_token).build()?;
 
         let response = self.client.execute(request).await?;
 
@@ -100,7 +101,9 @@ impl TableApi {
             table_id = urlencode(table_id)
         );
 
-        let mut request_builder = self.client.get(req_url.as_str()).bearer_auth(&self.access_token);
+        let access_token = self.sa_auth.access_token().await?;
+
+        let mut request_builder = self.client.get(req_url.as_str()).bearer_auth(access_token);
         if let Some(selected_fields) = selected_fields {
             let selected_fields = selected_fields.join(",");
             request_builder = request_builder.query(&[("selectedFields", selected_fields)]);
@@ -125,7 +128,9 @@ impl TableApi {
             dataset_id = urlencode(dataset_id)
         );
 
-        let mut request = self.client.get(req_url).bearer_auth(&self.access_token);
+        let access_token = self.sa_auth.access_token().await?;
+
+        let mut request = self.client.get(req_url).bearer_auth(access_token);
 
         // process options
         if let Some(max_results) = options.max_results {
@@ -163,10 +168,12 @@ impl TableApi {
             table_id = urlencode(table_id)
         );
 
+        let access_token = self.sa_auth.access_token().await?;
+
         let request = self
             .client
             .patch(req_url)
-            .bearer_auth(&self.access_token)
+            .bearer_auth(access_token)
             .json(&table)
             .build()?;
         let response = self.client.execute(request).await?;
@@ -195,10 +202,12 @@ impl TableApi {
             table_id = urlencode(table_id)
         );
 
+        let access_token = self.sa_auth.access_token().await?;
+
         let request = self
             .client
             .put(req_url)
-            .bearer_auth(&self.access_token)
+            .bearer_auth(access_token)
             .json(&table)
             .build()?;
         let response = self.client.execute(request).await?;
@@ -221,10 +230,12 @@ impl TableApi {
             resource = urlencode(resource)
         );
 
+        let access_token = self.sa_auth.access_token().await?;
+
         let request = self
             .client
             .post(req_url.as_str())
-            .bearer_auth(&self.access_token)
+            .bearer_auth(access_token)
             .json(&get_iam_policy_request)
             .build()?;
 
@@ -247,10 +258,12 @@ impl TableApi {
             resource = urlencode(resource)
         );
 
+        let access_token = self.sa_auth.access_token().await?;
+
         let request = self
             .client
             .post(req_url.as_str())
-            .bearer_auth(&self.access_token)
+            .bearer_auth(access_token)
             .json(&set_iam_policy_request)
             .build()?;
 
@@ -276,10 +289,12 @@ impl TableApi {
             resource = urlencode(resource)
         );
 
+        let access_token = self.sa_auth.access_token().await?;
+
         let request = self
             .client
             .post(req_url.as_str())
-            .bearer_auth(&self.access_token)
+            .bearer_auth(access_token)
             .json(&test_iam_permissions_request)
             .build()?;
 
