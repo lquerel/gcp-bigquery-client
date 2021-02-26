@@ -173,7 +173,7 @@ List of endpoints implemented:
   - [X] Update
 - [ ] Tabledata 
   - [X] InsertAll
-  - [ ] List
+  - [X] List
 - [X] Job
   - [X] Cancel
   - [X] Get
