@@ -63,10 +63,12 @@ impl TableDataApi {
     ) -> Result<TableDataInsertAllResponse, BQError> {
         let req_url = format!("https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets/{dataset_id}/tables/{table_id}/data", project_id=urlencode(project_id), dataset_id=urlencode(dataset_id), table_id=urlencode(table_id));
 
+        let access_token = self.sa_auth.access_token().await?;
+
         let request = self
             .client
             .get(req_url.as_str())
-            .bearer_auth(&self.access_token)
+            .bearer_auth(access_token)
             .query(&parameters)
             .build()?;
 
