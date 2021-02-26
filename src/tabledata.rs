@@ -1,4 +1,5 @@
 //! Manage BigQuery streaming API.
+use crate::auth::ServiceAccountAuthenticator;
 use crate::error::BQError;
 use crate::model::data_format_options::DataFormatOptions;
 use crate::model::table_data_insert_all_request::TableDataInsertAllRequest;
@@ -9,12 +10,12 @@ use reqwest::Client;
 /// A table data API handler.
 pub struct TableDataApi {
     client: Client,
-    access_token: String,
+    sa_auth: ServiceAccountAuthenticator,
 }
 
 impl TableDataApi {
-    pub(crate) fn new(client: Client, access_token: String) -> Self {
-        Self { client, access_token }
+    pub(crate) fn new(client: Client, sa_auth: ServiceAccountAuthenticator) -> Self {
+        Self { client, sa_auth }
     }
 
     /// Streams data into BigQuery one record at a time without needing to run a load job. Requires the WRITER dataset
@@ -33,10 +34,12 @@ impl TableDataApi {
     ) -> Result<TableDataInsertAllResponse, BQError> {
         let req_url = format!("https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets/{dataset_id}/tables/{table_id}/insertAll", project_id=urlencode(project_id), dataset_id=urlencode(dataset_id), table_id=urlencode(table_id));
 
+        let access_token = self.sa_auth.access_token().await?;
+
         let request = self
             .client
             .post(req_url.as_str())
-            .bearer_auth(&self.access_token)
+            .bearer_auth(access_token)
             .json(&insert_request)
             .build()?;
 

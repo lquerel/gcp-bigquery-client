@@ -2,12 +2,14 @@
 use crate::error::BQError;
 use hyper::client::HttpConnector;
 use hyper_rustls::HttpsConnector;
+use std::sync::Arc;
 use yup_oauth2::authenticator::Authenticator;
 use yup_oauth2::ServiceAccountKey;
 
 /// A service account authenticator.
+#[derive(Clone)]
 pub struct ServiceAccountAuthenticator {
-    auth: Authenticator<HttpsConnector<HttpConnector>>,
+    auth: Arc<Authenticator<HttpsConnector<HttpConnector>>>,
     scopes: Vec<String>,
 }
 
@@ -27,7 +29,7 @@ impl ServiceAccountAuthenticator {
         match auth {
             Err(err) => Err(BQError::InvalidServiceAccountAuthenticator(err)),
             Ok(auth) => Ok(ServiceAccountAuthenticator {
-                auth,
+                auth: Arc::new(auth),
                 scopes: scopes.iter().map(|scope| scope.to_string()).collect(),
             }),
         }

@@ -1,6 +1,7 @@
 //! Manage BigQuery jobs.
 use reqwest::Client;
 
+use crate::auth::ServiceAccountAuthenticator;
 use crate::error::BQError;
 use crate::model::get_query_results_parameters::GetQueryResultsParameters;
 use crate::model::get_query_results_response::GetQueryResultsResponse;
@@ -14,12 +15,12 @@ use crate::{process_response, urlencode};
 /// A job API handler.
 pub struct JobApi {
     client: Client,
-    access_token: String,
+    sa_auth: ServiceAccountAuthenticator,
 }
 
 impl JobApi {
-    pub(crate) fn new(client: Client, access_token: String) -> Self {
-        Self { client, access_token }
+    pub(crate) fn new(client: Client, sa_auth: ServiceAccountAuthenticator) -> Self {
+        Self { client, sa_auth }
     }
 
     /// Runs a BigQuery SQL query synchronously and returns query results if the query completes within a specified
@@ -33,10 +34,12 @@ impl JobApi {
             project_id = urlencode(project_id)
         );
 
+        let access_token = self.sa_auth.access_token().await?;
+
         let request = self
             .client
             .post(req_url.as_str())
-            .bearer_auth(&self.access_token)
+            .bearer_auth(access_token)
             .json(&query_request)
             .build()?;
 
@@ -56,10 +59,12 @@ impl JobApi {
             project_id = urlencode(project_id)
         );
 
+        let access_token = self.sa_auth.access_token().await?;
+
         let request = self
             .client
             .post(req_url.as_str())
-            .bearer_auth(&self.access_token)
+            .bearer_auth(access_token)
             .json(&job)
             .build()?;
 
@@ -79,11 +84,9 @@ impl JobApi {
             project_id = urlencode(project_id)
         );
 
-        let request = self
-            .client
-            .get(req_url.as_str())
-            .bearer_auth(&self.access_token)
-            .build()?;
+        let access_token = self.sa_auth.access_token().await?;
+
+        let request = self.client.get(req_url.as_str()).bearer_auth(access_token).build()?;
 
         let resp = self.client.execute(request).await?;
 
@@ -107,11 +110,13 @@ impl JobApi {
             job_id = urlencode(job_id),
         );
 
+        let access_token = self.sa_auth.access_token().await?;
+
         let request = self
             .client
             .get(req_url.as_str())
             .query(&parameters)
-            .bearer_auth(&self.access_token)
+            .bearer_auth(access_token)
             .build()?;
 
         let resp = self.client.execute(request).await?;
@@ -141,7 +146,9 @@ impl JobApi {
             request_builder = request_builder.query(&["location", location]);
         }
 
-        let request = request_builder.bearer_auth(&self.access_token).build()?;
+        let access_token = self.sa_auth.access_token().await?;
+
+        let request = request_builder.bearer_auth(access_token).build()?;
 
         let resp = self.client.execute(request).await?;
 
@@ -174,7 +181,9 @@ impl JobApi {
             request_builder = request_builder.query(&["location", location]);
         }
 
-        let request = request_builder.bearer_auth(&self.access_token).build()?;
+        let access_token = self.sa_auth.access_token().await?;
+
+        let request = request_builder.bearer_auth(access_token).build()?;
 
         let resp = self.client.execute(request).await?;
 

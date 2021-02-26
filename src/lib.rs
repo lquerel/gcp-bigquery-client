@@ -57,13 +57,12 @@ impl Client {
             .await
             .expect("expecting a valid key");
 
-        let access_token = sa_auth.access_token().await.expect("expecting a valid token");
         let client = reqwest::Client::new();
         Self {
-            dataset_api: DatasetApi::new(client.clone(), access_token.clone()),
-            table_api: TableApi::new(client.clone(), access_token.clone()),
-            job_api: JobApi::new(client.clone(), access_token.clone()),
-            tabledata_api: TableDataApi::new(client, access_token),
+            dataset_api: DatasetApi::new(client.clone(), sa_auth.clone()),
+            table_api: TableApi::new(client.clone(), sa_auth.clone()),
+            job_api: JobApi::new(client.clone(), sa_auth.clone()),
+            tabledata_api: TableDataApi::new(client, sa_auth),
         }
     }
 
@@ -81,13 +80,12 @@ impl Client {
         };
         let sa_auth = ServiceAccountAuthenticator::from_service_account_key(sa_key, &scopes).await?;
 
-        let access_token = sa_auth.access_token().await?;
         let client = reqwest::Client::new();
         Ok(Self {
-            dataset_api: DatasetApi::new(client.clone(), access_token.clone()),
-            table_api: TableApi::new(client.clone(), access_token.clone()),
-            job_api: JobApi::new(client.clone(), access_token.clone()),
-            tabledata_api: TableDataApi::new(client, access_token),
+            dataset_api: DatasetApi::new(client.clone(), sa_auth.clone()),
+            table_api: TableApi::new(client.clone(), sa_auth.clone()),
+            job_api: JobApi::new(client.clone(), sa_auth.clone()),
+            tabledata_api: TableDataApi::new(client, sa_auth),
         })
     }
 
