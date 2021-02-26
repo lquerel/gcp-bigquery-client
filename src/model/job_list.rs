@@ -1,5 +1,4 @@
 use crate::model::job_list_jobs::JobListJobs;
-use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

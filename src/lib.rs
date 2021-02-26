@@ -127,11 +127,11 @@ async fn process_response<T: for<'de> Deserialize<'de>>(resp: Response) -> Resul
 }
 
 pub fn env_vars() -> (String, String, String, String) {
-    let project_id = env::var("PROJECT_ID").expect("PROJECT_ID env var not defined");
-    let dataset_id = env::var("DATASET_ID").expect("DATASET_ID env var not defined");
-    let table_id = env::var("TABLE_ID").expect("TABLE_ID env var not defined");
+    let project_id = env::var("PROJECT_ID").expect("Environment variable PROJECT_ID");
+    let dataset_id = env::var("DATASET_ID").expect("Environment variable DATASET_ID");
+    let table_id = env::var("TABLE_ID").expect("Environment variable TABLE_ID");
     let gcp_sa_key =
-        env::var("GOOGLE_APPLICATION_CREDENTIALS").expect("GOOGLE_APPLICATION_CREDENTIALS env var not defined");
+        env::var("GOOGLE_APPLICATION_CREDENTIALS").expect("Environment variable GOOGLE_APPLICATION_CREDENTIALS");
 
     (project_id, dataset_id, table_id, gcp_sa_key)
 }

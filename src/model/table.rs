@@ -1,3 +1,4 @@
+use crate::error::BQError;
 use crate::model::clustering::Clustering;
 use crate::model::encryption_configuration::EncryptionConfiguration;
 use crate::model::external_data_configuration::ExternalDataConfiguration;
@@ -10,6 +11,7 @@ use crate::model::table_reference::TableReference;
 use crate::model::table_schema::TableSchema;
 use crate::model::time_partitioning::TimePartitioning;
 use crate::model::view_definition::ViewDefinition;
+use crate::Client;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -135,5 +137,12 @@ impl Table {
 
     pub fn table_id(&self) -> &String {
         &self.table_reference.table_id
+    }
+
+    pub async fn delete(self, client: &Client) -> Result<(), BQError> {
+        client
+            .table()
+            .delete(self.project_id(), self.dataset_id(), self.table_id())
+            .await
     }
 }

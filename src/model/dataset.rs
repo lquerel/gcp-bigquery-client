@@ -1,5 +1,8 @@
+use crate::error::BQError;
 use crate::model::dataset_reference::DatasetReference;
-use serde::{Deserialize, Serialize};
+use crate::model::table::Table;
+use crate::model::table_schema::TableSchema;
+use crate::Client;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -52,5 +55,25 @@ impl Dataset {
     pub fn friendly_name(&mut self, friendly_name: String) -> &mut Dataset {
         self.friendly_name = Some(friendly_name);
         self
+    }
+
+    pub async fn create_table(
+        &self,
+        client: &Client,
+        table_id: &str,
+        table_schema: TableSchema,
+    ) -> Result<Table, BQError> {
+        let table_decl = Table::new(self.project_id(), self.dataset_id(), table_id, table_schema);
+        client
+            .table()
+            .create(self.project_id(), self.dataset_id(), table_decl)
+            .await
+    }
+
+    pub async fn delete(self, client: &Client, delete_contents: bool) -> Result<(), BQError> {
+        client
+            .dataset()
+            .delete(self.project_id(), self.dataset_id(), delete_contents)
+            .await
     }
 }

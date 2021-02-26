@@ -152,14 +152,6 @@ client.table().delete(project_id, dataset_id, table_id).await?;
 client.dataset().delete(project_id, dataset_id, true).await?;
 ```
 
-## Main dependencies
-* Yup-OAuth2 5.x
-* Hyper 0.14 (+ RusTLS)
-* Tokio 1.x
-* Reqwest 0.11
-* Serde JSON 1.x
-* ThisError 1.x
-
 ## Status
 List of endpoints implemented:
 - [X] Dataset
