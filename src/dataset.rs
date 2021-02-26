@@ -2,6 +2,7 @@
 use log::info;
 use reqwest::Client;
 
+use crate::auth::ServiceAccountAuthenticator;
 use crate::error::BQError;
 use crate::model::dataset::Dataset;
 use crate::model::datasets::Datasets;
@@ -10,12 +11,12 @@ use crate::{process_response, urlencode};
 /// A dataset API handler.
 pub struct DatasetApi {
     client: Client,
-    access_token: String,
+    sa_auth: ServiceAccountAuthenticator,
 }
 
 impl DatasetApi {
-    pub(crate) fn new(client: Client, access_token: String) -> Self {
-        Self { client, access_token }
+    pub(crate) fn new(client: Client, sa_auth: ServiceAccountAuthenticator) -> Self {
+        Self { client, sa_auth }
     }
 
     /// Creates a new empty dataset.
@@ -45,10 +46,12 @@ impl DatasetApi {
             project_id = urlencode(project_id)
         );
 
+        let access_token = self.sa_auth.access_token().await?;
+
         let request = self
             .client
             .post(req_url.as_str())
-            .bearer_auth(&self.access_token)
+            .bearer_auth(access_token)
             .json(&dataset)
             .build()?;
 
@@ -88,7 +91,9 @@ impl DatasetApi {
             project_id = urlencode(project_id)
         );
 
-        let mut request = self.client.get(req_url).bearer_auth(&self.access_token);
+        let access_token = self.sa_auth.access_token().await?;
+
+        let mut request = self.client.get(req_url).bearer_auth(access_token);
 
         // process options
         if let Some(max_results) = options.max_results {
@@ -144,10 +149,12 @@ impl DatasetApi {
             dataset_id = urlencode(dataset_id)
         );
 
+        let access_token = self.sa_auth.access_token().await?;
+
         let request = self
             .client
             .delete(req_url)
-            .bearer_auth(&self.access_token)
+            .bearer_auth(access_token)
             .query(&[("deleteContents", delete_contents.to_string())])
             .build()?;
         let response = self.client.execute(request).await?;
@@ -228,7 +235,9 @@ impl DatasetApi {
             dataset_id = urlencode(dataset_id)
         );
 
-        let request = self.client.get(req_url).bearer_auth(&self.access_token).build()?;
+        let access_token = self.sa_auth.access_token().await?;
+
+        let request = self.client.get(req_url).bearer_auth(access_token).build()?;
         let response = self.client.execute(request).await?;
 
         process_response(response).await
@@ -246,10 +255,12 @@ impl DatasetApi {
             dataset_id = urlencode(dataset_id)
         );
 
+        let access_token = self.sa_auth.access_token().await?;
+
         let request = self
             .client
             .patch(req_url)
-            .bearer_auth(&self.access_token)
+            .bearer_auth(access_token)
             .json(&dataset)
             .build()?;
         let response = self.client.execute(request).await?;
@@ -268,10 +279,12 @@ impl DatasetApi {
             dataset_id = urlencode(dataset_id)
         );
 
+        let access_token = self.sa_auth.access_token().await?;
+
         let request = self
             .client
             .put(req_url)
-            .bearer_auth(&self.access_token)
+            .bearer_auth(access_token)
             .json(&dataset)
             .build()?;
         let response = self.client.execute(request).await?;

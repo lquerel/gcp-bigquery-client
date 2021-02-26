@@ -73,22 +73,32 @@ pub struct ResultSet {
 
 impl ResultSet {
     pub fn new(query_response: QueryResponse) -> Self {
-        let row_count = query_response.rows.as_ref().map_or(0, |rows| rows.len()) as i64;
-        let table_schema = query_response.schema.as_ref().expect("Expecting a schema");
-        let table_fields = table_schema
-            .fields
-            .as_ref()
-            .expect("Expecting a non empty list of fields");
-        let fields: HashMap<String, usize> = table_fields
-            .iter()
-            .enumerate()
-            .map(|(pos, field)| (field.name.clone(), pos))
-            .collect();
-        Self {
-            cursor: -1,
-            row_count,
-            query_response,
-            fields,
+        if query_response.job_complete.unwrap_or(false) {
+            // rows and tables schema are only present for successfully completed jobs.
+            let row_count = query_response.rows.as_ref().map_or(0, Vec::len) as i64;
+            let table_schema = query_response.schema.as_ref().expect("Expecting a schema");
+            let table_fields = table_schema
+                .fields
+                .as_ref()
+                .expect("Expecting a non empty list of fields");
+            let fields: HashMap<String, usize> = table_fields
+                .iter()
+                .enumerate()
+                .map(|(pos, field)| (field.name.clone(), pos))
+                .collect();
+            Self {
+                cursor: -1,
+                row_count,
+                query_response,
+                fields,
+            }
+        } else {
+            Self {
+                cursor: -1,
+                row_count: 0,
+                query_response,
+                fields: HashMap::new(),
+            }
         }
     }
 
