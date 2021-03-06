@@ -189,12 +189,12 @@ List of endpoints implemented:
 - [ ] Project
   - [ ] GetServiceAccount
   - [ ] List 
-- [ ] Routine  
-  - [ ] Delete
-  - [ ] Get
-  - [ ] Insert
-  - [ ] List
-  - [ ] Update
+- [X] Routine  
+  - [X] Delete
+  - [X] Get
+  - [X] Insert
+  - [X] List
+  - [X] Update
 
 ## License
 

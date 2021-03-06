@@ -28,6 +28,7 @@ use crate::auth::{service_account_authenticator, ServiceAccountAuthenticator};
 use crate::dataset::DatasetApi;
 use crate::error::BQError;
 use crate::job::JobApi;
+use crate::routine::RoutineApi;
 use crate::table::TableApi;
 use crate::tabledata::TableDataApi;
 
@@ -36,6 +37,7 @@ pub mod dataset;
 pub mod error;
 pub mod job;
 pub mod model;
+pub mod routine;
 pub mod table;
 pub mod tabledata;
 
@@ -45,6 +47,7 @@ pub struct Client {
     table_api: TableApi,
     job_api: JobApi,
     tabledata_api: TableDataApi,
+    routine_api: RoutineApi,
 }
 
 impl Client {
@@ -62,7 +65,8 @@ impl Client {
             dataset_api: DatasetApi::new(client.clone(), sa_auth.clone()),
             table_api: TableApi::new(client.clone(), sa_auth.clone()),
             job_api: JobApi::new(client.clone(), sa_auth.clone()),
-            tabledata_api: TableDataApi::new(client, sa_auth),
+            tabledata_api: TableDataApi::new(client.clone(), sa_auth.clone()),
+            routine_api: RoutineApi::new(client, sa_auth),
         }
     }
 
@@ -85,7 +89,8 @@ impl Client {
             dataset_api: DatasetApi::new(client.clone(), sa_auth.clone()),
             table_api: TableApi::new(client.clone(), sa_auth.clone()),
             job_api: JobApi::new(client.clone(), sa_auth.clone()),
-            tabledata_api: TableDataApi::new(client, sa_auth),
+            tabledata_api: TableDataApi::new(client.clone(), sa_auth.clone()),
+            routine_api: RoutineApi::new(client, sa_auth),
         })
     }
 
@@ -107,6 +112,11 @@ impl Client {
     /// Returns a table data API handler.
     pub fn tabledata(&self) -> &TableDataApi {
         &self.tabledata_api
+    }
+
+    /// Returns a routine API handler.
+    pub fn routine(&self) -> &RoutineApi {
+        &self.routine_api
     }
 }
 
