@@ -1,5 +1,4 @@
 use crate::model::audit_log_config::AuditLogConfig;
-use serde::{Deserialize, Serialize};
 
 /// AuditConfig : Specifies the audit configuration for a service. The configuration determines which permission types
 /// are logged, and what identities, if any, are exempted from logging. An AuditConfig must have one or more

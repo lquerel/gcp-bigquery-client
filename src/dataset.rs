@@ -6,6 +6,9 @@ use crate::auth::ServiceAccountAuthenticator;
 use crate::error::BQError;
 use crate::model::dataset::Dataset;
 use crate::model::datasets::Datasets;
+use crate::model::information_schema::schemata::Schemata;
+use crate::model::query_request::QueryRequest;
+use crate::model::query_response::{QueryResponse, ResultSet};
 use crate::{process_response, urlencode};
 
 /// A dataset API handler.
@@ -291,6 +294,62 @@ impl DatasetApi {
 
         process_response(response).await
     }
+
+    pub async fn information_schema_schemata(&self, project_id: &str, region: &str) -> Result<Vec<Schemata>, BQError> {
+        let req_url = format!(
+            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/queries",
+            project_id = urlencode(project_id)
+        );
+
+        let access_token = self.sa_auth.access_token().await?;
+        let query_request = QueryRequest::new(format!("SELECT * FROM {}.INFORMATION_SCHEMA.SCHEMATA", region));
+
+        let request = self
+            .client
+            .post(req_url.as_str())
+            .bearer_auth(access_token)
+            .json(&query_request)
+            .build()?;
+
+        let resp = self.client.execute(request).await?;
+
+        let query_response: QueryResponse = process_response(resp).await?;
+        let mut rs = ResultSet::new(query_response);
+        let mut result = vec![];
+        let catalog_name_pos = *rs
+            .column_index("catalog_name")
+            .expect("The catalog_name column is expected");
+        let schema_name_pos = *rs
+            .column_index("schema_name")
+            .expect("The schema_name column is expected");
+        let schema_owner_pos = *rs
+            .column_index("schema_owner")
+            .expect("The schema_owner column is expected");
+        let creation_time_pos = *rs
+            .column_index("creation_time")
+            .expect("The creation_time column is expected");
+        let last_modified_time_pos = *rs
+            .column_index("last_modified_time")
+            .expect("The last_modified_time column is expected");
+        let location_pos = *rs.column_index("location").expect("The location column is expected");
+
+        while rs.next_row() {
+            result.push(Schemata {
+                catalog_name: rs.get_string(catalog_name_pos)?.expect("A catalog name is expected"),
+                schema_name: rs.get_string(schema_name_pos)?.expect("A schema_name is expected"),
+                schema_owner: rs.get_string(schema_owner_pos)?,
+                creation_time: rs.get_string(creation_time_pos)?.expect("A creation_time is expected"),
+                last_modified_time: rs
+                    .get_string(last_modified_time_pos)?
+                    .expect("A last_modified_time is expected"),
+                location: rs.get_string(location_pos)?.expect("A location is expected"),
+            });
+        }
+
+        // ToDo page token, max result, process timestamp
+
+        Ok(result)
+    }
 }
 
 /// A list of options used to create a dataset API handler.
@@ -393,6 +452,21 @@ mod test {
         // Delete dataset
         client.dataset().delete(project_id, dataset_id, true).await?;
 
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_information_schema() -> Result<(), BQError> {
+        let (ref project_id, ref dataset_id, ref _table_id, ref sa_key) = env_vars();
+        let dataset_id = &format!("{}_dataset", dataset_id);
+
+        let client = Client::from_service_account_key_file(sa_key).await;
+
+        let result = client
+            .dataset()
+            .information_schema_schemata(project_id, "region-us")
+            .await?;
+        dbg!(result);
         Ok(())
     }
 }

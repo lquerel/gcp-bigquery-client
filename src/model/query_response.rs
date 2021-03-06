@@ -128,6 +128,11 @@ impl ResultSet {
         self.fields.keys().cloned().collect()
     }
 
+    /// Returns the index for a column name.
+    pub fn column_index(&self, column_name: &str) -> Option<&usize> {
+        self.fields.get(column_name)
+    }
+
     pub fn get_i64(&self, col_index: usize) -> Result<Option<i64>, BQError> {
         let json_value = self.get_json_value(col_index)?;
         match &json_value {

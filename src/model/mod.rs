@@ -30,6 +30,7 @@ pub mod get_query_results_parameters;
 pub mod get_query_results_response;
 pub mod google_sheets_options;
 pub mod hive_partitioning_options;
+pub mod information_schema;
 pub mod job;
 pub mod job_cancel_response;
 pub mod job_configuration;
