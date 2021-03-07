@@ -171,7 +171,7 @@ List of endpoints implemented:
   - [X] SetIamPolicy
   - [X] TestIamPermissions
   - [X] Update
-- [ ] Tabledata 
+- [X] Tabledata 
   - [X] InsertAll
   - [X] List
 - [X] Job
