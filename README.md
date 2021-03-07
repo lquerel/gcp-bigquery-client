@@ -186,9 +186,9 @@ List of endpoints implemented:
   - [X] Get
   - [X] List
   - [X] Patch
-- [ ] Project
-  - [ ] GetServiceAccount
-  - [ ] List 
+- [X] Project
+  - [X] GetServiceAccount
+  - [] List 
 - [X] Routine  
   - [X] Delete
   - [X] Get

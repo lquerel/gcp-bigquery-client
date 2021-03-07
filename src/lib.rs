@@ -29,6 +29,7 @@ use crate::dataset::DatasetApi;
 use crate::error::BQError;
 use crate::job::JobApi;
 use crate::model_api::ModelApi;
+use crate::project::ProjectApi;
 use crate::routine::RoutineApi;
 use crate::table::TableApi;
 use crate::tabledata::TableDataApi;
@@ -39,6 +40,7 @@ pub mod error;
 pub mod job;
 pub mod model;
 pub mod model_api;
+pub mod project;
 pub mod routine;
 pub mod table;
 pub mod tabledata;
@@ -51,6 +53,7 @@ pub struct Client {
     tabledata_api: TableDataApi,
     routine_api: RoutineApi,
     model_api: ModelApi,
+    project_api: ProjectApi,
 }
 
 impl Client {
@@ -70,7 +73,8 @@ impl Client {
             job_api: JobApi::new(client.clone(), sa_auth.clone()),
             tabledata_api: TableDataApi::new(client.clone(), sa_auth.clone()),
             routine_api: RoutineApi::new(client.clone(), sa_auth.clone()),
-            model_api: ModelApi::new(client, sa_auth),
+            model_api: ModelApi::new(client.clone(), sa_auth.clone()),
+            project_api: ProjectApi::new(client, sa_auth),
         }
     }
 
@@ -95,7 +99,8 @@ impl Client {
             job_api: JobApi::new(client.clone(), sa_auth.clone()),
             tabledata_api: TableDataApi::new(client.clone(), sa_auth.clone()),
             routine_api: RoutineApi::new(client.clone(), sa_auth.clone()),
-            model_api: ModelApi::new(client, sa_auth),
+            model_api: ModelApi::new(client.clone(), sa_auth.clone()),
+            project_api: ProjectApi::new(client, sa_auth),
         })
     }
 
@@ -127,6 +132,11 @@ impl Client {
     /// Returns a model API handler.
     pub fn model(&self) -> &ModelApi {
         &self.model_api
+    }
+
+    /// Returns a project API handler.
+    pub fn project(&self) -> &ProjectApi {
+        &self.project_api
     }
 }
 
