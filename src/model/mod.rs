@@ -1,4 +1,10 @@
 //! All the object definitions used by the BigQuery REST API.
+
+// This module contains structs generated from the  Google API Explorer.
+// To prevent Clippy warnings, we need to allow 'module_inception'.
+// Example: The struct Model exists in the BQ Discovery Document and this name is also used
+// for the current module.
+#![allow(clippy::module_inception)]
 pub mod aggregate_classification_metrics;
 pub mod argument;
 pub mod arima_coefficients;

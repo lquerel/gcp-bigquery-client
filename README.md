@@ -181,11 +181,11 @@ List of endpoints implemented:
   - [X] Insert
   - [X] List
   - [X] Query 
-- [ ] Model
-  - [ ] Delete
-  - [ ] Get
-  - [ ] List
-  - [ ] Patch
+- [X] Model
+  - [X] Delete
+  - [X] Get
+  - [X] List
+  - [X] Patch
 - [ ] Project
   - [ ] GetServiceAccount
   - [ ] List 
