@@ -3,10 +3,10 @@
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ArimaOrder {
-    /// Order of the differencing part.
-    pub d: Option<i64>,
     /// Order of the moving-average part.
     pub q: Option<i64>,
     /// Order of the autoregressive part.
     pub p: Option<i64>,
+    /// Order of the differencing part.
+    pub d: Option<i64>,
 }

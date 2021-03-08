@@ -6,18 +6,18 @@ use crate::model::arima_single_model_forecasting_metrics::ArimaSingleModelForeca
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ArimaForecastingMetrics {
-    /// Repeated as there can be many metric sets (one for each model) in auto-arima and the large-scale case.
-    pub arima_single_model_forecasting_metrics: Option<Vec<ArimaSingleModelForecastingMetrics>>,
-    /// Whether Arima model fitted with drift or not. It is always false when d is not 1.
-    pub has_drift: Option<Vec<bool>>,
-    /// Seasonal periods. Repeated because multiple periods are supported for one time series.
-    pub seasonal_periods: Option<Vec<SeasonalPeriods>>,
     /// Id to differentiate different time series for the large-scale case.
     pub time_series_id: Option<Vec<String>>,
-    /// Arima model fitting metrics.
-    pub arima_fitting_metrics: Option<Vec<ArimaFittingMetrics>>,
+    /// Seasonal periods. Repeated because multiple periods are supported for one time series.
+    pub seasonal_periods: Option<Vec<SeasonalPeriods>>,
+    /// Whether Arima model fitted with drift or not. It is always false when d is not 1.
+    pub has_drift: Option<Vec<bool>>,
     /// Non-seasonal order.
     pub non_seasonal_order: Option<Vec<ArimaOrder>>,
+    /// Repeated as there can be many metric sets (one for each model) in auto-arima and the large-scale case.
+    pub arima_single_model_forecasting_metrics: Option<Vec<ArimaSingleModelForecastingMetrics>>,
+    /// Arima model fitting metrics.
+    pub arima_fitting_metrics: Option<Vec<ArimaFittingMetrics>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

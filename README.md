@@ -7,27 +7,21 @@ GCP BigQuery Client (Rust)
 [<img alt="build status" src="https://img.shields.io/github/workflow/status/lquerel/gcp-bigquery-client/Rust/main?style=for-the-badge" height="20">](https://github.com/lquerel/gcp-bigquery-client/actions?query=branch%3Amain)
 
 An ergonomic async client library for GCP BigQuery.
-* Support for dataset, table, streaming API and query (see [status section](#status) for an exhaustive list of supported API endpoints)
-* Support Service Account Key authentication (other OAuth flows will be added later)
+* Support all BigQuery API endpoints (not all covered by unit tests yet)
+* Support Service Account Key authentication and other yup-oauth2 mechanisms
 * Create tables and rows via builder patterns
 * Persist complex Rust structs in structured BigQuery tables
 * Async API
 
 <br>
-
-Other OAuth flows will be added later. 
-
----
-**NOTE**
-This is my first crate and it's still a **work-in-progress**. So please post your suggestions and ideas on this 
-GitHub [discussion section](https://github.com/lquerel/gcp-bigquery-client/discussions).  
-
-Most of the Rust structures defined in the directory 'model' are derived from this [Google API Explorer document](https://bigquery.googleapis.com/discovery/v1/apis/bigquery/v2/rest). 
+Contributions are welcome.
+<br>
+Please post your suggestions and ideas on this GitHub [discussion section](https://github.com/lquerel/gcp-bigquery-client/discussions).
 
 ---
 
 ## Example
-The following example performs the following operations:
+This example performs the following operations:
 * Load a set of environment variables to set `$PROJECT_ID`, `$DATASET_ID`, `$TABLE_ID` and `$GOOGLE_APPLICATION_CREDENTIALS`
 * Init the BigQuery client
 * Create a dataset in the GCP project `$PROJECT_ID`
@@ -153,48 +147,19 @@ client.dataset().delete(project_id, dataset_id, true).await?;
 ```
 
 ## Status
+
+The API of this crate is still subject to change up to version 1.0.
+
 List of endpoints implemented:
-- [X] Dataset
-  - [X] Delete
-  - [X] Get
-  - [X] Insert (create)
-  - [X] List
-  - [X] Patch
-  - [X] Update
-- [X] Table
-  - [X] Delete
-  - [X] Get
-  - [X] GetIamPolicy
-  - [X] Insert
-  - [X] List
-  - [X] Patch
-  - [X] SetIamPolicy
-  - [X] TestIamPermissions
-  - [X] Update
-- [X] Tabledata 
-  - [X] InsertAll
-  - [X] List
-- [X] Job
-  - [X] Cancel
-  - [X] Get
-  - [X] GetQueryResult
-  - [X] Insert
-  - [X] List
-  - [X] Query 
-- [X] Model
-  - [X] Delete
-  - [X] Get
-  - [X] List
-  - [X] Patch
-- [X] Project
+- [X] Dataset - All methods
+- [X] Table - All methods
+- [X] Tabledata - All methods 
+- [X] Job - All methods
+- [X] Model - All methods (not tested)
+- [X] Project (not tested)
   - [X] GetServiceAccount
   - [] List 
-- [X] Routine  
-  - [X] Delete
-  - [X] Get
-  - [X] Insert
-  - [X] List
-  - [X] Update
+- [X] Routine - All methods (not tested)
 
 ## License
 

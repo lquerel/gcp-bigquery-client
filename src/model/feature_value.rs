@@ -6,8 +6,8 @@ use crate::model::categorical_value::CategoricalValue;
 pub struct FeatureValue {
     /// The feature column name.
     pub feature_column: Option<String>,
-    /// The categorical feature value.
-    pub categorical_value: Option<CategoricalValue>,
     /// The numerical feature value. This is the centroid value for this feature.
     pub numerical_value: Option<f64>,
+    /// The categorical feature value.
+    pub categorical_value: Option<CategoricalValue>,
 }

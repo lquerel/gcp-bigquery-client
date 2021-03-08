@@ -90,6 +90,7 @@ pub mod multi_class_classification_metrics;
 pub mod policy;
 pub mod principal_component_info;
 pub mod project_list;
+pub mod project_reference;
 pub mod query_parameter;
 pub mod query_parameter_type;
 pub mod query_parameter_type_struct_types;

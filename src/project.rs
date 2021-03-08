@@ -4,6 +4,7 @@ use reqwest::Client;
 use crate::auth::ServiceAccountAuthenticator;
 use crate::error::BQError;
 use crate::model::get_service_account_response::GetServiceAccountResponse;
+use crate::model::project_list::ProjectList;
 use crate::{process_response, urlencode};
 
 /// A project API handler.
@@ -34,28 +35,28 @@ impl ProjectApi {
         process_response(response).await
     }
 
-    // RPC to list projects to which the user has been granted any project role.
-    //
-    // Users of this method are encouraged to consider the Resource Manager API, which provides
-    // the underlying data for this method and has more capabilities.
-    // # Arguments
-    // * `options` - Get options.
-    // pub async fn list(&self, options: GetOptions) -> Result<ProjectList, BQError> {
-    //     let req_url = "https://bigquery.googleapis.com/bigquery/v2/projects";
-    //
-    //     let access_token = self.sa_auth.access_token().await?;
-    //
-    //     let request = self
-    //         .client
-    //         .get(req_url)
-    //         .bearer_auth(access_token)
-    //         .query(&options)
-    //         .build()?;
-    //
-    //     let resp = self.client.execute(request).await?;
-    //
-    //     process_response(resp).await
-    // }
+    /// RPC to list projects to which the user has been granted any project role.
+    ///
+    /// Users of this method are encouraged to consider the Resource Manager API, which provides
+    /// the underlying data for this method and has more capabilities.
+    /// # Arguments
+    /// * `options` - Get options.
+    pub async fn list(&self, options: GetOptions) -> Result<ProjectList, BQError> {
+        let req_url = "https://bigquery.googleapis.com/bigquery/v2/projects";
+
+        let access_token = self.sa_auth.access_token().await?;
+
+        let request = self
+            .client
+            .get(req_url)
+            .bearer_auth(access_token)
+            .query(&options)
+            .build()?;
+
+        let resp = self.client.execute(request).await?;
+
+        process_response(resp).await
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
