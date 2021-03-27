@@ -200,7 +200,7 @@ impl DatasetApi {
     pub async fn delete_if_exists(&self, project_id: &str, dataset_id: &str, delete_contents: bool) -> bool {
         match self.delete(project_id, dataset_id, delete_contents).await {
             Err(BQError::ResponseError { error }) => {
-                if error.code != 404 {
+                if error.error.code != 404 {
                     warn!("dataset.delete_if_exists: unexpected error: {:?}", error);
                 }
                 false
@@ -427,7 +427,16 @@ mod test {
         }
 
         // Create dataset
-        let created_dataset = client.dataset().create(Dataset::new(project_id, dataset_id)).await?;
+        let created_dataset = client
+            .dataset()
+            .create(
+                Dataset::new(project_id, dataset_id)
+                    .friendly_name("A dataset used for unit tests")
+                    .location("US")
+                    .label("owner", "me")
+                    .label("env", "prod"),
+            )
+            .await?;
         assert_eq!(created_dataset.id, Some(format!("{}:{}", project_id, dataset_id)));
 
         // Get dataset

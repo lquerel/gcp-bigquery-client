@@ -3,6 +3,7 @@ use crate::model::dataset_reference::DatasetReference;
 use crate::model::table::Table;
 use crate::model::table_schema::TableSchema;
 use crate::Client;
+use std::collections::HashMap;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -41,19 +42,52 @@ impl Dataset {
         }
     }
 
+    /// Returns the project id of this dataset.
     pub fn project_id(&self) -> &String {
         &self.dataset_reference.project_id
     }
 
+    /// Returns the dataset id of this dataset.
     pub fn dataset_id(&self) -> &String {
         &self.dataset_reference.dataset_id
     }
 
-    pub fn friendly_name(&mut self, friendly_name: String) -> &mut Dataset {
-        self.friendly_name = Some(friendly_name);
+    /// Sets the location of this dataset.
+    /// # Arguments
+    /// * `location` - The location of this dataset
+    pub fn location(mut self, location: &str) -> Self {
+        self.location = Some(location.into());
         self
     }
 
+    /// Sets the friendly name of this dataset.
+    /// # Arguments
+    /// * `friendly_name` - The friendly name of this dataset
+    pub fn friendly_name(mut self, friendly_name: &str) -> Self {
+        self.friendly_name = Some(friendly_name.into());
+        self
+    }
+
+    /// Adds a label to this dataset.
+    /// # Arguments
+    /// * `key` - The label name.
+    /// * `value` - The label value.
+    pub fn label(mut self, key: &str, value: &str) -> Self {
+        if let Some(labels) = self.labels.as_mut() {
+            labels.insert(key.into(), value.into());
+        } else {
+            let mut labels = HashMap::default();
+            labels.insert(key.into(), value.into());
+            self.labels = Some(labels);
+        }
+        self
+    }
+
+    /// Creates a new table.
+    /// # Arguments
+    /// * `client` - The client API.
+    /// * `table_id` - The table id of the table to create.
+    /// * `table_schema` - The schema of the table to create.
     pub async fn create_table(
         &self,
         client: &Client,
@@ -64,6 +98,10 @@ impl Dataset {
         client.table().create(table_decl).await
     }
 
+    /// Deletes an existing table.
+    /// # Arguments
+    /// * `client` - The client API.
+    /// * `delete_contents` - A flag defining if a dataset must be deleted even if it contains some tables, views, ...
     pub async fn delete(self, client: &Client, delete_contents: bool) -> Result<(), BQError> {
         client
             .dataset()

@@ -13,6 +13,8 @@ use crate::model::time_partitioning::TimePartitioning;
 use crate::model::view_definition::ViewDefinition;
 use crate::Client;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -127,16 +129,114 @@ impl Table {
         }
     }
 
+    /// Returns the project id of table.
     pub fn project_id(&self) -> &String {
         &self.table_reference.project_id
     }
 
+    /// Returns the dataset id of table.
     pub fn dataset_id(&self) -> &String {
         &self.table_reference.dataset_id
     }
 
+    /// Returns the table id of table.
     pub fn table_id(&self) -> &String {
         &self.table_reference.table_id
+    }
+
+    /// Sets the location of this table.
+    /// # Arguments
+    /// * `location` - The location of this table
+    pub fn location(mut self, location: &str) -> Self {
+        self.location = Some(location.into());
+        self
+    }
+
+    /// Sets the friendly name of this table.
+    /// # Arguments
+    /// * `friendly_name` - The friendly name of this table
+    pub fn friendly_name(mut self, friendly_name: &str) -> Self {
+        self.friendly_name = Some(friendly_name.into());
+        self
+    }
+
+    /// Sets the description of this table.
+    /// # Arguments
+    /// * `description` - The description of this table
+    pub fn description(mut self, description: &str) -> Self {
+        self.description = Some(description.into());
+        self
+    }
+
+    pub fn time_partitioning(mut self, time_partitioning: TimePartitioning) -> Self {
+        self.time_partitioning = Some(time_partitioning);
+        self
+    }
+
+    pub fn range_partitioning(mut self, range_partitioning: RangePartitioning) -> Self {
+        self.range_partitioning = Some(range_partitioning);
+        self
+    }
+
+    pub fn clustering(mut self, clustering: Clustering) -> Self {
+        self.clustering = Some(clustering);
+        self
+    }
+
+    pub fn require_partition_filter(mut self, require_partition_filter: bool) -> Self {
+        self.require_partition_filter = Some(require_partition_filter);
+        self
+    }
+
+    pub fn expiration_time(mut self, expiration_time: SystemTime) -> Self {
+        self.expiration_time = Some(
+            expiration_time
+                .duration_since(UNIX_EPOCH)
+                .expect("Time went backwards")
+                .as_millis()
+                .to_string(),
+        );
+        self
+    }
+
+    pub fn view(mut self, view: ViewDefinition) -> Self {
+        self.view = Some(view);
+        self
+    }
+
+    pub fn materialized_view(mut self, materialized_view: MaterializedViewDefinition) -> Self {
+        self.materialized_view = Some(materialized_view);
+        self
+    }
+
+    pub fn external_data_configuration(mut self, external_data_configuration: ExternalDataConfiguration) -> Self {
+        self.external_data_configuration = Some(external_data_configuration);
+        self
+    }
+
+    pub fn encryption_configuration(mut self, encryption_configuration: EncryptionConfiguration) -> Self {
+        self.encryption_configuration = Some(encryption_configuration);
+        self
+    }
+
+    pub fn snapshot_definition(mut self, snapshot_definition: SnapshotDefinition) -> Self {
+        self.snapshot_definition = Some(snapshot_definition);
+        self
+    }
+
+    /// Adds a label to this table.
+    /// # Arguments
+    /// * `key` - The label name.
+    /// * `value` - The label value.
+    pub fn label(mut self, key: &str, value: &str) -> Self {
+        if let Some(labels) = self.labels.as_mut() {
+            labels.insert(key.into(), value.into());
+        } else {
+            let mut labels = HashMap::default();
+            labels.insert(key.into(), value.into());
+            self.labels = Some(labels);
+        }
+        self
     }
 
     pub async fn delete(self, client: &Client) -> Result<(), BQError> {

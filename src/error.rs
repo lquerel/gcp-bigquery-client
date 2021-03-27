@@ -45,6 +45,11 @@ pub enum BQError {
 
 #[derive(Debug, Deserialize)]
 pub struct ResponseError {
+    pub error: NestedResponseError,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct NestedResponseError {
     pub code: i64,
     pub errors: Vec<HashMap<String, String>>,
     pub message: String,

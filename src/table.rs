@@ -79,7 +79,7 @@ impl TableApi {
     pub async fn delete_if_exists(&self, project_id: &str, dataset_id: &str, table_id: &str) -> bool {
         match self.delete(project_id, dataset_id, table_id).await {
             Err(BQError::ResponseError { error }) => {
-                if error.code != 404 {
+                if error.error.code != 404 {
                     warn!("table.delete_if_exists: unexpected error: {:?}", error);
                 }
                 false
@@ -359,6 +359,7 @@ mod test {
     use crate::model::table_schema::TableSchema;
     use crate::table::ListOptions;
     use crate::{env_vars, Client};
+    use std::time::{Duration, SystemTime};
 
     #[tokio::test]
     async fn test() -> Result<(), BQError> {
@@ -386,7 +387,16 @@ mod test {
                 TableFieldSchema::new("col4", FieldType::Datetime),
             ]),
         );
-        let created_table = client.table().create(table).await?;
+        let created_table = client
+            .table()
+            .create(
+                table
+                    .description("A table used for unit tests")
+                    .label("owner", "me")
+                    .label("env", "prod")
+                    .expiration_time(SystemTime::now() + Duration::from_secs(3600)),
+            )
+            .await?;
         assert_eq!(created_table.table_reference.table_id, table_id.to_string());
 
         let table = client.table().get(project_id, dataset_id, table_id, None).await?;
