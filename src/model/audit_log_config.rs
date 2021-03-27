@@ -17,11 +17,11 @@ pub struct AuditLogConfig {
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum LogType {
     #[serde(rename = "LOG_TYPE_UNSPECIFIED")]
-    LOGTYPEUNSPECIFIED,
+    LogTypeUnspecified,
     #[serde(rename = "ADMIN_READ")]
-    ADMINREAD,
+    AdminRead,
     #[serde(rename = "DATA_WRITE")]
-    DATAWRITE,
+    DataWrite,
     #[serde(rename = "DATA_READ")]
-    DATAREAD,
+    DataRead,
 }

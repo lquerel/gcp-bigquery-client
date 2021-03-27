@@ -1,4 +1,5 @@
 //! Manage BigQuery table
+use log::warn;
 use reqwest::Client;
 
 use crate::auth::ServiceAccountAuthenticator;
@@ -72,6 +73,22 @@ impl TableApi {
             Err(BQError::ResponseError {
                 error: response.json().await?,
             })
+        }
+    }
+
+    pub async fn delete_if_exists(&self, project_id: &str, dataset_id: &str, table_id: &str) -> bool {
+        match self.delete(project_id, dataset_id, table_id).await {
+            Err(BQError::ResponseError { error }) => {
+                if error.code != 404 {
+                    warn!("table.delete_if_exists: unexpected error: {:?}", error);
+                }
+                false
+            }
+            Err(err) => {
+                warn!("table.delete_if_exists: unexpected error: {:?}", err);
+                false
+            }
+            Ok(_) => true,
         }
     }
 

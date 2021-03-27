@@ -1,5 +1,5 @@
 //! Manage BigQuery dataset.
-use log::info;
+use log::warn;
 use reqwest::Client;
 
 use crate::auth::ServiceAccountAuthenticator;
@@ -199,8 +199,14 @@ impl DatasetApi {
     /// ```
     pub async fn delete_if_exists(&self, project_id: &str, dataset_id: &str, delete_contents: bool) -> bool {
         match self.delete(project_id, dataset_id, delete_contents).await {
+            Err(BQError::ResponseError { error }) => {
+                if error.code != 404 {
+                    warn!("dataset.delete_if_exists: unexpected error: {:?}", error);
+                }
+                false
+            }
             Err(err) => {
-                info!("delete_if_exists, muted err: {:?}", err);
+                warn!("dataset.delete_if_exists: unexpected error: {:?}", err);
                 false
             }
             Ok(_) => true,

@@ -1,4 +1,8 @@
 //! List of the BigQuery errors supported by this crate.
+
+use std::collections::HashMap;
+
+#[allow(clippy::upper_case_acronyms)]
 #[derive(thiserror::Error, Debug)]
 pub enum BQError {
     #[error("Invalid service account key (error: {0})")]
@@ -17,7 +21,7 @@ pub enum BQError {
     RequestError(#[from] reqwest::Error),
 
     #[error("Response error (error: {error:?})")]
-    ResponseError { error: serde_json::Value },
+    ResponseError { error: ResponseError },
 
     #[error("No data available. The result set is positioned before the first or after the last row. Try to call the method next on your result set.")]
     NoDataAvailable,
@@ -37,4 +41,12 @@ pub enum BQError {
 
     #[error("Json serialization error (error: {0})")]
     SerializationError(#[from] serde_json::Error),
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ResponseError {
+    pub code: i64,
+    pub errors: Vec<HashMap<String, String>>,
+    pub message: String,
+    pub status: String,
 }
