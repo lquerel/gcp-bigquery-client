@@ -40,7 +40,7 @@ async fn main() -> Result<(), BQError> {
     let client = gcp_bigquery_client::Client::from_service_account_key_file(gcp_sa_key).await;
 
     // Create dataset
-    let created_dataset = client.dataset().create(project_id, Dataset::new(dataset_id)).await?;
+    let created_dataset = client.dataset().create(Dataset::new(project_id, dataset_id)).await?;
     println!(
         "Dataset '{}.{}' created",
         created_dataset.project_id(),
@@ -74,7 +74,7 @@ async fn main() -> Result<(), BQError> {
         ]),
     );
 
-    let created_table = client.table().create(project_id, dataset_id, table).await?;
+    let created_table = client.table().create(table).await?;
     println!(
         "Table '{}.{}.{}' created",
         created_table.project_id(),

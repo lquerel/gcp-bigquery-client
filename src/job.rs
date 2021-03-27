@@ -241,7 +241,7 @@ mod test {
         }
 
         // Create dataset
-        let created_dataset = client.dataset().create(project_id, Dataset::new(dataset_id)).await?;
+        let created_dataset = client.dataset().create(Dataset::new(project_id, dataset_id)).await?;
         assert_eq!(created_dataset.id, Some(format!("{}:{}", project_id, dataset_id)));
 
         // Create table
@@ -271,7 +271,7 @@ mod test {
             ]),
         );
 
-        let created_table = client.table().create(project_id, dataset_id, table).await?;
+        let created_table = client.table().create(table).await?;
         assert_eq!(created_table.table_reference.table_id, table_id.to_string());
 
         // Insert data

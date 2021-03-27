@@ -25,14 +25,12 @@ impl TableApi {
 
     /// Creates a new, empty table in the dataset.
     /// # Arguments
-    /// * project_id - Project ID of the table to delete
-    /// * dataset_id - Dataset ID of the table to delete
     /// * table - The request body contains an instance of Table.
-    pub async fn create(&self, project_id: &str, dataset_id: &str, table: Table) -> Result<Table, BQError> {
+    pub async fn create(&self, table: Table) -> Result<Table, BQError> {
         let req_url = &format!(
             "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets/{dataset_id}/tables",
-            project_id = urlencode(project_id),
-            dataset_id = urlencode(dataset_id)
+            project_id = urlencode(&table.table_reference.project_id),
+            dataset_id = urlencode(&table.table_reference.dataset_id)
         );
 
         let access_token = self.sa_auth.access_token().await?;
@@ -356,7 +354,7 @@ mod test {
         client.dataset().delete_if_exists(project_id, dataset_id, true).await;
 
         // Create dataset
-        let created_dataset = client.dataset().create(project_id, Dataset::new(dataset_id)).await?;
+        let created_dataset = client.dataset().create(Dataset::new(project_id, dataset_id)).await?;
         assert_eq!(created_dataset.id, Some(format!("{}:{}", project_id, dataset_id)));
 
         // Create table
@@ -371,7 +369,7 @@ mod test {
                 TableFieldSchema::new("col4", FieldType::Datetime),
             ]),
         );
-        let created_table = client.table().create(project_id, dataset_id, table).await?;
+        let created_table = client.table().create(table).await?;
         assert_eq!(created_table.table_reference.table_id, table_id.to_string());
 
         let table = client.table().get(project_id, dataset_id, table_id, None).await?;

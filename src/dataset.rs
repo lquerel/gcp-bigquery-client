@@ -24,7 +24,7 @@ impl DatasetApi {
 
     /// Creates a new empty dataset.
     /// # Argument
-    /// * `project-id` - Project ID of the new dataset
+    /// * `dataset` - The dataset to create
     ///
     /// # Example
     /// ```
@@ -39,14 +39,14 @@ impl DatasetApi {
     /// let client = Client::from_service_account_key_file(sa_key).await;
     ///
     /// # client.dataset().delete_if_exists(project_id, dataset_id, true);
-    /// client.dataset().create(project_id, Dataset::new(dataset_id)).await?;
+    /// client.dataset().create(Dataset::new(project_id, dataset_id)).await?;
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn create(&self, project_id: &str, dataset: Dataset) -> Result<Dataset, BQError> {
+    pub async fn create(&self, dataset: Dataset) -> Result<Dataset, BQError> {
         let req_url = &format!(
             "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets",
-            project_id = urlencode(project_id)
+            project_id = urlencode(&dataset.dataset_reference.project_id)
         );
 
         let access_token = self.sa_auth.access_token().await?;
@@ -140,7 +140,7 @@ impl DatasetApi {
     /// let client = Client::from_service_account_key_file(sa_key).await;
     ///
     /// # client.dataset().delete_if_exists(project_id, dataset_id, true);
-    /// client.dataset().create(project_id, Dataset::new(dataset_id)).await?;
+    /// client.dataset().create(Dataset::new(project_id, dataset_id)).await?;
     /// client.dataset().delete(project_id, dataset_id, true).await?;
     /// # Ok(())
     /// # }
@@ -226,7 +226,7 @@ impl DatasetApi {
     /// let client = Client::from_service_account_key_file(sa_key).await;
     ///
     /// # client.dataset().delete_if_exists(project_id, dataset_id, true);
-    /// client.dataset().create(project_id, Dataset::new(dataset_id)).await?;
+    /// client.dataset().create(Dataset::new(project_id, dataset_id)).await?;
     /// let dataset = client.dataset().get(project_id, dataset_id).await?;
     /// # Ok(())
     /// # }
@@ -421,7 +421,7 @@ mod test {
         }
 
         // Create dataset
-        let created_dataset = client.dataset().create(project_id, Dataset::new(dataset_id)).await?;
+        let created_dataset = client.dataset().create(Dataset::new(project_id, dataset_id)).await?;
         assert_eq!(created_dataset.id, Some(format!("{}:{}", project_id, dataset_id)));
 
         // Get dataset
@@ -458,7 +458,7 @@ mod test {
     #[tokio::test]
     async fn test_information_schema() -> Result<(), BQError> {
         let (ref project_id, ref dataset_id, ref _table_id, ref sa_key) = env_vars();
-        let dataset_id = &format!("{}_dataset", dataset_id);
+        //let dataset_id = &format!("{}_dataset", dataset_id);
 
         let client = Client::from_service_account_key_file(sa_key).await;
 

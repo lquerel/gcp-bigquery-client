@@ -128,7 +128,7 @@ mod test {
         client.dataset().delete_if_exists(project_id, dataset_id, true).await;
 
         // Create dataset
-        let dataset = client.dataset().create(project_id, Dataset::new(dataset_id)).await?;
+        let dataset = client.dataset().create(Dataset::new(project_id, dataset_id)).await?;
 
         let table = dataset
             .create_table(

@@ -27,11 +27,11 @@ pub struct Dataset {
 }
 
 impl Dataset {
-    pub fn new(id: &str) -> Self {
+    pub fn new(project_id: &str, dataset_id: &str) -> Self {
         Self {
             dataset_reference: DatasetReference {
-                dataset_id: id.into(),
-                project_id: None,
+                dataset_id: dataset_id.into(),
+                project_id: project_id.into(),
             },
             friendly_name: None,
             id: None,
@@ -42,10 +42,7 @@ impl Dataset {
     }
 
     pub fn project_id(&self) -> &String {
-        self.dataset_reference
-            .project_id
-            .as_ref()
-            .expect("project id not defined")
+        &self.dataset_reference.project_id
     }
 
     pub fn dataset_id(&self) -> &String {
@@ -64,10 +61,7 @@ impl Dataset {
         table_schema: TableSchema,
     ) -> Result<Table, BQError> {
         let table_decl = Table::new(self.project_id(), self.dataset_id(), table_id, table_schema);
-        client
-            .table()
-            .create(self.project_id(), self.dataset_id(), table_decl)
-            .await
+        client.table().create(table_decl).await
     }
 
     pub async fn delete(self, client: &Client, delete_contents: bool) -> Result<(), BQError> {
