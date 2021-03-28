@@ -1,7 +1,6 @@
 use crate::error::BQError;
 use crate::model::dataset_reference::DatasetReference;
 use crate::model::table::Table;
-use crate::model::table_schema::TableSchema;
 use crate::Client;
 use std::collections::HashMap;
 
@@ -86,16 +85,9 @@ impl Dataset {
     /// Creates a new table.
     /// # Arguments
     /// * `client` - The client API.
-    /// * `table_id` - The table id of the table to create.
-    /// * `table_schema` - The schema of the table to create.
-    pub async fn create_table(
-        &self,
-        client: &Client,
-        table_id: &str,
-        table_schema: TableSchema,
-    ) -> Result<Table, BQError> {
-        let table_decl = Table::new(self.project_id(), self.dataset_id(), table_id, table_schema);
-        client.table().create(table_decl).await
+    /// * `table` - The table definition.
+    pub async fn create_table(&self, client: &Client, table: Table) -> Result<Table, BQError> {
+        client.table().create(table).await
     }
 
     /// Deletes an existing table.

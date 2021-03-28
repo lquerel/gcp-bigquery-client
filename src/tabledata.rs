@@ -105,6 +105,7 @@ mod test {
     use crate::error::BQError;
     use crate::model::dataset::Dataset;
     use crate::model::field_type::FieldType;
+    use crate::model::table::Table;
     use crate::model::table_data_insert_all_request::TableDataInsertAllRequest;
     use crate::model::table_field_schema::TableFieldSchema;
     use crate::model::table_schema::TableSchema;
@@ -133,12 +134,15 @@ mod test {
         let table = dataset
             .create_table(
                 &client,
-                table_id,
-                TableSchema::new(vec![
-                    TableFieldSchema::new("col1", FieldType::String),
-                    TableFieldSchema::new("col2", FieldType::Int64),
-                    TableFieldSchema::new("col3", FieldType::Boolean),
-                ]),
+                Table::from_dataset(
+                    &dataset,
+                    table_id,
+                    TableSchema::new(vec![
+                        TableFieldSchema::new("col1", FieldType::String),
+                        TableFieldSchema::new("col2", FieldType::Int64),
+                        TableFieldSchema::new("col3", FieldType::Boolean),
+                    ]),
+                ),
             )
             .await?;
 

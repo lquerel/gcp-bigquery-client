@@ -10,9 +10,11 @@ All notable changes to this project will be documented in this file.
 
 - Added dataset.delete_if_exists.
 - Added table.delete_if_exists.
+- Added new setters for dataset and table structs.
 
 ### Changed
 
 - Removed redundant parameters in dataset.create.
 - Removed redundant paramaters in table.create.
 - Improved BQError::ResponseError.
+- Improved the example.

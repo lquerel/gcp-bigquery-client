@@ -1,5 +1,6 @@
 use crate::error::BQError;
 use crate::model::clustering::Clustering;
+use crate::model::dataset::Dataset;
 use crate::model::encryption_configuration::EncryptionConfiguration;
 use crate::model::external_data_configuration::ExternalDataConfiguration;
 use crate::model::materialized_view_definition::MaterializedViewDefinition;
@@ -127,6 +128,16 @@ impl Table {
             r#type: None,
             view: None,
         }
+    }
+
+    /// Creates a table struct pre-initialized with the project id and dataset id coming from
+    /// the dataset passed in parameter.
+    /// # Arguments
+    /// * `dataset` - The dataset where the table will be located
+    /// * `table_id` - The table name
+    /// * `schema` - The table schema definition
+    pub fn from_dataset(dataset: &Dataset, table_id: &str, schema: TableSchema) -> Self {
+        Table::new(dataset.project_id(), dataset.dataset_id(), table_id, schema)
     }
 
     /// Returns the project id of table.
