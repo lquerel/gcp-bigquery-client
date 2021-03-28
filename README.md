@@ -35,60 +35,69 @@ rows are based on a regular Rust struct implementing the trait Serialize.
 * Drop the dataset previously created 
 
 ```rust
-    // Read configuration parameters from environment variables
-    let (ref project_id, ref dataset_id, ref table_id, ref gcp_sa_key) = env_vars();
-
-    // Init BigQuery client
     let client = gcp_bigquery_client::Client::from_service_account_key_file(gcp_sa_key).await;
 
-    // Create dataset
-    let created_dataset = client.dataset().create(Dataset::new(project_id, dataset_id)).await?;
-    println!(
-        "Dataset '{}.{}' created",
-        created_dataset.project_id(),
-        created_dataset.dataset_id()
-    );
+    // Create a new dataset
+    let dataset = client
+        .dataset()
+        .create(
+            Dataset::new(project_id, dataset_id)
+                .location("US")
+                .friendly_name("Just a demo dataset")
+                .label("owner", "me")
+                .label("env", "prod"),
+        )
+        .await?;
 
-    // Create table schema
-    let table = Table::new(
-        project_id,
-        dataset_id,
-        table_id,
-        TableSchema::new(vec![
-            TableFieldSchema::integer("int_value"),
-            TableFieldSchema::float("float_value"),
-            TableFieldSchema::bool("bool_value"),
-            TableFieldSchema::string("string_value"),
-            TableFieldSchema::record(
-                "record_value",
-                vec![
+    // Create a new table
+    let table = dataset
+        .create_table(
+            &client,
+            Table::from_dataset(
+                &dataset,
+                table_id,
+                TableSchema::new(vec![
+                    TableFieldSchema::timestamp("ts"),
                     TableFieldSchema::integer("int_value"),
+                    TableFieldSchema::float("float_value"),
+                    TableFieldSchema::bool("bool_value"),
                     TableFieldSchema::string("string_value"),
                     TableFieldSchema::record(
                         "record_value",
                         vec![
                             TableFieldSchema::integer("int_value"),
                             TableFieldSchema::string("string_value"),
+                            TableFieldSchema::record(
+                                "record_value",
+                                vec![
+                                    TableFieldSchema::integer("int_value"),
+                                    TableFieldSchema::string("string_value"),
+                                ],
+                            ),
                         ],
                     ),
-                ],
+                ]),
+            )
+            .friendly_name("Demo table")
+            .description("A nice description for this table")
+            .label("owner", "me")
+            .label("env", "prod")
+            .expiration_time(SystemTime::now() + Duration::from_secs(3600))
+            .time_partitioning(
+                TimePartitioning::per_day()
+                    .expiration_ms(Duration::from_secs(3600 * 24 * 7))
+                    .field("ts"),
             ),
-        ]),
-    );
-
-    let created_table = client.table().create(table).await?;
-    println!(
-        "Table '{}.{}.{}' created",
-        created_table.project_id(),
-        created_table.dataset_id(),
-        created_table.table_id()
-    );
+        )
+        .await?;
+    println!("Table created -> {:?}", table);
 
     // Insert data via BigQuery Streaming API
     let mut insert_request = TableDataInsertAllRequest::new();
     insert_request.add_row(
         None,
         MyRow {
+            ts: Utc::now(),
             int_value: 1,
             float_value: 1.0,
             bool_value: false,
@@ -106,6 +115,7 @@ rows are based on a regular Rust struct implementing the trait Serialize.
     insert_request.add_row(
         None,
         MyRow {
+            ts: Utc::now(),
             int_value: 2,
             float_value: 2.0,
             bool_value: true,
@@ -123,6 +133,7 @@ rows are based on a regular Rust struct implementing the trait Serialize.
     insert_request.add_row(
         None,
         MyRow {
+            ts: Utc::now(),
             int_value: 3,
             float_value: 3.0,
             bool_value: false,
@@ -140,6 +151,7 @@ rows are based on a regular Rust struct implementing the trait Serialize.
     insert_request.add_row(
         None,
         MyRow {
+            ts: Utc::now(),
             int_value: 4,
             float_value: 4.0,
             bool_value: true,
