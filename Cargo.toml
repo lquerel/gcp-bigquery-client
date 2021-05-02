@@ -15,7 +15,11 @@ exclude = ["/.github/*"]
 keywords = ["gcp", "bigquery", "google-cloud"]
 categories = ["database"]
 
+[workspace]
+
 [dependencies]
+derive-macro = { path = "derive-macro" }
+model = { path = "model" }
 yup-oauth2 = "5.0.3"
 hyper = "0.14.4"
 hyper-rustls = "0.22.1"
