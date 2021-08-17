@@ -104,6 +104,27 @@ impl Client {
         })
     }
 
+    pub async fn with_workload_identity(readonly: bool) -> Result<Self, BQError> {
+        let scopes = if readonly {
+            ["https://www.googleapis.com/auth/bigquery.readonly"]
+        } else {
+            ["https://www.googleapis.com/auth/bigquery"]
+        };
+
+        let sa_auth = ServiceAccountAuthenticator::with_workload_identity(&scopes).await?;
+
+        let client = reqwest::Client::new();
+        Ok(Self {
+            dataset_api: DatasetApi::new(client.clone(), sa_auth.clone()),
+            table_api: TableApi::new(client.clone(), sa_auth.clone()),
+            job_api: JobApi::new(client.clone(), sa_auth.clone()),
+            tabledata_api: TableDataApi::new(client.clone(), sa_auth.clone()),
+            routine_api: RoutineApi::new(client.clone(), sa_auth.clone()),
+            model_api: ModelApi::new(client.clone(), sa_auth.clone()),
+            project_api: ProjectApi::new(client, sa_auth),
+        })
+    }
+
     /// Returns a dataset API handler.
     pub fn dataset(&self) -> &DatasetApi {
         &self.dataset_api
