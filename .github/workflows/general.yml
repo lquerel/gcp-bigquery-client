@@ -58,27 +58,27 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: -- -D warnings
 
-  coverage:
-    name: Code coverage
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
-
-      - name: Install stable toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
-      - env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
-        run: echo $GOOGLE_APPLICATION_CREDENTIALS > GOOGLE_APPLICATION_CREDENTIALS.json
-      - name: Run cargo-tarpaulin
-        uses: actions-rs/tarpaulin@v0.1
-        with:
-          args: '--ignore-tests'
-        env:
-          PROJECT_ID: lquerel-test
-          DATASET_ID: gcp_bq_client_coverage
-          TABLE_ID: test
-          GOOGLE_APPLICATION_CREDENTIALS: GOOGLE_APPLICATION_CREDENTIALS.json
+#  coverage:
+#    name: Code coverage
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: Checkout repository
+#        uses: actions/checkout@v2
+#
+#      - name: Install stable toolchain
+#        uses: actions-rs/toolchain@v1
+#        with:
+#          toolchain: stable
+#          override: true
+#      - env:
+#          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+#        run: echo $GOOGLE_APPLICATION_CREDENTIALS > GOOGLE_APPLICATION_CREDENTIALS.json
+#      - name: Run cargo-tarpaulin
+#        uses: actions-rs/tarpaulin@v0.1
+#        with:
+#          args: '--ignore-tests'
+#        env:
+#          PROJECT_ID: lquerel-test
+#          DATASET_ID: gcp_bq_client_coverage
+#          TABLE_ID: test
+#          GOOGLE_APPLICATION_CREDENTIALS: GOOGLE_APPLICATION_CREDENTIALS.json
