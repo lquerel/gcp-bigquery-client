@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- Workload identify support
+- Workload identify support (Thanks to @komi1230)
 
 ## [0.9.0] - 2021-03-21
 
