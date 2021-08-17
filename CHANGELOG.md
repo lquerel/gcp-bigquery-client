@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.1] - 2021-08-16
+
+### Added
+
+- Workload identify support
+
 ## [0.9.0] - 2021-03-21
 
 > Warning: this version is incompatible with the previous version

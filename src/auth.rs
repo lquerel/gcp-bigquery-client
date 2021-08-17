@@ -11,7 +11,7 @@ use yup_oauth2::ServiceAccountKey;
 pub struct ServiceAccountAuthenticator {
     auth: Option<Arc<Authenticator<HttpsConnector<HttpConnector>>>>,
     scopes: Vec<String>,
-    is_using_workload_identity: bool
+    is_using_workload_identity: bool,
 }
 
 impl ServiceAccountAuthenticator {
@@ -20,7 +20,13 @@ impl ServiceAccountAuthenticator {
         let token = if self.is_using_workload_identity {
             get_access_token_with_workload_identity().await?.access_token
         } else {
-            self.auth.clone().unwrap().token(self.scopes.as_ref()).await?.as_str().to_string()
+            self.auth
+                .clone()
+                .unwrap()
+                .token(self.scopes.as_ref())
+                .await?
+                .as_str()
+                .to_string()
         };
         Ok(token)
     }
@@ -41,7 +47,7 @@ impl ServiceAccountAuthenticator {
         }
     }
 
-    pub(crate) async fn with_workload_identity(scopes: &[&str],) -> Result<ServiceAccountAuthenticator, BQError> {
+    pub(crate) async fn with_workload_identity(scopes: &[&str]) -> Result<ServiceAccountAuthenticator, BQError> {
         Ok(ServiceAccountAuthenticator {
             auth: None,
             scopes: scopes.iter().map(|scope| scope.to_string()).collect(),
@@ -67,10 +73,11 @@ pub struct WorkloadIdentityAccessToken {
 
 pub(crate) async fn get_access_token_with_workload_identity() -> Result<WorkloadIdentityAccessToken, BQError> {
     let client = reqwest::Client::new();
-    let resp = client.get("http://metadata/computeMetadata/v1/instance/service-accounts/default/token")
-    .header("Metadata-Flavor", "Google")
-    .send()
-    .await?;
+    let resp = client
+        .get("http://metadata/computeMetadata/v1/instance/service-accounts/default/token")
+        .header("Metadata-Flavor", "Google")
+        .send()
+        .await?;
 
     let content: WorkloadIdentityAccessToken = resp.json().await?;
 
