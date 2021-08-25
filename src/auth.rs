@@ -67,8 +67,8 @@ pub(crate) async fn service_account_authenticator(
 #[derive(Deserialize)]
 pub struct WorkloadIdentityAccessToken {
     pub access_token: String,
-    _expires_in: i32,
-    _token_type: String,
+    expires_in: i32,
+    token_type: String,
 }
 
 pub(crate) async fn get_access_token_with_workload_identity() -> Result<WorkloadIdentityAccessToken, BQError> {
