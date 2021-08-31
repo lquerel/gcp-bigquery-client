@@ -139,17 +139,15 @@ impl ResultSet {
             None => Ok(None),
             Some(json_value) => match json_value {
                 serde_json::Value::Number(value) => Ok(value.as_i64()),
-                serde_json::Value::String(value) => {
-                    let value: Result<i64, _> = value.parse();
-                    match &value {
-                        Err(_) => Err(BQError::InvalidColumnType {
-                            col_index,
-                            col_type: ResultSet::json_type(json_value),
-                            type_requested: "I64".into(),
-                        }),
-                        Ok(value) => Ok(Some(*value)),
-                    }
-                }
+                serde_json::Value::String(value) => match (value.parse::<i64>(), value.parse::<f64>()) {
+                    (Ok(v), _) => Ok(Some(v)),
+                    (Err(_), Ok(v)) => Ok(Some(v as i64)),
+                    _ => Err(BQError::InvalidColumnType {
+                        col_index,
+                        col_type: ResultSet::json_type(json_value),
+                        type_requested: "I64".into(),
+                    }),
+                },
                 _ => Err(BQError::InvalidColumnType {
                     col_index,
                     col_type: ResultSet::json_type(json_value),
