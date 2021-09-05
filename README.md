@@ -20,7 +20,10 @@ Please post your suggestions and ideas on this GitHub [discussion section](https
 
 ---
 
-## ExampleThis example performs the following operations:
+## Example
+
+This example performs the following operations:
+
 * Load a set of environment variables to set `$PROJECT_ID`, `$DATASET_ID`, `$TABLE_ID` and `$GOOGLE_APPLICATION_CREDENTIALS`
 * Init the BigQuery client
 * Create a dataset in the GCP project `$PROJECT_ID`
