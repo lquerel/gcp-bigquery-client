@@ -46,6 +46,11 @@ impl TableDataInsertAllRequest {
         Ok(())
     }
 
+    pub fn add_rows(&mut self, objects: Vec<TableDataInsertAllRequestRows>) -> Result<(), BQError> {
+        self.rows.extend(objects);
+        Ok(())
+    }
+
     pub fn skip_invalid_rows(&mut self) -> &mut Self {
         self.skip_invalid_rows = true;
         self
