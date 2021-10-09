@@ -2,7 +2,7 @@ use crate::model::bqml_training_run::BqmlTrainingRun;
 use crate::model::model_definition_model_options::ModelDefinitionModelOptions;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ModelDefinition {
     #[serde(skip_serializing_if = "Option::is_none")]

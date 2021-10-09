@@ -1,7 +1,7 @@
 //! Input/output argument of a function or a stored procedure.
 use crate::model::standard_sql_data_type::StandardSqlDataType;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Argument {
     /// Optional. Specifies whether the argument is input or output. Can be set for procedures only.

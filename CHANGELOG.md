@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.0] - 2021-10-09
+
+### Added
+
+- add_rows method to TableDataInsertAllRequest
+- yup-oauth2 v6
+- implement the Default trait for most of the structures in the model sub-directory
+
 ## [0.9.3] - 2021-08-31
 
 ### Fix 

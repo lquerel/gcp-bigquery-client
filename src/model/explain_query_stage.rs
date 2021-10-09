@@ -1,7 +1,7 @@
 use crate::model::explain_query_step::ExplainQueryStep;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ExplainQueryStage {
     /// Number of parallel input segments completed.

@@ -1,7 +1,7 @@
 //! (Auto-)arima fitting result. Wrap everything in ArimaResult for easier refactoring if we want to use model-specific iteration results.
 use crate::model::arima_model_info::ArimaModelInfo;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ArimaResult {
     /// This message is repeated because there are multiple arima models fitted in auto-arima. For non-auto-arima model, its size is one.

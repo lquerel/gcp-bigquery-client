@@ -1,6 +1,6 @@
 //! ARIMA model fitting metrics.
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ArimaFittingMetrics {
     /// AIC.

@@ -1,7 +1,7 @@
 use crate::model::error_proto::ErrorProto;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TableDataInsertAllResponseInsertErrors {
     /// Error information for the row indicated by the index property.

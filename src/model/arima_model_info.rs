@@ -3,7 +3,7 @@ use crate::model::arima_coefficients::ArimaCoefficients;
 use crate::model::arima_fitting_metrics::ArimaFittingMetrics;
 use crate::model::arima_order::ArimaOrder;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ArimaModelInfo {
     /// The time_series_id value for this time series. It will be one of the unique values from the time_series_id_column specified during ARIMA model training. Only present when time_series_id_column training option was used.

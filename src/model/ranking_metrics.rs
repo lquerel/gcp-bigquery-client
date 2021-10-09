@@ -1,6 +1,6 @@
 //! Evaluation metrics used by weighted-ALS models specified by feedback_type=implicit.
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RankingMetrics {
     /// Calculates a precision per user for all the items by ranking them and then averages all the precisions across all the users.

@@ -9,7 +9,7 @@ use crate::model::table_reference::TableReference;
 use crate::model::table_schema::TableSchema;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JobStatistics2 {
     /// [Output-only] Billing tier for the job.

@@ -2,7 +2,7 @@
 use crate::model::arima_order::ArimaOrder;
 use std::collections::HashMap;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TrainingOptions {
     /// Whether to train a model from the last checkpoint.

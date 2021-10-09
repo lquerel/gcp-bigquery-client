@@ -2,7 +2,7 @@
 use crate::model::arima_fitting_metrics::ArimaFittingMetrics;
 use crate::model::arima_order::ArimaOrder;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ArimaSingleModelForecastingMetrics {
     /// Is arima model fitted with drift or not. It is always false when d is not 1.

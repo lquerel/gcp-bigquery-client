@@ -1,7 +1,7 @@
 use crate::model::table_field_schema::TableFieldSchema;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TableSchema {
     /// Describes the fields in a table.
@@ -23,8 +23,3 @@ impl TableSchema {
     }
 }
 
-impl Default for TableSchema {
-    fn default() -> Self {
-        Self { fields: None }
-    }
-}

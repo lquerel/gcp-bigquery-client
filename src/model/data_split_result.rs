@@ -1,7 +1,7 @@
 //! Data split result. This contains references to the training and evaluation data tables that were used to train the model.
 use crate::model::table_reference::TableReference;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DataSplitResult {
     /// Table reference of the training data after split.

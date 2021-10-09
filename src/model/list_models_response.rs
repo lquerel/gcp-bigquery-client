@@ -1,6 +1,6 @@
 use crate::model::model::Model;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ListModelsResponse {
     /// A token to request the next page of results.

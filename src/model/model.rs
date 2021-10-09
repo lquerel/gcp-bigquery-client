@@ -4,7 +4,7 @@ use crate::model::standard_sql_field::StandardSqlField;
 use crate::model::training_run::TrainingRun;
 use std::collections::HashMap;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Model {
     /// Optional. A user-friendly description of this model.

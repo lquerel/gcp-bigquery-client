@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BigQueryModelTraining {
     /// [Output-only, Beta] Index of current ML training iteration. Updated during create model query job to show job progress.

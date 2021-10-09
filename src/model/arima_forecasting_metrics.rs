@@ -3,7 +3,7 @@ use crate::model::arima_fitting_metrics::ArimaFittingMetrics;
 use crate::model::arima_order::ArimaOrder;
 use crate::model::arima_single_model_forecasting_metrics::ArimaSingleModelForecastingMetrics;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ArimaForecastingMetrics {
     /// Id to differentiate different time series for the large-scale case.

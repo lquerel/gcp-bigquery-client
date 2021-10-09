@@ -1,7 +1,7 @@
 //! Message containing the information about one cluster.
 use crate::model::feature_value::FeatureValue;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Cluster {
     /// Values of highly variant features for this cluster.

@@ -2,7 +2,7 @@
 use crate::model::aggregate_classification_metrics::AggregateClassificationMetrics;
 use crate::model::confusion_matrix::ConfusionMatrix;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MultiClassClassificationMetrics {
     /// Aggregate classification metrics.

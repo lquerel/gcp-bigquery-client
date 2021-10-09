@@ -4,7 +4,7 @@ use crate::model::table_row::TableRow;
 use crate::model::table_schema::TableSchema;
 use serde::Deserialize;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GetQueryResultsResponse {
     /// Whether the query result was fetched from the query cache.

@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 /// Binding : Associates `members` with a `role`.
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Binding {
     #[serde(skip_serializing_if = "Option::is_none")]

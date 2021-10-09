@@ -1,6 +1,6 @@
 use crate::model::project_reference::ProjectReference;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectList {
     /// The total number of projects in the list.
@@ -15,7 +15,7 @@ pub struct ProjectList {
     pub next_page_token: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Project {
     /// The resource type.

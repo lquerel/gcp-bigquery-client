@@ -3,7 +3,7 @@ use crate::model::dataset_reference::DatasetReference;
 use crate::model::query_parameter::QueryParameter;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct QueryRequest {
     /// Connection properties.

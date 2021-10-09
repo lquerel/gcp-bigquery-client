@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 /// may be referenced within an expression are determined by the service that evaluates it. See the service
 /// documentation for additional information.
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Expr {
     /// Optional. Description of the expression. This is a longer text which describes the expression, e.g. when hovered over it in a UI.

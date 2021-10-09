@@ -1,6 +1,6 @@
 //! Represents the count of a single category within the cluster.
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CategoryCount {
     /// The name of category.

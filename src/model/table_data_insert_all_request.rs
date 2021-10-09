@@ -2,7 +2,7 @@ use crate::error::BQError;
 use crate::model::table_data_insert_all_request_rows::TableDataInsertAllRequestRows;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TableDataInsertAllRequest {
     /// [Optional] Accept rows that contain values that do not match the schema. The unknown values are ignored. Default is false, which treats unknown values as errors.
@@ -59,11 +59,5 @@ impl TableDataInsertAllRequest {
     pub fn template_suffix(&mut self, suffix: impl Into<String>) -> &mut Self {
         self.template_suffix = Some(suffix.into());
         self
-    }
-}
-
-impl Default for TableDataInsertAllRequest {
-    fn default() -> Self {
-        Self::new()
     }
 }

@@ -1,7 +1,7 @@
 //! Representative value of a single feature within the cluster.
 use crate::model::categorical_value::CategoricalValue;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FeatureValue {
     /// The feature column name.

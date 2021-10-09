@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 /// SetIamPolicyRequest : Request message for `SetIamPolicy` method.
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SetIamPolicyRequest {
     #[serde(skip_serializing_if = "Option::is_none")]

@@ -1,7 +1,7 @@
 //! Global explanations containing the top most important features after training.
 use crate::model::explanation::Explanation;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GlobalExplanation {
     /// Class label for this set of global explanations. Will be empty/null for binary logistic and linear regression models. Sorted alphabetically in descending order.

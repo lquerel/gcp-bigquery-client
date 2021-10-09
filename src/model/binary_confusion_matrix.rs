@@ -1,6 +1,6 @@
 //! Confusion matrix for binary classification models.
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BinaryConfusionMatrix {
     /// The fraction of actual positive predictions that had positive actual labels.

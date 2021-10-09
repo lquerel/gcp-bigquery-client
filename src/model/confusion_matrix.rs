@@ -1,7 +1,7 @@
 //! Confusion matrix for multi-class classification models.
 use crate::model::row::Row;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ConfusionMatrix {
     /// One row per actual label.

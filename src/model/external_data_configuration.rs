@@ -5,7 +5,7 @@ use crate::model::hive_partitioning_options::HivePartitioningOptions;
 use crate::model::table_schema::TableSchema;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ExternalDataConfiguration {
     /// Try to detect schema and format options automatically. Any option specified explicitly will be honored.

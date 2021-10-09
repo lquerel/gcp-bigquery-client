@@ -4,7 +4,7 @@ use crate::model::job_configuration_query::JobConfigurationQuery;
 use crate::model::job_configuration_table_copy::JobConfigurationTableCopy;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JobConfiguration {
     #[serde(skip_serializing_if = "Option::is_none")]

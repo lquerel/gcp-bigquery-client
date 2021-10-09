@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 /// GetPolicyOptions : Encapsulates settings provided to GetIamPolicy.
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GetPolicyOptions {
     /// Optional. The policy format version to be returned. Valid values are 0, 1, and 3. Requests specifying an invalid
