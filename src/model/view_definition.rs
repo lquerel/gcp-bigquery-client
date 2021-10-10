@@ -1,7 +1,7 @@
 use crate::model::user_defined_function_resource::UserDefinedFunctionResource;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ViewDefinition {
     /// [Required] A query that BigQuery executes when the view is referenced.

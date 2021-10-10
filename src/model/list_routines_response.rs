@@ -1,6 +1,6 @@
 use crate::model::routine::Routine;
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ListRoutinesResponse {
     /// A token to request the next page of results.

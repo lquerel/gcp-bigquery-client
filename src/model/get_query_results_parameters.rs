@@ -1,7 +1,7 @@
 use crate::model::data_format_options::DataFormatOptions;
 use serde::Serialize;
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GetQueryResultsParameters {
     /// Output format adjustments.

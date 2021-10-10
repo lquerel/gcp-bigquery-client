@@ -1,6 +1,6 @@
 //! Model evaluation metrics for dimensionality reduction models.
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DimensionalityReductionMetrics {
     /// Total percentage of variance explained by the selected principal components.

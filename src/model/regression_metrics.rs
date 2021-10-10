@@ -1,6 +1,6 @@
 //! Evaluation metrics for regression and explicit feedback type matrix factorization models.
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RegressionMetrics {
     /// Mean squared log error.

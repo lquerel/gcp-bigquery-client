@@ -9,7 +9,7 @@ use crate::model::audit_log_config::AuditLogConfig;
 /// For sampleservice, this policy enables DATA_READ, DATA_WRITE and ADMIN_READ logging. It also exempts
 /// jose@example.com from DATA_READ logging, and aliya@example.com from DATA_WRITE logging.
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuditConfig {
     /// The configuration for logging of each type of permission.

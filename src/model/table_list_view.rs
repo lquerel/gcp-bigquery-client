@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 /// TableListView : Additional details for a view.
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TableListView {
     /// True if view is defined in legacy SQL dialect, false if in standard SQL.

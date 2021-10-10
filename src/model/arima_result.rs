@@ -1,7 +1,7 @@
 //! (Auto-)arima fitting result. Wrap everything in ArimaResult for easier refactoring if we want to use model-specific iteration results.
 use crate::model::arima_model_info::ArimaModelInfo;
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ArimaResult {
     /// This message is repeated because there are multiple arima models fitted in auto-arima. For non-auto-arima model, its size is one.
@@ -10,7 +10,7 @@ pub struct ArimaResult {
     pub seasonal_periods: Option<Vec<SeasonalPeriods>>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum SeasonalPeriods {
     ///

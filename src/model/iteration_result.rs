@@ -3,7 +3,7 @@ use crate::model::arima_result::ArimaResult;
 use crate::model::cluster_info::ClusterInfo;
 use crate::model::principal_component_info::PrincipalComponentInfo;
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IterationResult {
     /// Information about top clusters for clustering models.

@@ -1,4 +1,4 @@
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GetServiceAccountResponse {
     /// The resource type of the response.

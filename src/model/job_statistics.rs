@@ -7,7 +7,7 @@ use crate::model::script_statistics::ScriptStatistics;
 use crate::model::transaction_info::TransactionInfo;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JobStatistics {
     /// [TrustedTester] [Output-only] Job progress (0.0 -> 1.0) for LOAD and EXTRACT jobs.

@@ -1,6 +1,6 @@
 //! Information about a single cluster for clustering model.
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClusterInfo {
     /// Cluster size, the total number of points assigned to the cluster.

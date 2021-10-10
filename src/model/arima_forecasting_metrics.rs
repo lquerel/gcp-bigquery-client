@@ -3,7 +3,7 @@ use crate::model::arima_fitting_metrics::ArimaFittingMetrics;
 use crate::model::arima_order::ArimaOrder;
 use crate::model::arima_single_model_forecasting_metrics::ArimaSingleModelForecastingMetrics;
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ArimaForecastingMetrics {
     /// Id to differentiate different time series for the large-scale case.
@@ -20,7 +20,7 @@ pub struct ArimaForecastingMetrics {
     pub arima_fitting_metrics: Option<Vec<ArimaFittingMetrics>>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum SeasonalPeriods {
     ///

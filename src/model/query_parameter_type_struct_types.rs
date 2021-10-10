@@ -1,7 +1,7 @@
 use crate::model::query_parameter_type::QueryParameterType;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct QueryParameterTypeStructTypes {
     /// [Optional] Human-oriented description of the field.

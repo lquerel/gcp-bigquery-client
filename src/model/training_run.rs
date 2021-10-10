@@ -7,7 +7,7 @@ use crate::model::training_options::TrainingOptions;
 use chrono::DateTime;
 use chrono::Utc;
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TrainingRun {
     /// The evaluation metrics over training/eval data that were computed at the end of training.

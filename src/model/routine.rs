@@ -3,7 +3,7 @@ use crate::model::argument::Argument;
 use crate::model::routine_reference::RoutineReference;
 use crate::model::standard_sql_data_type::StandardSqlDataType;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Routine {
     /// Required. The type of routine.
@@ -33,7 +33,7 @@ pub struct Routine {
 }
 
 /// Required. The type of routine.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum RoutineType {
     ///
@@ -45,7 +45,7 @@ pub enum RoutineType {
 }
 
 /// Optional. Defaults to "SQL".
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Language {
     ///
@@ -57,7 +57,7 @@ pub enum Language {
 }
 
 /// Optional. [Experimental] The determinism level of the JavaScript UDF if defined.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum DeterminismLevel {
     /// The determinism of the UDF is unspecified.

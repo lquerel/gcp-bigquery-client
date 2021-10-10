@@ -3,7 +3,7 @@ use crate::model::row_access_policy_reference::RowAccessPolicyReference;
 use chrono::DateTime;
 use chrono::Utc;
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RowAccessPolicy {
     /// Output only. The time when this row access policy was created, in milliseconds since the epoch.

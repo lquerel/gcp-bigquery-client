@@ -1,7 +1,7 @@
 //! A field or a column.
 use crate::model::standard_sql_data_type::StandardSqlDataType;
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StandardSqlField {
     /// Optional. The name of this field. Can be absent for struct fields.

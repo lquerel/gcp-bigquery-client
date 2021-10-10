@@ -1,7 +1,7 @@
 //! Input/output argument of a function or a stored procedure.
 use crate::model::standard_sql_data_type::StandardSqlDataType;
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Argument {
     /// Optional. Specifies whether the argument is input or output. Can be set for procedures only.
@@ -15,7 +15,7 @@ pub struct Argument {
 }
 
 /// Optional. Specifies whether the argument is input or output. Can be set for procedures only.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Mode {
     ///
@@ -29,7 +29,7 @@ pub enum Mode {
 }
 
 /// Optional. Defaults to FIXED_TYPE.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ArgumentKind {
     ///

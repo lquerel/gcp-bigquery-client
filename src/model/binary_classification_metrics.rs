@@ -2,7 +2,7 @@
 use crate::model::aggregate_classification_metrics::AggregateClassificationMetrics;
 use crate::model::binary_confusion_matrix::BinaryConfusionMatrix;
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BinaryClassificationMetrics {
     /// Binary confusion matrix at multiple thresholds.

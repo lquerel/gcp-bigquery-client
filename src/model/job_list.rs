@@ -1,6 +1,6 @@
 use crate::model::job_list_jobs::JobListJobs;
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JobList {
     /// A hash of this page of results.

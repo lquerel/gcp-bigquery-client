@@ -2,7 +2,7 @@
 use crate::model::arima_order::ArimaOrder;
 use std::collections::HashMap;
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TrainingOptions {
     /// Whether to train a model from the last checkpoint.
@@ -94,7 +94,7 @@ pub struct TrainingOptions {
 }
 
 /// Feedback type that specifies which algorithm to run for matrix factorization.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum FeedbackType {
     ///
@@ -106,7 +106,7 @@ pub enum FeedbackType {
 }
 
 /// Distance type for clustering models.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum DistanceType {
     ///
@@ -118,7 +118,7 @@ pub enum DistanceType {
 }
 
 /// Optimization strategy for training linear regression models.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum OptimizationStrategy {
     ///
@@ -130,7 +130,7 @@ pub enum OptimizationStrategy {
 }
 
 /// The data split type for training and evaluation, e.g. RANDOM.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum DataSplitMethod {
     ///
@@ -148,7 +148,7 @@ pub enum DataSplitMethod {
 }
 
 /// Type of loss function used during training run.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum LossType {
     ///
@@ -160,7 +160,7 @@ pub enum LossType {
 }
 
 /// The strategy to determine learn rate for the current iteration.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum LearnRateStrategy {
     ///
@@ -172,7 +172,7 @@ pub enum LearnRateStrategy {
 }
 
 /// The method used to initialize the centroids for kmeans algorithm.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum KmeansInitializationMethod {
     /// Unspecified initialization method.
@@ -186,7 +186,7 @@ pub enum KmeansInitializationMethod {
 }
 
 /// The geographical region based on which the holidays are considered in time series modeling. If a valid value is specified, then holiday effects modeling is enabled.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum HolidayRegion {
     /// Holiday region unspecified.
@@ -330,7 +330,7 @@ pub enum HolidayRegion {
 }
 
 /// The data frequency of a time series.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum DataFrequency {
     ///

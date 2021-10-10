@@ -2,7 +2,7 @@ use crate::model::query_parameter_type::QueryParameterType;
 use crate::model::query_parameter_value::QueryParameterValue;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct QueryParameter {
     /// [Optional] If unset, this is a positional parameter. Otherwise, should be unique within a query.

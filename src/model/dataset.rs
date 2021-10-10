@@ -4,7 +4,7 @@ use crate::model::table::Table;
 use crate::Client;
 use std::collections::HashMap;
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Dataset {
     /// [Required] A reference that identifies the dataset.

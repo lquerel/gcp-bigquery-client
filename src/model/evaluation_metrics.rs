@@ -7,7 +7,7 @@ use crate::model::multi_class_classification_metrics::MultiClassClassificationMe
 use crate::model::ranking_metrics::RankingMetrics;
 use crate::model::regression_metrics::RegressionMetrics;
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EvaluationMetrics {
     /// Evaluation metrics when the model is a dimensionality reduction model, which currently includes PCA.

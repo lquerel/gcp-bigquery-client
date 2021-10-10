@@ -1,6 +1,6 @@
 //! Principal component infos, used only for eigen decomposition based models, e.g., PCA. Ordered by explained_variance in the descending order.
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PrincipalComponentInfo {
     /// The explained_variance is pre-ordered in the descending order to compute the cumulative explained variance ratio.

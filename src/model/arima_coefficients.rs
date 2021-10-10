@@ -1,6 +1,6 @@
 //! Arima coefficients.
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ArimaCoefficients {
     /// Auto-regressive coefficients, an array of double.
