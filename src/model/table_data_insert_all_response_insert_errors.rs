@@ -1,3 +1,4 @@
+use std::fmt::{Display, Formatter};
 use crate::model::error_proto::ErrorProto;
 use serde::{Deserialize, Serialize};
 
@@ -10,4 +11,10 @@ pub struct TableDataInsertAllResponseInsertErrors {
     /// The index of the row that error applies to.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub index: Option<i32>,
+}
+
+impl Display for TableDataInsertAllResponseInsertErrors {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&format!("{:?}", self))
+    }
 }
