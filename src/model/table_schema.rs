@@ -22,4 +22,3 @@ impl TableSchema {
         self.fields.as_ref().map_or(0, |fields| fields.len())
     }
 }
-

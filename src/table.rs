@@ -76,7 +76,6 @@ impl TableApi {
         }
     }
 
-
     pub async fn delete_if_exists(&self, project_id: &str, dataset_id: &str, table_id: &str) -> bool {
         match self.delete(project_id, dataset_id, table_id).await {
             Err(BQError::ResponseError { error }) => {

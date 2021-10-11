@@ -1,5 +1,5 @@
-use std::fmt::{Display, Formatter};
 use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -27,21 +27,21 @@ impl Display for ErrorProto {
         }
 
         if let Some(location) = &self.location {
-            if buffer.len() > 0 {
+            if !buffer.is_empty() {
                 buffer += ", ";
             }
             buffer += &format!("location: {}", location);
         }
 
         if let Some(message) = &self.message {
-            if buffer.len() > 0 {
+            if !buffer.is_empty() {
                 buffer += ", ";
             }
             buffer += &format!("message: {}", message);
         }
 
         if let Some(reason) = &self.reason {
-            if buffer.len() > 0 {
+            if !buffer.is_empty() {
                 buffer += ", ";
             }
             buffer += &format!("reason: {}", reason);

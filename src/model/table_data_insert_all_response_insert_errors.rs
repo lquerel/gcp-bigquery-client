@@ -1,6 +1,6 @@
-use std::fmt::{Display, Formatter};
 use crate::model::error_proto::ErrorProto;
 use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
