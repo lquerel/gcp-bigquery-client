@@ -43,6 +43,12 @@ async fn main() -> Result<(), BQError> {
     // Init BigQuery client
     let client = gcp_bigquery_client::Client::from_service_account_key_file(gcp_sa_key).await;
 
+    // Delete the dataset if needed
+    let result = client.dataset().delete(project_id, dataset_id, true).await;
+    if let Ok(_) = result {
+        println!("Removed previous dataset '{}'", dataset_id);
+    }
+
     // Create a new dataset
     let dataset = client
         .dataset()
