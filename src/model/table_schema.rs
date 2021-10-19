@@ -1,7 +1,7 @@
 use crate::model::table_field_schema::TableFieldSchema;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TableSchema {
     /// Describes the fields in a table.
@@ -20,11 +20,5 @@ impl TableSchema {
 
     pub fn field_count(&self) -> usize {
         self.fields.as_ref().map_or(0, |fields| fields.len())
-    }
-}
-
-impl Default for TableSchema {
-    fn default() -> Self {
-        Self { fields: None }
     }
 }

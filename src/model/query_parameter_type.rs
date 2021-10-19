@@ -1,7 +1,7 @@
 use crate::model::query_parameter_type_struct_types::QueryParameterTypeStructTypes;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct QueryParameterType {
     pub array_type: Box<QueryParameterType>,

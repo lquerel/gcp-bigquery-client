@@ -125,7 +125,7 @@ mod test {
 
         let client = Client::from_service_account_key_file(sa_key).await;
 
-        // Delete the dataset if needed
+        client.table().delete_if_exists(project_id, dataset_id, table_id).await;
         client.dataset().delete_if_exists(project_id, dataset_id, true).await;
 
         // Create dataset
@@ -157,10 +157,11 @@ mod test {
             },
         )?;
 
-        client
+        let result = client
             .tabledata()
             .insert_all(project_id, dataset_id, table_id, insert_request)
-            .await?;
+            .await;
+        assert!(result.is_ok(), "Error: {:?}", result);
 
         // Remove table and dataset
         table.delete(&client).await?;

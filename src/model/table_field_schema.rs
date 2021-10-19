@@ -3,7 +3,7 @@ use crate::model::table_field_schema_categories::TableFieldSchemaCategories;
 use crate::model::table_field_schema_policy::TableFieldSchemaPolicyTags;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TableFieldSchema {
     #[serde(skip_serializing_if = "Option::is_none")]

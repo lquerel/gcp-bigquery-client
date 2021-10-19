@@ -13,6 +13,11 @@ An ergonomic Rust async client library for GCP BigQuery.
 * Persist complex Rust structs in structured BigQuery tables
 * Async API
 
+Features:
+- rust-tls (default): RUSTLS-based
+- native-tls: OpenSSL-based
+
+
 <br>
 Contributions are welcome.
 <br>
