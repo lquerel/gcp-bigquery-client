@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.1] - 2021-10-31
+
+### Added
+
+- Add a BigQuery load job example in the examples directory.
+
 ## [0.10.0] - 2021-10-09
 
 ### Added
@@ -13,7 +19,7 @@ All notable changes to this project will be documented in this file.
 - Implement `Default` trait for most of the structures in the model sub-directory
 - Implement `Clone` trait for most of the structures in the model sub-directory
 - Implement `Display` trait for `ErrorProto` and `TableDataInsertAllResponseInsertErrors`
-- 
+
 ## [0.9.3] - 2021-08-31
 
 ### Fix 
