@@ -35,3 +35,5 @@ chrono = "0.4"
 
 [dev-dependencies]
 tokio-test = "0.4"
+cloud-storage = {version="0.10", features = ["global-client"]}
+rand = "0.8"

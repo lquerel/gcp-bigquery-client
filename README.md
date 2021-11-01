@@ -199,6 +199,8 @@ rows are based on a regular Rust struct implementing the trait Serialize.
     client.dataset().delete(project_id, dataset_id, true).await?;
 ```
 
+An example of BigQuery load job can be found in the examples directory.
+
 ## Status
 
 The API of this crate is still subject to change up to version 1.0.
