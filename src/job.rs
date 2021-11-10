@@ -11,7 +11,6 @@ use crate::model::job_list::JobList;
 use crate::model::query_request::QueryRequest;
 use crate::model::query_response::{QueryResponse, ResultSet};
 use crate::{process_response, urlencode};
-use crate::model::training_options::HolidayRegion::Pe;
 
 /// A job API handler.
 pub struct JobApi {
