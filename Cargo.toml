@@ -1,6 +1,6 @@
 [package]
 name = "gcp-bigquery-client"
-version = "0.10.0"
+version = "0.10.1"
 authors = ["Laurent Querel <laurent.querel@gmail.com>"]
 edition = "2018"
 license = "MIT OR Apache-2.0"
@@ -35,3 +35,5 @@ chrono = "0.4"
 
 [dev-dependencies]
 tokio-test = "0.4"
+cloud-storage = {version="0.10", features = ["global-client"]}
+rand = "0.8"
