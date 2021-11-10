@@ -11,6 +11,7 @@ use crate::model::job_list::JobList;
 use crate::model::query_request::QueryRequest;
 use crate::model::query_response::{QueryResponse, ResultSet};
 use crate::{process_response, urlencode};
+use crate::model::training_options::HolidayRegion::Pe;
 
 /// A job API handler.
 pub struct JobApi {
@@ -146,9 +147,21 @@ impl JobApi {
             request_builder = request_builder.query(&["location", location]);
         }
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token_result = self.sa_auth.access_token().await;
 
-        let request = request_builder.bearer_auth(access_token).build()?;
+        if let Err(at_err) = access_token_result {
+            return Err(at_err)
+        }
+
+        let access_token = access_token_result.unwrap();
+
+        let request_build = request_builder.bearer_auth(access_token).build();
+
+        if request_build.is_err() {
+            return Err(BQError::RequestError(request_build.unwrap_err()))
+        }
+
+        let request = request_build.unwrap();
 
         let resp = self.client.execute(request).await?;
 
