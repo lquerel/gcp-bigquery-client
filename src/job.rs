@@ -143,7 +143,7 @@ impl JobApi {
         let mut request_builder = self.client.get(req_url.as_str());
 
         if let Some(location) = location {
-            request_builder = request_builder.query(&["location", location]);
+            request_builder = request_builder.query(&[("location", location)]);
         }
 
         let access_token_result = self.sa_auth.access_token().await;
