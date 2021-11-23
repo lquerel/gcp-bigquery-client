@@ -143,12 +143,24 @@ impl JobApi {
         let mut request_builder = self.client.get(req_url.as_str());
 
         if let Some(location) = location {
-            request_builder = request_builder.query(&["location", location]);
+            request_builder = request_builder.query(&[("location", location)]);
         }
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token_result = self.sa_auth.access_token().await;
 
-        let request = request_builder.bearer_auth(access_token).build()?;
+        if let Err(at_err) = access_token_result {
+            return Err(at_err)
+        }
+
+        let access_token = access_token_result.unwrap();
+
+        let request_build = request_builder.bearer_auth(access_token).build();
+
+        if request_build.is_err() {
+            return Err(BQError::RequestError(request_build.unwrap_err()))
+        }
+
+        let request = request_build.unwrap();
 
         let resp = self.client.execute(request).await?;
 
