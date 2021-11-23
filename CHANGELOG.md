@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.2] - 2021-10-21
+
+### Fix
+
+- Fix 2 issues in the job API (Thanks to @nixxholas)
+
 ## [0.10.1] - 2021-10-31
 
 ### Added
