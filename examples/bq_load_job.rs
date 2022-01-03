@@ -6,7 +6,7 @@ use gcp_bigquery_client::model::job_reference::JobReference;
 use gcp_bigquery_client::model::job_status::JobStatus;
 use gcp_bigquery_client::model::table_reference::TableReference;
 use gcp_bigquery_client::Client;
-use log::error;
+
 /// This example explains how to initiate and supervise a BQ load job (new line delimited json file in GCS).
 use std::env;
 use std::thread::sleep;
