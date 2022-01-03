@@ -59,20 +59,11 @@ impl ProjectApi {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct GetOptions {
     max_results: Option<u64>,
     page_token: Option<String>,
-}
-
-impl Default for GetOptions {
-    fn default() -> Self {
-        Self {
-            max_results: None,
-            page_token: None,
-        }
-    }
 }
 
 impl GetOptions {

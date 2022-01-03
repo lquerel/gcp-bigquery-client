@@ -359,6 +359,7 @@ impl DatasetApi {
 }
 
 /// A list of options used to create a dataset API handler.
+#[derive(Default)]
 pub struct ListOptions {
     max_results: Option<u64>,
     page_token: Option<String>,
@@ -392,17 +393,6 @@ impl ListOptions {
     pub fn filter(mut self, value: String) -> Self {
         self.filter = Some(value);
         self
-    }
-}
-
-impl Default for ListOptions {
-    fn default() -> Self {
-        Self {
-            max_results: None,
-            page_token: None,
-            all: None,
-            filter: None,
-        }
     }
 }
 

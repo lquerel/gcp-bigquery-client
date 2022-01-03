@@ -320,6 +320,7 @@ impl TableApi {
 }
 
 /// A list of options to use with the table API handler.
+#[derive(Default)]
 pub struct ListOptions {
     max_results: Option<u64>,
     page_token: Option<String>,
@@ -337,15 +338,6 @@ impl ListOptions {
     pub fn page_token(mut self, value: String) -> Self {
         self.page_token = Some(value);
         self
-    }
-}
-
-impl Default for ListOptions {
-    fn default() -> Self {
-        Self {
-            max_results: None,
-            page_token: None,
-        }
     }
 }
 

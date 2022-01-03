@@ -157,24 +157,13 @@ impl RoutineApi {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct ListOptions {
     max_results: Option<u64>,
     page_token: Option<String>,
     read_mask: Option<String>,
     filter: Option<String>,
-}
-
-impl Default for ListOptions {
-    fn default() -> Self {
-        Self {
-            max_results: None,
-            page_token: None,
-            read_mask: None,
-            filter: None,
-        }
-    }
 }
 
 impl ListOptions {
