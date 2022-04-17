@@ -19,10 +19,9 @@ use std::time::Duration;
 
 const GCS_BUCKET_NAME: &'static str = "rust_bq_client";
 
-#[cfg(not(feature = "bq_load_job"))]
-fn main() {}
+// #[cfg(not(feature = "bq_load_job"))]
+// fn main() {}
 
-#[cfg(feature = "bq_load_job")]
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (gcp_sa_key, project_id) = env_vars();
@@ -33,29 +32,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Load line delimiter json data file
     let data = std::fs::read("examples/data.json").expect("data.json not found");
 
-    // Store data on GCS
-    let source_uri = store_and_get_gcs_uri(GCS_BUCKET_NAME, data, &tmp_file_name).await?;
-
-    let client = Client::from_service_account_key_file(&gcp_sa_key).await;
-
-    // Create BQ load job to create/update the test with the content of the json data file
-    // Pre-requisite: test_batch_load dataset already created
-    let job_ref = create_bq_load_job(
-        &client,
-        &project_id,
-        "test_batch_load",
-        "test4",
-        source_uri,
-        &tmp_file_name,
-    )
-    .await?;
-
-    while get_job_status(&client, &project_id, job_ref.job_id.as_ref().unwrap())
-        .await?
-        .state
-        != Some("DONE".to_string())
+    #[cfg(feature = "bq_load_job")]
     {
-        sleep(Duration::from_secs(1));
+        // Store data on GCS
+        let source_uri = store_and_get_gcs_uri(GCS_BUCKET_NAME, data, &tmp_file_name).await?;
+
+        let client = Client::from_service_account_key_file(&gcp_sa_key).await;
+
+        // Create BQ load job to create/update the test with the content of the json data file
+        // Pre-requisite: test_batch_load dataset already created
+        let job_ref = create_bq_load_job(
+            &client,
+            &project_id,
+            "test_batch_load",
+            "test4",
+            source_uri,
+            &tmp_file_name,
+        )
+            .await?;
+
+        while get_job_status(&client, &project_id, job_ref.job_id.as_ref().unwrap())
+            .await?
+            .state
+            != Some("DONE".to_string())
+        {
+            sleep(Duration::from_secs(1));
+        }
     }
 
     println!("DONE");
@@ -123,6 +125,7 @@ fn tmp_file_name(file_name_len: usize) -> String {
         .collect()
 }
 
+#[cfg(feature = "bq_load_job")]
 pub async fn store_and_get_gcs_uri(
     gcs_bucket_name: &str,
     data: Vec<u8>,
