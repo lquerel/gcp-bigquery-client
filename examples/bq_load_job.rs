@@ -1,3 +1,8 @@
+// Note: The feature bq_load_job is used to remove this example from a standard build as the
+// cloud_storage has still a dependency to chrono. This removes the issues raised by the security
+// audit system.
+
+#[cfg(feature = "bq_load_job")]
 use cloud_storage::Object;
 use gcp_bigquery_client::model::job::Job;
 use gcp_bigquery_client::model::job_configuration::JobConfiguration;
@@ -14,6 +19,10 @@ use std::time::Duration;
 
 const GCS_BUCKET_NAME: &'static str = "rust_bq_client";
 
+#[cfg(not(feature = "bq_load_job"))]
+fn main() {}
+
+#[cfg(feature = "bq_load_job")]
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (gcp_sa_key, project_id) = env_vars();
