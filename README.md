@@ -1,4 +1,4 @@
-GCP BigQuery Client
+P BigQuery Client
 ===================
 
 [<img alt="github" src="https://img.shields.io/badge/github-lquerel/gcp_bigquery_client-8da0cb?style=for-the-badge&labelColor=555555&logo=github" height="20">](https://github.com/lquerel/gcp-bigquery-client)
@@ -40,7 +40,14 @@ rows are based on a regular Rust struct implementing the trait Serialize.
 * Drop the dataset previously created 
 
 ```rust
+    // Init BigQuery client
     let client = gcp_bigquery_client::Client::from_service_account_key_file(gcp_sa_key).await;
+
+    // Delete the dataset if needed
+    let result = client.dataset().delete(project_id, dataset_id, true).await;
+    if let Ok(_) = result {
+        println!("Removed previous dataset '{}'", dataset_id);
+    }
 
     // Create a new dataset
     let dataset = client
@@ -102,7 +109,7 @@ rows are based on a regular Rust struct implementing the trait Serialize.
     insert_request.add_row(
         None,
         MyRow {
-            ts: Utc::now(),
+            ts: OffsetDateTime::now_utc(),
             int_value: 1,
             float_value: 1.0,
             bool_value: false,
@@ -120,7 +127,7 @@ rows are based on a regular Rust struct implementing the trait Serialize.
     insert_request.add_row(
         None,
         MyRow {
-            ts: Utc::now(),
+            ts: OffsetDateTime::now_utc(),
             int_value: 2,
             float_value: 2.0,
             bool_value: true,
@@ -138,7 +145,7 @@ rows are based on a regular Rust struct implementing the trait Serialize.
     insert_request.add_row(
         None,
         MyRow {
-            ts: Utc::now(),
+            ts: OffsetDateTime::now_utc(),
             int_value: 3,
             float_value: 3.0,
             bool_value: false,
@@ -156,7 +163,7 @@ rows are based on a regular Rust struct implementing the trait Serialize.
     insert_request.add_row(
         None,
         MyRow {
-            ts: Utc::now(),
+            ts: OffsetDateTime::now_utc(),
             int_value: 4,
             float_value: 4.0,
             bool_value: true,

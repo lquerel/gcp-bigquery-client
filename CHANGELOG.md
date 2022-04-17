@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.12.0] - 2022-04-17
+
+### Improvement
+
+- Replace Chrome by Time
+
 ## [0.11.0] - 2022-01-03
 
 ### Fix

@@ -1,6 +1,5 @@
 use serde::Serialize;
 
-use chrono::{DateTime, Utc};
 use gcp_bigquery_client::env_vars;
 use gcp_bigquery_client::error::BQError;
 use gcp_bigquery_client::model::dataset::Dataset;
@@ -11,10 +10,11 @@ use gcp_bigquery_client::model::table_field_schema::TableFieldSchema;
 use gcp_bigquery_client::model::table_schema::TableSchema;
 use gcp_bigquery_client::model::time_partitioning::TimePartitioning;
 use std::time::{Duration, SystemTime};
+use time::OffsetDateTime;
 
 #[derive(Serialize)]
 struct MyRow {
-    ts: DateTime<Utc>,
+    ts: time::OffsetDateTime,
     int_value: i64,
     float_value: f64,
     bool_value: bool,
@@ -109,7 +109,7 @@ async fn main() -> Result<(), BQError> {
     insert_request.add_row(
         None,
         MyRow {
-            ts: Utc::now(),
+            ts: OffsetDateTime::now_utc(),
             int_value: 1,
             float_value: 1.0,
             bool_value: false,
@@ -127,7 +127,7 @@ async fn main() -> Result<(), BQError> {
     insert_request.add_row(
         None,
         MyRow {
-            ts: Utc::now(),
+            ts: OffsetDateTime::now_utc(),
             int_value: 2,
             float_value: 2.0,
             bool_value: true,
@@ -145,7 +145,7 @@ async fn main() -> Result<(), BQError> {
     insert_request.add_row(
         None,
         MyRow {
-            ts: Utc::now(),
+            ts: OffsetDateTime::now_utc(),
             int_value: 3,
             float_value: 3.0,
             bool_value: false,
@@ -163,7 +163,7 @@ async fn main() -> Result<(), BQError> {
     insert_request.add_row(
         None,
         MyRow {
-            ts: Utc::now(),
+            ts: OffsetDateTime::now_utc(),
             int_value: 4,
             float_value: 4.0,
             bool_value: true,
