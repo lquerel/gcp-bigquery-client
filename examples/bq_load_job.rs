@@ -49,7 +49,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             source_uri,
             &tmp_file_name,
         )
-            .await?;
+        .await?;
 
         while get_job_status(&client, &project_id, job_ref.job_id.as_ref().unwrap())
             .await?
