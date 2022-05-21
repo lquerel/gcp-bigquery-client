@@ -24,9 +24,9 @@ rust-tls = ["reqwest/rustls-tls"]
 bq_load_job = ["cloud-storage"]
 
 [dependencies]
-yup-oauth2 = "6.5.1"
+yup-oauth2 = "6.6.0"
 hyper = {version="0.14", features = ["http1"]}
-hyper-rustls = {version="0.22", features = ["native-tokio"]}
+hyper-rustls = {version="0.23", features = ["native-tokio"]}
 thiserror = "1"
 tokio = { version = "1", default-features = false, features = ["rt-multi-thread", "net", "sync", "macros"] }
 reqwest = { version = "0.11", default-features = false, features = ["json"] }
@@ -34,7 +34,7 @@ url = "2"
 serde = "1"
 serde_json = "1"
 log = "0.4"
-time = { version = "0.3.7", features = ["local-offset", "serde", "serde-well-known"] }
+time = { version = "0.3.9", features = ["local-offset", "serde", "serde-well-known"] }
 cloud-storage = {version="0.11.0", features = ["global-client"], optional = true}
 
 [dev-dependencies]
