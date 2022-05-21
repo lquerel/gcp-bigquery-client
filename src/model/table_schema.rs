@@ -21,4 +21,8 @@ impl TableSchema {
     pub fn field_count(&self) -> usize {
         self.fields.as_ref().map_or(0, |fields| fields.len())
     }
+
+    pub fn is_none(&self) -> bool {
+        self.fields.is_none()
+    }
 }
