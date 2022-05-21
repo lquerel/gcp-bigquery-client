@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.12.1] - 2022-05-21
+
+### Fix
+
+- Fix dependencies issues (Thanks to @MathiasKindberg)
+- Fix view creation (Thanks to @jeffreybolle)
+
 ## [0.12.0] - 2022-04-17
 
 ### Improvement
