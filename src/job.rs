@@ -57,6 +57,7 @@ impl JobApi {
         project_id: &str,
         query: String,
         query_parameters: Option<Vec<QueryParameter>>,
+        max_results: Option<i32>,
     ) -> Result<PaginatedResultSet, BQError> {
         let job = Job {
             configuration: Some(JobConfiguration {
@@ -84,6 +85,7 @@ impl JobApi {
                         job_id,
                         GetQueryResultsParameters {
                             page_token,
+                            max_results,
                             ..Default::default()
                         },
                     )
