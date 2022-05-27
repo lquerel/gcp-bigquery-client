@@ -4,10 +4,13 @@ use reqwest::Client;
 use crate::auth::ServiceAccountAuthenticator;
 use crate::error::BQError;
 use crate::model::get_query_results_parameters::GetQueryResultsParameters;
-use crate::model::get_query_results_response::GetQueryResultsResponse;
+use crate::model::get_query_results_response::{GetQueryResultsResponse, PaginatedResultSet};
 use crate::model::job::Job;
 use crate::model::job_cancel_response::JobCancelResponse;
+use crate::model::job_configuration::JobConfiguration;
+use crate::model::job_configuration_query::JobConfigurationQuery;
 use crate::model::job_list::JobList;
+use crate::model::query_parameter::QueryParameter;
 use crate::model::query_request::QueryRequest;
 use crate::model::query_response::{QueryResponse, ResultSet};
 use crate::{process_response, urlencode};
@@ -47,6 +50,55 @@ impl JobApi {
 
         let query_response: QueryResponse = process_response(resp).await?;
         Ok(ResultSet::new(query_response))
+    }
+
+    pub async fn query_all(
+        &self,
+        project_id: &str,
+        query: String,
+        query_parameters: Option<Vec<QueryParameter>>,
+    ) -> Result<PaginatedResultSet, BQError> {
+        let job = Job {
+            configuration: Some(JobConfiguration {
+                dry_run: Some(false),
+                query: Some(JobConfigurationQuery {
+                    query,
+                    query_parameters,
+                    use_legacy_sql: Some(false),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        let mut rs = PaginatedResultSet::default();
+
+        let job = self.insert(project_id, job).await?;
+        if let Some(ref job_id) = job.job_reference.and_then(|r| r.job_id) {
+            let mut page_token: Option<String> = None;
+            loop {
+                let qr = self
+                    .get_query_results(
+                        project_id,
+                        job_id,
+                        GetQueryResultsParameters {
+                            page_token,
+                            ..Default::default()
+                        },
+                    )
+                    .await?;
+
+                rs.append(qr.rows);
+
+                if qr.page_token.is_none() {
+                    break;
+                }
+                page_token = qr.page_token;
+            }
+        }
+
+        Ok(rs)
     }
 
     /// Starts a new asynchronous job.
