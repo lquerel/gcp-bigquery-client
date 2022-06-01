@@ -51,11 +51,16 @@ impl JobApi {
         Ok(ResultSet::new(query_response))
     }
 
+    /// Runs a BigQuery SQL query, paginating through all the results synchronously.
+    /// # Arguments
+    /// * `project_id`- Project ID of the query request.
+    /// * `query` - The initial query configuration that is submitted when the job is inserted.
+    /// * `page_size` - The size of each page fetched. By default, this is set to `None`, and the limit is 10 MB of rows instead.
     pub async fn query_all(
         &self,
         project_id: &str,
         query: JobConfigurationQuery,
-        max_results: Option<i32>,
+        page_size: Option<i32>,
     ) -> Result<PaginatedResultSet, BQError> {
         let job = Job {
             configuration: Some(JobConfiguration {
@@ -78,7 +83,7 @@ impl JobApi {
                         job_id,
                         GetQueryResultsParameters {
                             page_token,
-                            max_results,
+                            max_results: page_size,
                             ..Default::default()
                         },
                     )
