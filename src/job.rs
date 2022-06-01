@@ -10,7 +10,6 @@ use crate::model::job_cancel_response::JobCancelResponse;
 use crate::model::job_configuration::JobConfiguration;
 use crate::model::job_configuration_query::JobConfigurationQuery;
 use crate::model::job_list::JobList;
-use crate::model::query_parameter::QueryParameter;
 use crate::model::query_request::QueryRequest;
 use crate::model::query_response::{QueryResponse, ResultSet};
 use crate::{process_response, urlencode};
@@ -55,19 +54,13 @@ impl JobApi {
     pub async fn query_all(
         &self,
         project_id: &str,
-        query: String,
-        query_parameters: Option<Vec<QueryParameter>>,
+        query: JobConfigurationQuery,
         max_results: Option<i32>,
     ) -> Result<PaginatedResultSet, BQError> {
         let job = Job {
             configuration: Some(JobConfiguration {
                 dry_run: Some(false),
-                query: Some(JobConfigurationQuery {
-                    query,
-                    query_parameters,
-                    use_legacy_sql: Some(false),
-                    ..Default::default()
-                }),
+                query: Some(query),
                 ..Default::default()
             }),
             ..Default::default()
