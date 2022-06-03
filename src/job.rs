@@ -249,6 +249,7 @@ mod test {
 
     use crate::error::BQError;
     use crate::model::dataset::Dataset;
+    use crate::model::job_configuration_query::JobConfigurationQuery;
     use crate::model::query_request::QueryRequest;
     use crate::model::query_response::{QueryResponse, ResultSet};
     use crate::model::table::Table;
@@ -394,6 +395,8 @@ mod test {
             },
         )?;
 
+        let n_rows = insert_request.len();
+
         let result = client
             .tabledata()
             .insert_all(project_id, dataset_id, table_id, insert_request)
@@ -439,6 +442,23 @@ mod test {
         while query_results_rs.next_row() {
             assert!(rs.get_i64_by_name("c")?.is_some());
         }
+
+        //Query all
+        let query_all_results = client
+            .job()
+            .query_all(
+                project_id,
+                JobConfigurationQuery {
+                    query: format!("SELECT * FROM `{project_id}.{dataset_id}.{table_id}`"),
+                    query_parameters: None,
+                    use_legacy_sql: Some(false),
+                    ..Default::default()
+                },
+                Some(2),
+            )
+            .await?;
+
+        assert_eq!(query_all_results.rows().len(), n_rows);
 
         client.table().delete(project_id, dataset_id, table_id).await?;
 
