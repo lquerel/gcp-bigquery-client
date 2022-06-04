@@ -1,4 +1,4 @@
-P BigQuery Client
+GCP BigQuery Client
 ===================
 
 [<img alt="github" src="https://img.shields.io/badge/github-lquerel/gcp_bigquery_client-8da0cb?style=for-the-badge&labelColor=555555&logo=github" height="20">](https://github.com/lquerel/gcp-bigquery-client)
