@@ -4,9 +4,11 @@ use reqwest::Client;
 use crate::auth::ServiceAccountAuthenticator;
 use crate::error::BQError;
 use crate::model::get_query_results_parameters::GetQueryResultsParameters;
-use crate::model::get_query_results_response::GetQueryResultsResponse;
+use crate::model::get_query_results_response::{GetQueryResultsResponse, PaginatedResultSet};
 use crate::model::job::Job;
 use crate::model::job_cancel_response::JobCancelResponse;
+use crate::model::job_configuration::JobConfiguration;
+use crate::model::job_configuration_query::JobConfigurationQuery;
 use crate::model::job_list::JobList;
 use crate::model::query_request::QueryRequest;
 use crate::model::query_response::{QueryResponse, ResultSet};
@@ -47,6 +49,57 @@ impl JobApi {
 
         let query_response: QueryResponse = process_response(resp).await?;
         Ok(ResultSet::new(query_response))
+    }
+
+    /// Runs a BigQuery SQL query, paginating through all the results synchronously.
+    /// # Arguments
+    /// * `project_id`- Project ID of the query request.
+    /// * `query` - The initial query configuration that is submitted when the job is inserted.
+    /// * `page_size` - The size of each page fetched. By default, this is set to `None`, and the limit is 10 MB of
+    /// rows instead.
+    pub async fn query_all(
+        &self,
+        project_id: &str,
+        query: JobConfigurationQuery,
+        page_size: Option<i32>,
+    ) -> Result<PaginatedResultSet, BQError> {
+        let job = Job {
+            configuration: Some(JobConfiguration {
+                dry_run: Some(false),
+                query: Some(query),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        let mut rs = PaginatedResultSet::default();
+
+        let job = self.insert(project_id, job).await?;
+        if let Some(ref job_id) = job.job_reference.and_then(|r| r.job_id) {
+            let mut page_token: Option<String> = None;
+            loop {
+                let qr = self
+                    .get_query_results(
+                        project_id,
+                        job_id,
+                        GetQueryResultsParameters {
+                            page_token,
+                            max_results: page_size,
+                            ..Default::default()
+                        },
+                    )
+                    .await?;
+
+                rs.append(qr.rows);
+
+                if qr.page_token.is_none() {
+                    break;
+                }
+                page_token = qr.page_token;
+            }
+        }
+
+        Ok(rs)
     }
 
     /// Starts a new asynchronous job.
@@ -196,6 +249,7 @@ mod test {
 
     use crate::error::BQError;
     use crate::model::dataset::Dataset;
+    use crate::model::job_configuration_query::JobConfigurationQuery;
     use crate::model::query_request::QueryRequest;
     use crate::model::query_response::{QueryResponse, ResultSet};
     use crate::model::table::Table;
@@ -341,6 +395,8 @@ mod test {
             },
         )?;
 
+        let n_rows = insert_request.len();
+
         let result = client
             .tabledata()
             .insert_all(project_id, dataset_id, table_id, insert_request)
@@ -386,6 +442,23 @@ mod test {
         while query_results_rs.next_row() {
             assert!(rs.get_i64_by_name("c")?.is_some());
         }
+
+        //Query all
+        let query_all_results = client
+            .job()
+            .query_all(
+                project_id,
+                JobConfigurationQuery {
+                    query: format!("SELECT * FROM `{project_id}.{dataset_id}.{table_id}`"),
+                    query_parameters: None,
+                    use_legacy_sql: Some(false),
+                    ..Default::default()
+                },
+                Some(2),
+            )
+            .await?;
+
+        assert_eq!(query_all_results.rows().len(), n_rows);
 
         client.table().delete(project_id, dataset_id, table_id).await?;
 
