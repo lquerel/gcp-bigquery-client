@@ -1,10 +1,12 @@
 //! Manage BigQuery jobs.
+use async_stream::stream;
 use reqwest::Client;
+use tokio_stream::Stream;
 
 use crate::auth::ServiceAccountAuthenticator;
 use crate::error::BQError;
 use crate::model::get_query_results_parameters::GetQueryResultsParameters;
-use crate::model::get_query_results_response::{GetQueryResultsResponse, PaginatedResultSet};
+use crate::model::get_query_results_response::GetQueryResultsResponse;
 use crate::model::job::Job;
 use crate::model::job_cancel_response::JobCancelResponse;
 use crate::model::job_configuration::JobConfiguration;
@@ -12,6 +14,7 @@ use crate::model::job_configuration_query::JobConfigurationQuery;
 use crate::model::job_list::JobList;
 use crate::model::query_request::QueryRequest;
 use crate::model::query_response::{QueryResponse, ResultSet};
+use crate::model::table_row::TableRow;
 use crate::{process_response, urlencode};
 
 /// A job API handler.
@@ -57,49 +60,49 @@ impl JobApi {
     /// * `query` - The initial query configuration that is submitted when the job is inserted.
     /// * `page_size` - The size of each page fetched. By default, this is set to `None`, and the limit is 10 MB of
     /// rows instead.
-    pub async fn query_all(
-        &self,
-        project_id: &str,
+    pub fn query_all<'a>(
+        &'a self,
+        project_id: &'a str,
         query: JobConfigurationQuery,
         page_size: Option<i32>,
-    ) -> Result<PaginatedResultSet, BQError> {
-        let job = Job {
-            configuration: Some(JobConfiguration {
-                dry_run: Some(false),
-                query: Some(query),
+    ) -> impl Stream<Item = Result<Vec<TableRow>, BQError>> + 'a {
+        stream! {
+            let job = Job {
+                configuration: Some(JobConfiguration {
+                    dry_run: Some(false),
+                    query: Some(query),
+                    ..Default::default()
+                }),
                 ..Default::default()
-            }),
-            ..Default::default()
-        };
+            };
 
-        let mut rs = PaginatedResultSet::default();
+            let job = self.insert(project_id, job).await?;
 
-        let job = self.insert(project_id, job).await?;
-        if let Some(ref job_id) = job.job_reference.and_then(|r| r.job_id) {
-            let mut page_token: Option<String> = None;
-            loop {
-                let qr = self
-                    .get_query_results(
-                        project_id,
-                        job_id,
-                        GetQueryResultsParameters {
-                            page_token,
-                            max_results: page_size,
-                            ..Default::default()
-                        },
-                    )
-                    .await?;
+            if let Some(ref job_id) = job.job_reference.and_then(|r| r.job_id) {
+                let mut page_token: Option<String> = None;
+                loop {
+                    let qr = self
+                        .get_query_results(
+                            project_id,
+                            job_id,
+                            GetQueryResultsParameters {
+                                page_token,
+                                max_results: page_size,
+                                ..Default::default()
+                            },
+                        )
+                        .await?;
 
-                rs.append(qr.rows);
+                    // Rows is present when the query finishes successfully.
+                    yield Ok(qr.rows.unwrap());
 
-                if qr.page_token.is_none() {
-                    break;
+                    page_token = match qr.page_token {
+                        None => break,
+                        f => f,
+                    };
                 }
-                page_token = qr.page_token;
             }
         }
-
-        Ok(rs)
     }
 
     /// Starts a new asynchronous job.
@@ -246,6 +249,7 @@ impl JobApi {
 #[cfg(test)]
 mod test {
     use serde::Serialize;
+    use tokio_stream::StreamExt;
 
     use crate::error::BQError;
     use crate::model::dataset::Dataset;
@@ -444,7 +448,7 @@ mod test {
         }
 
         //Query all
-        let query_all_results = client
+        let query_all_results: Result<Vec<_>, _> = client
             .job()
             .query_all(
                 project_id,
@@ -456,9 +460,12 @@ mod test {
                 },
                 Some(2),
             )
-            .await?;
+            .collect::<Result<Vec<_>, _>>()
+            .await
+            .map(|vec_of_vecs| vec_of_vecs.into_iter().flatten().collect());
 
-        assert_eq!(query_all_results.rows().len(), n_rows);
+        assert!(query_all_results.is_ok());
+        assert_eq!(query_all_results.unwrap().len(), n_rows);
 
         client.table().delete(project_id, dataset_id, table_id).await?;
 
