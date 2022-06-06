@@ -18,7 +18,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     tokio::pin!(result_set);
-    
+
     while let Some(page) = result_set.next().await {
         match page {
             Ok(rows) => println!("Page rows: {}", rows.len()),
