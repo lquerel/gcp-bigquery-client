@@ -46,6 +46,7 @@ pub mod table;
 pub mod tabledata;
 
 /// An asynchronous BigQuery client.
+#[derive(Clone)]
 pub struct Client {
     dataset_api: DatasetApi,
     table_api: TableApi,

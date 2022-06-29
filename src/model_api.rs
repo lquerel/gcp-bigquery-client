@@ -8,6 +8,7 @@ use crate::model::model::Model;
 use crate::{process_response, urlencode};
 
 /// A model API handler.
+#[derive(Clone)]
 pub struct ModelApi {
     client: Client,
     sa_auth: ServiceAccountAuthenticator,

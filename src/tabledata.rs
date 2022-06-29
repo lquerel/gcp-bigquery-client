@@ -8,6 +8,7 @@ use crate::{process_response, urlencode};
 use reqwest::Client;
 
 /// A table data API handler.
+#[derive(Clone)]
 pub struct TableDataApi {
     client: Client,
     sa_auth: ServiceAccountAuthenticator,
