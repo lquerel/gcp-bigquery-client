@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::fmt::Write as _;
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
@@ -23,28 +24,28 @@ impl Display for ErrorProto {
         let mut buffer = String::new();
 
         if let Some(debug_info) = &self.debug_info {
-            buffer += &format!("debug_info: {}", debug_info);
+            let _ = write!(buffer, "debug_info: {}", debug_info);
         }
 
         if let Some(location) = &self.location {
             if !buffer.is_empty() {
                 buffer += ", ";
             }
-            buffer += &format!("location: {}", location);
+            let _ = &write!(buffer, "location: {}", location);
         }
 
         if let Some(message) = &self.message {
             if !buffer.is_empty() {
                 buffer += ", ";
             }
-            buffer += &format!("message: {}", message);
+            let _ = write!(buffer, "message: {}", message);
         }
 
         if let Some(reason) = &self.reason {
             if !buffer.is_empty() {
                 buffer += ", ";
             }
-            buffer += &format!("reason: {}", reason);
+            let _ = write!(buffer, "reason: {}", reason);
         }
 
         f.write_str(&format!("ErrorProto: {{{}}}", buffer))
