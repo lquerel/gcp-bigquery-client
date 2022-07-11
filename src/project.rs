@@ -8,6 +8,7 @@ use crate::model::project_list::ProjectList;
 use crate::{process_response, urlencode};
 
 /// A project API handler.
+#[derive(Clone)]
 pub struct ProjectApi {
     client: Client,
     sa_auth: ServiceAccountAuthenticator,

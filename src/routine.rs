@@ -8,6 +8,7 @@ use crate::model::routine::Routine;
 use crate::{process_response, urlencode};
 
 /// A routine API handler.
+#[derive(Clone)]
 pub struct RoutineApi {
     client: Client,
     sa_auth: ServiceAccountAuthenticator,

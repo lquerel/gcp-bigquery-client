@@ -14,6 +14,7 @@ use crate::model::test_iam_permissions_response::TestIamPermissionsResponse;
 use crate::{process_response, urlencode};
 
 /// A table API handler.
+#[derive(Clone)]
 pub struct TableApi {
     client: Client,
     sa_auth: ServiceAccountAuthenticator,

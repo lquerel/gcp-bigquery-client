@@ -15,6 +15,7 @@ use crate::model::query_response::{QueryResponse, ResultSet};
 use crate::{process_response, urlencode};
 
 /// A job API handler.
+#[derive(Clone)]
 pub struct JobApi {
     client: Client,
     sa_auth: ServiceAccountAuthenticator,
