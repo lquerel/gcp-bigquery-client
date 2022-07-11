@@ -7,7 +7,8 @@ All notable changes to this project will be documented in this file.
 ### Improvement
 
 - Make Client cloneable (Thanks @lee-hen)
-- Update yup-oauth2 version
+- Bump yup-oauth2 crate version
+- Bump time crate version (security issue)
 
 ## [0.12.2] - 2022-06-04
 
