@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.13.0] - 2022-07-11
+
+### Improvement
+
+- Make Client cloneable (Thanks @lee-hen)
+- Update yup-oauth2 version
 
 ## [0.12.2] - 2022-06-04
 

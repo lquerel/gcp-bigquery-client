@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
-use std::fmt::{Display, Formatter};
 use std::fmt::Write as _;
+use std::fmt::{Display, Formatter};
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
