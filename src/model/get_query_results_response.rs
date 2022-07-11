@@ -32,20 +32,3 @@ pub struct GetQueryResultsResponse {
     /// The total number of rows in the complete query result set, which can be more than the number of rows in this single page of results. Present only when the query completes successfully.
     pub total_rows: Option<String>,
 }
-
-#[derive(Debug, Default)]
-pub struct PaginatedResultSet {
-    rows: Vec<TableRow>,
-}
-
-impl PaginatedResultSet {
-    pub(crate) fn append(&mut self, rows: Option<Vec<TableRow>>) {
-        if let Some(mut rows) = rows {
-            self.rows.append(&mut rows);
-        }
-    }
-
-    pub fn rows(&self) -> &[TableRow] {
-        self.rows.as_ref()
-    }
-}
