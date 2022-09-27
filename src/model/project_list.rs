@@ -23,7 +23,7 @@ pub struct Project {
     /// A unique reference to this project.
     pub project_reference: Option<ProjectReference>,
     /// The numeric ID of this project.
-    pub numeric_id: Option<u64>,
+    pub numeric_id: Option<String>,
     /// A descriptive name for this project.
     pub friendly_name: Option<String>,
     /// An opaque ID of this project.
