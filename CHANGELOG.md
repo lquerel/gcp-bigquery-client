@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.14.0] - 2022-09-27
+
+### Fix
+
+- Process list - Change numeric_id type from u64 to string (Thanks @kiibo382)
+
 ## [0.13.0] - 2022-07-11
 
 ### Improvement
