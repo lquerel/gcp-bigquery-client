@@ -15,18 +15,28 @@ use crate::model::job_list::JobList;
 use crate::model::query_request::QueryRequest;
 use crate::model::query_response::{QueryResponse, ResultSet};
 use crate::model::table_row::TableRow;
-use crate::{process_response, urlencode};
+use crate::{process_response, urlencode, BIG_QUERY_V2_URL};
 
 /// A job API handler.
 #[derive(Clone)]
 pub struct JobApi {
     client: Client,
     sa_auth: ServiceAccountAuthenticator,
+    base_url: String,
 }
 
 impl JobApi {
     pub(crate) fn new(client: Client, sa_auth: ServiceAccountAuthenticator) -> Self {
-        Self { client, sa_auth }
+        Self {
+            client,
+            sa_auth,
+            base_url: BIG_QUERY_V2_URL.to_string(),
+        }
+    }
+
+    pub(crate) fn with_base_url(&mut self, base_url: String) -> &mut Self {
+        self.base_url = base_url;
+        self
     }
 
     /// Runs a BigQuery SQL query synchronously and returns query results if the query completes within a specified
@@ -36,7 +46,8 @@ impl JobApi {
     /// * `query_request` - The request body contains an instance of QueryRequest.
     pub async fn query(&self, project_id: &str, query_request: QueryRequest) -> Result<ResultSet, BQError> {
         let req_url = format!(
-            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/queries",
+            "{base_url}/projects/{project_id}/queries",
+            base_url = self.base_url,
             project_id = urlencode(project_id)
         );
 
@@ -112,7 +123,8 @@ impl JobApi {
     /// * `job` - The request body contains an instance of Job.
     pub async fn insert(&self, project_id: &str, job: Job) -> Result<Job, BQError> {
         let req_url = format!(
-            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/jobs",
+            "{base_url}/projects/{project_id}/jobs",
+            base_url = self.base_url,
             project_id = urlencode(project_id)
         );
 
@@ -137,7 +149,8 @@ impl JobApi {
     /// * `project_id` - Project ID of the jobs to list.
     pub async fn list(&self, project_id: &str) -> Result<JobList, BQError> {
         let req_url = format!(
-            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/jobs",
+            "{base_url}/projects/{project_id}/jobs",
+            base_url = self.base_url,
             project_id = urlencode(project_id)
         );
 
@@ -162,7 +175,8 @@ impl JobApi {
         parameters: GetQueryResultsParameters,
     ) -> Result<GetQueryResultsResponse, BQError> {
         let req_url = format!(
-            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/queries/{job_id}",
+            "{base_url}/projects/{project_id}/queries/{job_id}",
+            base_url = self.base_url,
             project_id = urlencode(project_id),
             job_id = urlencode(job_id),
         );
@@ -192,7 +206,8 @@ impl JobApi {
     /// details at https://cloud.google.com/bigquery/docs/locations#specifying_your_location.
     pub async fn get_job(&self, project_id: &str, job_id: &str, location: Option<&str>) -> Result<Job, BQError> {
         let req_url = format!(
-            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/jobs/{job_id}",
+            "{base_url}/projects/{project_id}/jobs/{job_id}",
+            base_url = self.base_url,
             project_id = urlencode(project_id),
             job_id = urlencode(job_id),
         );
@@ -226,7 +241,8 @@ impl JobApi {
         location: Option<&str>,
     ) -> Result<JobCancelResponse, BQError> {
         let req_url = format!(
-            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/jobs/{job_id}/cancel",
+            "{base_url}/projects/{project_id}/jobs/{job_id}/cancel",
+            base_url = self.base_url,
             project_id = urlencode(project_id),
             job_id = urlencode(job_id),
         );

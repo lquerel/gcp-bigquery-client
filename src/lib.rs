@@ -104,7 +104,12 @@ impl Client {
 
     pub fn with_base_url(&mut self, base_url: String) -> &mut Self {
         self.dataset_api.with_base_url(base_url.clone());
-        self.table_api.with_base_url(base_url);
+        self.table_api.with_base_url(base_url.clone());
+        self.job_api.with_base_url(base_url.clone());
+        self.tabledata_api.with_base_url(base_url.clone());
+        self.routine_api.with_base_url(base_url.clone());
+        self.model_api.with_base_url(base_url.clone());
+        self.project_api.with_base_url(base_url);
         self
     }
 

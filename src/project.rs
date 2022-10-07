@@ -5,18 +5,28 @@ use crate::auth::ServiceAccountAuthenticator;
 use crate::error::BQError;
 use crate::model::get_service_account_response::GetServiceAccountResponse;
 use crate::model::project_list::ProjectList;
-use crate::{process_response, urlencode};
+use crate::{process_response, urlencode, BIG_QUERY_V2_URL};
 
 /// A project API handler.
 #[derive(Clone)]
 pub struct ProjectApi {
     client: Client,
     sa_auth: ServiceAccountAuthenticator,
+    base_url: String,
 }
 
 impl ProjectApi {
     pub(crate) fn new(client: Client, sa_auth: ServiceAccountAuthenticator) -> Self {
-        Self { client, sa_auth }
+        Self {
+            client,
+            sa_auth,
+            base_url: BIG_QUERY_V2_URL.to_string(),
+        }
+    }
+
+    pub(crate) fn with_base_url(&mut self, base_url: String) -> &mut Self {
+        self.base_url = base_url;
+        self
     }
 
     /// RPC to get the service account for a project used for interactions with Google Cloud KMS.
@@ -24,7 +34,8 @@ impl ProjectApi {
     /// * `project_id`- ID of the project
     pub async fn get_service_account(&self, project_id: &str) -> Result<GetServiceAccountResponse, BQError> {
         let req_url = &format!(
-            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/serviceAccount",
+            "{base_url}/projects/{project_id}/serviceAccount",
+            base_url = self.base_url,
             project_id = urlencode(project_id),
         );
 
@@ -43,7 +54,7 @@ impl ProjectApi {
     /// # Arguments
     /// * `options` - Get options.
     pub async fn list(&self, options: GetOptions) -> Result<ProjectList, BQError> {
-        let req_url = "https://bigquery.googleapis.com/bigquery/v2/projects";
+        let req_url = format!("{base_url}/projects", base_url = self.base_url);
 
         let access_token = self.sa_auth.access_token().await?;
 

@@ -5,18 +5,28 @@ use crate::auth::ServiceAccountAuthenticator;
 use crate::error::BQError;
 use crate::model::list_routines_response::ListRoutinesResponse;
 use crate::model::routine::Routine;
-use crate::{process_response, urlencode};
+use crate::{process_response, urlencode, BIG_QUERY_V2_URL};
 
 /// A routine API handler.
 #[derive(Clone)]
 pub struct RoutineApi {
     client: Client,
     sa_auth: ServiceAccountAuthenticator,
+    base_url: String,
 }
 
 impl RoutineApi {
     pub(crate) fn new(client: Client, sa_auth: ServiceAccountAuthenticator) -> Self {
-        Self { client, sa_auth }
+        Self {
+            client,
+            sa_auth,
+            base_url: BIG_QUERY_V2_URL.to_string(),
+        }
+    }
+
+    pub(crate) fn with_base_url(&mut self, base_url: String) -> &mut Self {
+        self.base_url = base_url;
+        self
     }
 
     /// Creates a new routine in the dataset.
@@ -26,7 +36,8 @@ impl RoutineApi {
     /// * `routine` - The request body contains an instance of Routine.
     pub async fn insert(&self, project_id: &str, dataset_id: &str, routine: Routine) -> Result<Routine, BQError> {
         let req_url = format!(
-            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets/{dataset_id}/routines",
+            "{base_url}/projects/{project_id}/datasets/{dataset_id}/routines",
+            base_url = self.base_url,
             project_id = urlencode(project_id),
             dataset_id = urlencode(dataset_id),
         );
@@ -56,7 +67,8 @@ impl RoutineApi {
         options: ListOptions,
     ) -> Result<ListRoutinesResponse, BQError> {
         let req_url = format!(
-            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets/{dataset_id}/routines",
+            "{base_url}/projects/{project_id}/datasets/{dataset_id}/routines",
+            base_url = self.base_url,
             project_id = urlencode(project_id),
             dataset_id = urlencode(dataset_id),
         );
@@ -82,7 +94,8 @@ impl RoutineApi {
     /// * `routine_id` - Routine ID of the routine to delete
     pub async fn delete(&self, project_id: &str, dataset_id: &str, routine_id: &str) -> Result<(), BQError> {
         let req_url = &format!(
-            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets/{dataset_id}/routines/{routine_id}",
+            "{base_url}/projects/{project_id}/datasets/{dataset_id}/routines/{routine_id}",
+            base_url = self.base_url,
             project_id = urlencode(project_id),
             dataset_id = urlencode(dataset_id),
             routine_id = urlencode(routine_id),
@@ -109,7 +122,8 @@ impl RoutineApi {
     /// * `routine_id` - Routine ID of the requested routine
     pub async fn get(&self, project_id: &str, dataset_id: &str, routine_id: &str) -> Result<Routine, BQError> {
         let req_url = &format!(
-            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets/{dataset_id}/routines/{routine_id}",
+            "{base_url}/projects/{project_id}/datasets/{dataset_id}/routines/{routine_id}",
+            base_url = self.base_url,
             project_id = urlencode(project_id),
             dataset_id = urlencode(dataset_id),
             routine_id = urlencode(routine_id),
@@ -138,7 +152,8 @@ impl RoutineApi {
         routine: Routine,
     ) -> Result<Routine, BQError> {
         let req_url = &format!(
-            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets/{dataset_id}/routines/{routine_id}",
+            "{base_url}/projects/{project_id}/datasets/{dataset_id}/routines/{routine_id}",
+            base_url = self.base_url,
             project_id = urlencode(project_id),
             dataset_id = urlencode(dataset_id),
             routine_id = urlencode(routine_id),
