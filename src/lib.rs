@@ -20,11 +20,12 @@ extern crate serde_json;
 
 use std::env;
 
+use client_builder::ClientBuilder;
 use reqwest::Response;
 use serde::Deserialize;
 use yup_oauth2::ServiceAccountKey;
 
-use crate::auth::{service_account_authenticator, ServiceAccountAuthenticator};
+use crate::auth::ServiceAccountAuthenticator;
 use crate::dataset::DatasetApi;
 use crate::error::BQError;
 use crate::job::JobApi;
@@ -35,6 +36,7 @@ use crate::table::TableApi;
 use crate::tabledata::TableDataApi;
 
 pub mod auth;
+pub mod client_builder;
 pub mod dataset;
 pub mod error;
 pub mod job;
@@ -65,12 +67,9 @@ impl Client {
     /// # Argument
     /// * `sa_key_file` - A GCP Service Account Key file.
     pub async fn from_service_account_key_file(sa_key_file: &str) -> Self {
-        let scopes = vec![BIG_QUERY_AUTH_URL];
-        let sa_auth = service_account_authenticator(scopes, sa_key_file)
+        ClientBuilder::new()
+            .build_from_service_account_key_file(sa_key_file)
             .await
-            .expect("expecting a valid key");
-
-        Self::new(sa_auth)
     }
 
     /// Constructs a new BigQuery client from a [`ServiceAccountKey`].
@@ -80,29 +79,16 @@ impl Client {
     ///
     /// [`ServiceAccountKey`]: https://docs.rs/yup-oauth2/*/yup_oauth2/struct.ServiceAccountKey.html
     pub async fn from_service_account_key(sa_key: ServiceAccountKey, readonly: bool) -> Result<Self, BQError> {
-        let scope = if readonly {
-            format!("{}.readonly", BIG_QUERY_AUTH_URL)
-        } else {
-            BIG_QUERY_AUTH_URL.to_string()
-        };
-        let sa_auth = ServiceAccountAuthenticator::from_service_account_key(sa_key, &[&scope]).await?;
-
-        Ok(Self::new(sa_auth))
+        ClientBuilder::new()
+            .build_from_service_account_key(sa_key, readonly)
+            .await
     }
 
     pub async fn with_workload_identity(readonly: bool) -> Result<Self, BQError> {
-        let scope = if readonly {
-            format!("{}.readonly", BIG_QUERY_AUTH_URL)
-        } else {
-            BIG_QUERY_AUTH_URL.to_string()
-        };
-
-        let sa_auth = ServiceAccountAuthenticator::with_workload_identity(&[&scope]).await?;
-
-        Ok(Self::new(sa_auth))
+        ClientBuilder::new().build_with_workload_identity(readonly).await
     }
 
-    pub fn with_base_url(&mut self, base_url: String) -> &mut Self {
+    pub(crate) fn v2_base_url(&mut self, base_url: String) -> &mut Self {
         self.dataset_api.with_base_url(base_url.clone());
         self.table_api.with_base_url(base_url.clone());
         self.job_api.with_base_url(base_url.clone());
