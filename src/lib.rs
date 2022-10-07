@@ -45,7 +45,8 @@ pub mod routine;
 pub mod table;
 pub mod tabledata;
 
-const BIG_QUERY_V2: &str = "https://bigquery.googleapis.com/bigquery/v2";
+const BIG_QUERY_V2_URL: &str = "https://bigquery.googleapis.com/bigquery/v2";
+const BIG_QUERY_AUTH_URL: &str = "https://www.googleapis.com/auth/bigquery";
 
 /// An asynchronous BigQuery client.
 #[derive(Clone)]
@@ -64,7 +65,7 @@ impl Client {
     /// # Argument
     /// * `sa_key_file` - A GCP Service Account Key file.
     pub async fn from_service_account_key_file(sa_key_file: &str) -> Self {
-        let scopes = vec!["https://www.googleapis.com/auth/bigquery"];
+        let scopes = vec![BIG_QUERY_AUTH_URL];
         let sa_auth = service_account_authenticator(scopes, sa_key_file)
             .await
             .expect("expecting a valid key");
@@ -79,24 +80,24 @@ impl Client {
     ///
     /// [`ServiceAccountKey`]: https://docs.rs/yup-oauth2/*/yup_oauth2/struct.ServiceAccountKey.html
     pub async fn from_service_account_key(sa_key: ServiceAccountKey, readonly: bool) -> Result<Self, BQError> {
-        let scopes = if readonly {
-            ["https://www.googleapis.com/auth/bigquery.readonly"]
+        let scope = if readonly {
+            format!("{}.readonly", BIG_QUERY_AUTH_URL)
         } else {
-            ["https://www.googleapis.com/auth/bigquery"]
+            BIG_QUERY_AUTH_URL.to_string()
         };
-        let sa_auth = ServiceAccountAuthenticator::from_service_account_key(sa_key, &scopes).await?;
+        let sa_auth = ServiceAccountAuthenticator::from_service_account_key(sa_key, &[&scope]).await?;
 
         Ok(Self::new(sa_auth))
     }
 
     pub async fn with_workload_identity(readonly: bool) -> Result<Self, BQError> {
-        let scopes = if readonly {
-            ["https://www.googleapis.com/auth/bigquery.readonly"]
+        let scope = if readonly {
+            format!("{}.readonly", BIG_QUERY_AUTH_URL)
         } else {
-            ["https://www.googleapis.com/auth/bigquery"]
+            BIG_QUERY_AUTH_URL.to_string()
         };
 
-        let sa_auth = ServiceAccountAuthenticator::with_workload_identity(&scopes).await?;
+        let sa_auth = ServiceAccountAuthenticator::with_workload_identity(&[&scope]).await?;
 
         Ok(Self::new(sa_auth))
     }
