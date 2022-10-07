@@ -413,7 +413,7 @@ mod test {
 
         // Delete the dataset if needed
         let result = client.dataset().delete(project_id, dataset_id, true).await;
-        if let Ok(_) = result {
+        if result.is_ok() {
             println!("Removed previous dataset '{}'", dataset_id);
         }
 
