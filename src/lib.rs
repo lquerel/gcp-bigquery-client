@@ -45,6 +45,8 @@ pub mod routine;
 pub mod table;
 pub mod tabledata;
 
+const BIG_QUERY_V2: &str = "https://bigquery.googleapis.com/bigquery/v2";
+
 /// An asynchronous BigQuery client.
 #[derive(Clone)]
 pub struct Client {
@@ -67,16 +69,7 @@ impl Client {
             .await
             .expect("expecting a valid key");
 
-        let client = reqwest::Client::new();
-        Self {
-            dataset_api: DatasetApi::new(client.clone(), sa_auth.clone()),
-            table_api: TableApi::new(client.clone(), sa_auth.clone()),
-            job_api: JobApi::new(client.clone(), sa_auth.clone()),
-            tabledata_api: TableDataApi::new(client.clone(), sa_auth.clone()),
-            routine_api: RoutineApi::new(client.clone(), sa_auth.clone()),
-            model_api: ModelApi::new(client.clone(), sa_auth.clone()),
-            project_api: ProjectApi::new(client, sa_auth),
-        }
+        Self::new(sa_auth)
     }
 
     /// Constructs a new BigQuery client from a [`ServiceAccountKey`].
@@ -93,16 +86,7 @@ impl Client {
         };
         let sa_auth = ServiceAccountAuthenticator::from_service_account_key(sa_key, &scopes).await?;
 
-        let client = reqwest::Client::new();
-        Ok(Self {
-            dataset_api: DatasetApi::new(client.clone(), sa_auth.clone()),
-            table_api: TableApi::new(client.clone(), sa_auth.clone()),
-            job_api: JobApi::new(client.clone(), sa_auth.clone()),
-            tabledata_api: TableDataApi::new(client.clone(), sa_auth.clone()),
-            routine_api: RoutineApi::new(client.clone(), sa_auth.clone()),
-            model_api: ModelApi::new(client.clone(), sa_auth.clone()),
-            project_api: ProjectApi::new(client, sa_auth),
-        })
+        Ok(Self::new(sa_auth))
     }
 
     pub async fn with_workload_identity(readonly: bool) -> Result<Self, BQError> {
@@ -114,8 +98,12 @@ impl Client {
 
         let sa_auth = ServiceAccountAuthenticator::with_workload_identity(&scopes).await?;
 
+        Ok(Self::new(sa_auth))
+    }
+
+    fn new(sa_auth: ServiceAccountAuthenticator) -> Self {
         let client = reqwest::Client::new();
-        Ok(Self {
+        Self {
             dataset_api: DatasetApi::new(client.clone(), sa_auth.clone()),
             table_api: TableApi::new(client.clone(), sa_auth.clone()),
             job_api: JobApi::new(client.clone(), sa_auth.clone()),
@@ -123,7 +111,7 @@ impl Client {
             routine_api: RoutineApi::new(client.clone(), sa_auth.clone()),
             model_api: ModelApi::new(client.clone(), sa_auth.clone()),
             project_api: ProjectApi::new(client, sa_auth),
-        })
+        }
     }
 
     /// Returns a dataset API handler.
