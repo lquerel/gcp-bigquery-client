@@ -102,6 +102,12 @@ impl Client {
         Ok(Self::new(sa_auth))
     }
 
+    pub fn with_base_url(&mut self, base_url: String) -> &mut Self {
+        self.dataset_api.with_base_url(base_url.clone());
+        self.table_api.with_base_url(base_url);
+        self
+    }
+
     fn new(sa_auth: ServiceAccountAuthenticator) -> Self {
         let client = reqwest::Client::new();
         Self {

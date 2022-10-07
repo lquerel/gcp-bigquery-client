@@ -9,18 +9,28 @@ use crate::model::datasets::Datasets;
 use crate::model::information_schema::schemata::Schemata;
 use crate::model::query_request::QueryRequest;
 use crate::model::query_response::{QueryResponse, ResultSet};
-use crate::{process_response, urlencode};
+use crate::{process_response, urlencode, BIG_QUERY_V2_URL};
 
 /// A dataset API handler.
 #[derive(Clone)]
 pub struct DatasetApi {
     client: Client,
     sa_auth: ServiceAccountAuthenticator,
+    base_url: String,
 }
 
 impl DatasetApi {
     pub(crate) fn new(client: Client, sa_auth: ServiceAccountAuthenticator) -> Self {
-        Self { client, sa_auth }
+        Self {
+            client,
+            sa_auth,
+            base_url: BIG_QUERY_V2_URL.to_string(),
+        }
+    }
+
+    pub(crate) fn with_base_url(&mut self, base_url: String) -> &mut Self {
+        self.base_url = base_url;
+        self
     }
 
     /// Creates a new empty dataset.
@@ -46,7 +56,8 @@ impl DatasetApi {
     /// ```
     pub async fn create(&self, dataset: Dataset) -> Result<Dataset, BQError> {
         let req_url = &format!(
-            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets",
+            "{base_url}/projects/{project_id}/datasets",
+            base_url = self.base_url,
             project_id = urlencode(&dataset.dataset_reference.project_id)
         );
 
@@ -91,7 +102,8 @@ impl DatasetApi {
     /// ```
     pub async fn list(&self, project_id: &str, options: ListOptions) -> Result<Datasets, BQError> {
         let req_url = &format!(
-            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets",
+            "{base_url}/projects/{project_id}/datasets",
+            base_url = self.base_url,
             project_id = urlencode(project_id)
         );
 
@@ -148,7 +160,8 @@ impl DatasetApi {
     /// ```
     pub async fn delete(&self, project_id: &str, dataset_id: &str, delete_contents: bool) -> Result<(), BQError> {
         let req_url = &format!(
-            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets/{dataset_id}",
+            "{base_url}/projects/{project_id}/datasets/{dataset_id}",
+            base_url = self.base_url,
             project_id = urlencode(project_id),
             dataset_id = urlencode(dataset_id)
         );
@@ -240,7 +253,8 @@ impl DatasetApi {
     /// ```
     pub async fn get(&self, project_id: &str, dataset_id: &str) -> Result<Dataset, BQError> {
         let req_url = &format!(
-            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets/{dataset_id}",
+            "{base_url}/projects/{project_id}/datasets/{dataset_id}",
+            base_url = self.base_url,
             project_id = urlencode(project_id),
             dataset_id = urlencode(dataset_id)
         );
@@ -260,7 +274,8 @@ impl DatasetApi {
     /// * dataset - The request body contains an instance of Dataset.
     pub async fn patch(&self, project_id: &str, dataset_id: &str, dataset: Dataset) -> Result<Dataset, BQError> {
         let req_url = &format!(
-            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets/{dataset_id}",
+            "{base_url}/projects/{project_id}/datasets/{dataset_id}",
+            base_url = self.base_url,
             project_id = urlencode(project_id),
             dataset_id = urlencode(dataset_id)
         );
@@ -284,7 +299,8 @@ impl DatasetApi {
     /// * dataset - The request body contains an instance of Dataset.
     pub async fn update(&self, project_id: &str, dataset_id: &str, dataset: Dataset) -> Result<Dataset, BQError> {
         let req_url = &format!(
-            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets/{dataset_id}",
+            "{base_url}/projects/{project_id}/datasets/{dataset_id}",
+            base_url = self.base_url,
             project_id = urlencode(project_id),
             dataset_id = urlencode(dataset_id)
         );
@@ -304,7 +320,8 @@ impl DatasetApi {
 
     pub async fn information_schema_schemata(&self, project_id: &str, region: &str) -> Result<Vec<Schemata>, BQError> {
         let req_url = format!(
-            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/queries",
+            "{base_url}/projects/{project_id}/queries",
+            base_url = self.base_url,
             project_id = urlencode(project_id)
         );
 
