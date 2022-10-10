@@ -27,23 +27,23 @@ impl ClientBuilder {
     }
 
     pub async fn build_from_service_account_key(
-        self,
+        &self,
         sa_key: ServiceAccountKey,
         readonly: bool,
     ) -> Result<Client, BQError> {
         let scope = if readonly {
             format!("{}.readonly", self.auth_base_url)
         } else {
-            self.auth_base_url
+            self.auth_base_url.clone()
         };
         let sa_auth = ServiceAccountAuthenticator::from_service_account_key(sa_key, &[&scope]).await?;
 
         let mut client = Client::new(sa_auth);
-        client.v2_base_url(self.v2_base_url);
+        client.v2_base_url(self.v2_base_url.clone());
         Ok(client)
     }
 
-    pub async fn build_from_service_account_key_file(self, sa_key_file: &str) -> Client {
+    pub async fn build_from_service_account_key_file(&self, sa_key_file: &str) -> Client {
         let scopes = vec![self.auth_base_url.as_str()];
         let sa_auth = service_account_authenticator(scopes, sa_key_file)
             .await
@@ -52,7 +52,7 @@ impl ClientBuilder {
         Client::new(sa_auth)
     }
 
-    pub async fn build_with_workload_identity(self, readonly: bool) -> Result<Client, BQError> {
+    pub async fn build_with_workload_identity(&self, readonly: bool) -> Result<Client, BQError> {
         let scope = if readonly {
             format!("{}.readonly", BIG_QUERY_AUTH_URL)
         } else {
