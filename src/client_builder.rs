@@ -49,7 +49,9 @@ impl ClientBuilder {
             .await
             .expect("expecting a valid key");
 
-        Client::new(sa_auth)
+        let mut client = Client::new(sa_auth);
+        client.v2_base_url(self.v2_base_url.clone());
+        client
     }
 
     pub async fn build_with_workload_identity(&self, readonly: bool) -> Result<Client, BQError> {
@@ -61,7 +63,9 @@ impl ClientBuilder {
 
         let sa_auth = ServiceAccountAuthenticator::with_workload_identity(&[&scope]).await?;
 
-        Ok(Client::new(sa_auth))
+        let mut client = Client::new(sa_auth);
+        client.v2_base_url(self.v2_base_url.clone());
+        Ok(client)
     }
 }
 
