@@ -22,12 +22,11 @@ use std::env;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use auth::installed_flow_authenticator;
 use reqwest::Response;
 use serde::Deserialize;
 use yup_oauth2::ServiceAccountKey;
 
-use crate::auth::{service_account_authenticator, ServiceAccountAuthenticator};
+use crate::auth::{installed_flow_authenticator, service_account_authenticator, ServiceAccountAuthenticator};
 use crate::dataset::DatasetApi;
 use crate::error::BQError;
 use crate::job::JobApi;
