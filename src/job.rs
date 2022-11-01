@@ -23,12 +23,12 @@ use crate::{process_response, urlencode};
 #[derive(Clone)]
 pub struct JobApi {
     client: Client,
-    sa_auth: Arc<dyn Authenticator>,
+    auth: Arc<dyn Authenticator>,
 }
 
 impl JobApi {
-    pub(crate) fn new(client: Client, sa_auth: Arc<dyn Authenticator>) -> Self {
-        Self { client, sa_auth }
+    pub(crate) fn new(client: Client, auth: Arc<dyn Authenticator>) -> Self {
+        Self { client, auth }
     }
 
     /// Runs a BigQuery SQL query synchronously and returns query results if the query completes within a specified
@@ -42,7 +42,7 @@ impl JobApi {
             project_id = urlencode(project_id)
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = self
             .client
@@ -118,7 +118,7 @@ impl JobApi {
             project_id = urlencode(project_id)
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = self
             .client
@@ -143,7 +143,7 @@ impl JobApi {
             project_id = urlencode(project_id)
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = self.client.get(req_url.as_str()).bearer_auth(access_token).build()?;
 
@@ -169,7 +169,7 @@ impl JobApi {
             job_id = urlencode(job_id),
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = self
             .client
@@ -205,7 +205,7 @@ impl JobApi {
             request_builder = request_builder.query(&[("location", location)]);
         }
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
         let request = request_builder.bearer_auth(access_token).build()?;
 
         let resp = self.client.execute(request).await?;
@@ -239,7 +239,7 @@ impl JobApi {
             request_builder = request_builder.query(&[("location", location)]);
         }
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = request_builder.bearer_auth(access_token).build()?;
 

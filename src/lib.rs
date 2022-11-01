@@ -65,19 +65,19 @@ impl Client {
     /// * `sa_key_file` - A GCP Service Account Key file.
     pub async fn from_service_account_key_file(sa_key_file: &str) -> Self {
         let scopes = vec!["https://www.googleapis.com/auth/bigquery"];
-        let sa_auth = service_account_authenticator(scopes, sa_key_file)
+        let auth = service_account_authenticator(scopes, sa_key_file)
             .await
             .expect("expecting a valid key");
 
         let client = reqwest::Client::new();
         Self {
-            dataset_api: DatasetApi::new(client.clone(), Arc::clone(&sa_auth)),
-            table_api: TableApi::new(client.clone(), Arc::clone(&sa_auth)),
-            job_api: JobApi::new(client.clone(), Arc::clone(&sa_auth)),
-            tabledata_api: TableDataApi::new(client.clone(), Arc::clone(&sa_auth)),
-            routine_api: RoutineApi::new(client.clone(), Arc::clone(&sa_auth)),
-            model_api: ModelApi::new(client.clone(), Arc::clone(&sa_auth)),
-            project_api: ProjectApi::new(client, sa_auth),
+            dataset_api: DatasetApi::new(client.clone(), Arc::clone(&auth)),
+            table_api: TableApi::new(client.clone(), Arc::clone(&auth)),
+            job_api: JobApi::new(client.clone(), Arc::clone(&auth)),
+            tabledata_api: TableDataApi::new(client.clone(), Arc::clone(&auth)),
+            routine_api: RoutineApi::new(client.clone(), Arc::clone(&auth)),
+            model_api: ModelApi::new(client.clone(), Arc::clone(&auth)),
+            project_api: ProjectApi::new(client, auth),
         }
     }
 
@@ -93,17 +93,17 @@ impl Client {
         } else {
             ["https://www.googleapis.com/auth/bigquery"]
         };
-        let sa_auth = ServiceAccountAuthenticator::from_service_account_key(sa_key, &scopes).await?;
+        let auth = ServiceAccountAuthenticator::from_service_account_key(sa_key, &scopes).await?;
 
         let client = reqwest::Client::new();
         Ok(Self {
-            dataset_api: DatasetApi::new(client.clone(), Arc::clone(&sa_auth)),
-            table_api: TableApi::new(client.clone(), Arc::clone(&sa_auth)),
-            job_api: JobApi::new(client.clone(), Arc::clone(&sa_auth)),
-            tabledata_api: TableDataApi::new(client.clone(), Arc::clone(&sa_auth)),
-            routine_api: RoutineApi::new(client.clone(), Arc::clone(&sa_auth)),
-            model_api: ModelApi::new(client.clone(), Arc::clone(&sa_auth)),
-            project_api: ProjectApi::new(client, sa_auth),
+            dataset_api: DatasetApi::new(client.clone(), Arc::clone(&auth)),
+            table_api: TableApi::new(client.clone(), Arc::clone(&auth)),
+            job_api: JobApi::new(client.clone(), Arc::clone(&auth)),
+            tabledata_api: TableDataApi::new(client.clone(), Arc::clone(&auth)),
+            routine_api: RoutineApi::new(client.clone(), Arc::clone(&auth)),
+            model_api: ModelApi::new(client.clone(), Arc::clone(&auth)),
+            project_api: ProjectApi::new(client, auth),
         })
     }
 
@@ -114,17 +114,17 @@ impl Client {
             ["https://www.googleapis.com/auth/bigquery"]
         };
 
-        let sa_auth = ServiceAccountAuthenticator::with_workload_identity(&scopes).await?;
+        let auth = ServiceAccountAuthenticator::with_workload_identity(&scopes).await?;
 
         let client = reqwest::Client::new();
         Ok(Self {
-            dataset_api: DatasetApi::new(client.clone(), Arc::clone(&sa_auth)),
-            table_api: TableApi::new(client.clone(), Arc::clone(&sa_auth)),
-            job_api: JobApi::new(client.clone(), Arc::clone(&sa_auth)),
-            tabledata_api: TableDataApi::new(client.clone(), Arc::clone(&sa_auth)),
-            routine_api: RoutineApi::new(client.clone(), Arc::clone(&sa_auth)),
-            model_api: ModelApi::new(client.clone(), Arc::clone(&sa_auth)),
-            project_api: ProjectApi::new(client, sa_auth),
+            dataset_api: DatasetApi::new(client.clone(), Arc::clone(&auth)),
+            table_api: TableApi::new(client.clone(), Arc::clone(&auth)),
+            job_api: JobApi::new(client.clone(), Arc::clone(&auth)),
+            tabledata_api: TableDataApi::new(client.clone(), Arc::clone(&auth)),
+            routine_api: RoutineApi::new(client.clone(), Arc::clone(&auth)),
+            model_api: ModelApi::new(client.clone(), Arc::clone(&auth)),
+            project_api: ProjectApi::new(client, auth),
         })
     }
 

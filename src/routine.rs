@@ -13,12 +13,12 @@ use crate::{process_response, urlencode};
 #[derive(Clone)]
 pub struct RoutineApi {
     client: Client,
-    sa_auth: Arc<dyn Authenticator>,
+    auth: Arc<dyn Authenticator>,
 }
 
 impl RoutineApi {
-    pub(crate) fn new(client: Client, sa_auth: Arc<dyn Authenticator>) -> Self {
-        Self { client, sa_auth }
+    pub(crate) fn new(client: Client, auth: Arc<dyn Authenticator>) -> Self {
+        Self { client, auth }
     }
 
     /// Creates a new routine in the dataset.
@@ -33,7 +33,7 @@ impl RoutineApi {
             dataset_id = urlencode(dataset_id),
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = self
             .client
@@ -63,7 +63,7 @@ impl RoutineApi {
             dataset_id = urlencode(dataset_id),
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = self
             .client
@@ -90,7 +90,7 @@ impl RoutineApi {
             routine_id = urlencode(routine_id),
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = self.client.delete(req_url).bearer_auth(access_token).build()?;
         let response = self.client.execute(request).await?;
@@ -117,7 +117,7 @@ impl RoutineApi {
             routine_id = urlencode(routine_id),
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = self.client.get(req_url).bearer_auth(access_token).build()?;
         let response = self.client.execute(request).await?;
@@ -146,7 +146,7 @@ impl RoutineApi {
             routine_id = urlencode(routine_id),
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = self
             .client

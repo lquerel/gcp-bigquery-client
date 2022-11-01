@@ -17,12 +17,12 @@ use crate::{process_response, urlencode};
 #[derive(Clone)]
 pub struct DatasetApi {
     client: Client,
-    sa_auth: Arc<dyn Authenticator>,
+    auth: Arc<dyn Authenticator>,
 }
 
 impl DatasetApi {
-    pub(crate) fn new(client: Client, sa_auth: Arc<dyn Authenticator>) -> Self {
-        Self { client, sa_auth }
+    pub(crate) fn new(client: Client, auth: Arc<dyn Authenticator>) -> Self {
+        Self { client, auth }
     }
 
     /// Creates a new empty dataset.
@@ -52,7 +52,7 @@ impl DatasetApi {
             project_id = urlencode(&dataset.dataset_reference.project_id)
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = self
             .client
@@ -97,7 +97,7 @@ impl DatasetApi {
             project_id = urlencode(project_id)
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let mut request = self.client.get(req_url).bearer_auth(access_token);
 
@@ -155,7 +155,7 @@ impl DatasetApi {
             dataset_id = urlencode(dataset_id)
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = self
             .client
@@ -247,7 +247,7 @@ impl DatasetApi {
             dataset_id = urlencode(dataset_id)
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = self.client.get(req_url).bearer_auth(access_token).build()?;
         let response = self.client.execute(request).await?;
@@ -267,7 +267,7 @@ impl DatasetApi {
             dataset_id = urlencode(dataset_id)
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = self
             .client
@@ -291,7 +291,7 @@ impl DatasetApi {
             dataset_id = urlencode(dataset_id)
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = self
             .client
@@ -310,7 +310,7 @@ impl DatasetApi {
             project_id = urlencode(project_id)
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
         let query_request = QueryRequest::new(format!("SELECT * FROM {}.INFORMATION_SCHEMA.SCHEMATA", region));
 
         let request = self
