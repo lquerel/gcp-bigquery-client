@@ -1,7 +1,9 @@
 //! Manage BigQuery user-defined function or a stored procedure.
+use std::sync::Arc;
+
 use reqwest::Client;
 
-use crate::auth::ServiceAccountAuthenticator;
+use crate::auth::Authenticator;
 use crate::error::BQError;
 use crate::model::list_routines_response::ListRoutinesResponse;
 use crate::model::routine::Routine;
@@ -11,11 +13,11 @@ use crate::{process_response, urlencode};
 #[derive(Clone)]
 pub struct RoutineApi {
     client: Client,
-    sa_auth: ServiceAccountAuthenticator,
+    sa_auth: Arc<dyn Authenticator>,
 }
 
 impl RoutineApi {
-    pub(crate) fn new(client: Client, sa_auth: ServiceAccountAuthenticator) -> Self {
+    pub(crate) fn new(client: Client, sa_auth: Arc<dyn Authenticator>) -> Self {
         Self { client, sa_auth }
     }
 

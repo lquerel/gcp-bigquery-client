@@ -1,9 +1,11 @@
 //! Manage BigQuery jobs.
+use std::sync::Arc;
+
 use async_stream::stream;
 use reqwest::Client;
 use tokio_stream::Stream;
 
-use crate::auth::ServiceAccountAuthenticator;
+use crate::auth::Authenticator;
 use crate::error::BQError;
 use crate::model::get_query_results_parameters::GetQueryResultsParameters;
 use crate::model::get_query_results_response::GetQueryResultsResponse;
@@ -21,11 +23,11 @@ use crate::{process_response, urlencode};
 #[derive(Clone)]
 pub struct JobApi {
     client: Client,
-    sa_auth: ServiceAccountAuthenticator,
+    sa_auth: Arc<dyn Authenticator>,
 }
 
 impl JobApi {
-    pub(crate) fn new(client: Client, sa_auth: ServiceAccountAuthenticator) -> Self {
+    pub(crate) fn new(client: Client, sa_auth: Arc<dyn Authenticator>) -> Self {
         Self { client, sa_auth }
     }
 

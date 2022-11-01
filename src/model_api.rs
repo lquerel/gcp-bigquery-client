@@ -1,7 +1,9 @@
 //! Manage BigQuery models.
+use std::sync::Arc;
+
 use reqwest::Client;
 
-use crate::auth::ServiceAccountAuthenticator;
+use crate::auth::Authenticator;
 use crate::error::BQError;
 use crate::model::list_models_response::ListModelsResponse;
 use crate::model::model::Model;
@@ -11,11 +13,11 @@ use crate::{process_response, urlencode};
 #[derive(Clone)]
 pub struct ModelApi {
     client: Client,
-    sa_auth: ServiceAccountAuthenticator,
+    sa_auth: Arc<dyn Authenticator>,
 }
 
 impl ModelApi {
-    pub(crate) fn new(client: Client, sa_auth: ServiceAccountAuthenticator) -> Self {
+    pub(crate) fn new(client: Client, sa_auth: Arc<dyn Authenticator>) -> Self {
         Self { client, sa_auth }
     }
 

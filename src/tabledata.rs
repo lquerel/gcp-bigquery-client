@@ -1,5 +1,7 @@
 //! Manage BigQuery streaming API.
-use crate::auth::ServiceAccountAuthenticator;
+use std::sync::Arc;
+
+use crate::auth::Authenticator;
 use crate::error::BQError;
 use crate::model::data_format_options::DataFormatOptions;
 use crate::model::table_data_insert_all_request::TableDataInsertAllRequest;
@@ -11,11 +13,11 @@ use reqwest::Client;
 #[derive(Clone)]
 pub struct TableDataApi {
     client: Client,
-    sa_auth: ServiceAccountAuthenticator,
+    sa_auth: Arc<dyn Authenticator>,
 }
 
 impl TableDataApi {
-    pub(crate) fn new(client: Client, sa_auth: ServiceAccountAuthenticator) -> Self {
+    pub(crate) fn new(client: Client, sa_auth: Arc<dyn Authenticator>) -> Self {
         Self { client, sa_auth }
     }
 

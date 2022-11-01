@@ -1,8 +1,10 @@
 //! Manage BigQuery dataset.
+use std::sync::Arc;
+
 use log::warn;
 use reqwest::Client;
 
-use crate::auth::ServiceAccountAuthenticator;
+use crate::auth::Authenticator;
 use crate::error::BQError;
 use crate::model::dataset::Dataset;
 use crate::model::datasets::Datasets;
@@ -15,11 +17,11 @@ use crate::{process_response, urlencode};
 #[derive(Clone)]
 pub struct DatasetApi {
     client: Client,
-    sa_auth: ServiceAccountAuthenticator,
+    sa_auth: Arc<dyn Authenticator>,
 }
 
 impl DatasetApi {
-    pub(crate) fn new(client: Client, sa_auth: ServiceAccountAuthenticator) -> Self {
+    pub(crate) fn new(client: Client, sa_auth: Arc<dyn Authenticator>) -> Self {
         Self { client, sa_auth }
     }
 
