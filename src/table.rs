@@ -13,18 +13,28 @@ use crate::model::table::Table;
 use crate::model::table_list::TableList;
 use crate::model::test_iam_permissions_request::TestIamPermissionsRequest;
 use crate::model::test_iam_permissions_response::TestIamPermissionsResponse;
-use crate::{process_response, urlencode};
+use crate::{process_response, urlencode, BIG_QUERY_V2_URL};
 
 /// A table API handler.
 #[derive(Clone)]
 pub struct TableApi {
     client: Client,
     auth: Arc<dyn Authenticator>,
+    base_url: String,
 }
 
 impl TableApi {
     pub(crate) fn new(client: Client, auth: Arc<dyn Authenticator>) -> Self {
-        Self { client, auth }
+        Self {
+            client,
+            auth,
+            base_url: BIG_QUERY_V2_URL.to_string(),
+        }
+    }
+
+    pub(crate) fn with_base_url(&mut self, base_url: String) -> &mut Self {
+        self.base_url = base_url;
+        self
     }
 
     /// Creates a new, empty table in the dataset.
@@ -32,7 +42,8 @@ impl TableApi {
     /// * table - The request body contains an instance of Table.
     pub async fn create(&self, table: Table) -> Result<Table, BQError> {
         let req_url = &format!(
-            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets/{dataset_id}/tables",
+            "{base_url}/projects/{project_id}/datasets/{dataset_id}/tables",
+            base_url = self.base_url,
             project_id = urlencode(&table.table_reference.project_id),
             dataset_id = urlencode(&table.table_reference.dataset_id)
         );
@@ -58,7 +69,8 @@ impl TableApi {
     /// * table_id - Table ID of the table to delete
     pub async fn delete(&self, project_id: &str, dataset_id: &str, table_id: &str) -> Result<(), BQError> {
         let req_url = &format!(
-            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets/{dataset_id}/tables/{table_id}",
+            "{base_url}/projects/{project_id}/datasets/{dataset_id}/tables/{table_id}",
+            base_url = self.base_url,
             project_id = urlencode(project_id),
             dataset_id = urlencode(dataset_id),
             table_id = urlencode(table_id)
@@ -113,7 +125,8 @@ impl TableApi {
         selected_fields: Option<Vec<&str>>,
     ) -> Result<Table, BQError> {
         let req_url = &format!(
-            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets/{dataset_id}/tables/{table_id}",
+            "{base_url}/projects/{project_id}/datasets/{dataset_id}/tables/{table_id}",
+            base_url = self.base_url,
             project_id = urlencode(project_id),
             dataset_id = urlencode(dataset_id),
             table_id = urlencode(table_id)
@@ -141,7 +154,8 @@ impl TableApi {
     /// * options - Options
     pub async fn list(&self, project_id: &str, dataset_id: &str, options: ListOptions) -> Result<TableList, BQError> {
         let req_url = &format!(
-            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets/{dataset_id}/tables",
+            "{base_url}/projects/{project_id}/datasets/{dataset_id}/tables",
+            base_url = self.base_url,
             project_id = urlencode(project_id),
             dataset_id = urlencode(dataset_id)
         );
@@ -180,7 +194,8 @@ impl TableApi {
         table: Table,
     ) -> Result<Table, BQError> {
         let req_url = &format!(
-            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets/{dataset_id}/tables/{table_id}",
+            "{base_url}/projects/{project_id}/datasets/{dataset_id}/tables/{table_id}",
+            base_url = self.base_url,
             project_id = urlencode(project_id),
             dataset_id = urlencode(dataset_id),
             table_id = urlencode(table_id)
@@ -214,7 +229,8 @@ impl TableApi {
         table: Table,
     ) -> Result<Table, BQError> {
         let req_url = &format!(
-            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets/{dataset_id}/tables/{table_id}",
+            "{base_url}/projects/{project_id}/datasets/{dataset_id}/tables/{table_id}",
+            base_url = self.base_url,
             project_id = urlencode(project_id),
             dataset_id = urlencode(dataset_id),
             table_id = urlencode(table_id)
@@ -244,7 +260,8 @@ impl TableApi {
         get_iam_policy_request: GetIamPolicyRequest,
     ) -> Result<Policy, BQError> {
         let req_url = &format!(
-            "https://bigquery.googleapis.com/bigquery/v2/projects/{resource}/:getIamPolicy",
+            "{base_url}/projects/{resource}/:getIamPolicy",
+            base_url = self.base_url,
             resource = urlencode(resource)
         );
 
@@ -272,7 +289,8 @@ impl TableApi {
         set_iam_policy_request: SetIamPolicyRequest,
     ) -> Result<Policy, BQError> {
         let req_url = &format!(
-            "https://bigquery.googleapis.com/bigquery/v2/projects/{resource}/:setIamPolicy",
+            "{base_url}/projects/{resource}/:setIamPolicy",
+            base_url = self.base_url,
             resource = urlencode(resource)
         );
 
@@ -303,7 +321,8 @@ impl TableApi {
         test_iam_permissions_request: TestIamPermissionsRequest,
     ) -> Result<TestIamPermissionsResponse, BQError> {
         let req_url = &format!(
-            "https://bigquery.googleapis.com/bigquery/v2/projects/{resource}/:testIamPermissions",
+            "{base_url}/projects/{resource}/:testIamPermissions",
+            base_url = self.base_url,
             resource = urlencode(resource)
         );
 
