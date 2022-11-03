@@ -40,7 +40,7 @@ impl Authenticator for ServiceAccountAuthenticator {
                 .token(self.scopes.as_ref())
                 .await?
                 .token()
-                .ok_or_else(|| BQError::NoToken)?
+                .ok_or(BQError::NoToken)?
                 .to_string()
         };
         Ok(token)
@@ -138,7 +138,7 @@ impl Authenticator for InstalledFlowAuthenticator {
             .token(self.scopes.as_ref())
             .await?
             .token()
-            .ok_or_else(|| BQError::NoToken)?
+            .ok_or(BQError::NoToken)?
             .to_string())
     }
 }
