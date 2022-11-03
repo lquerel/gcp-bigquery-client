@@ -1,9 +1,11 @@
 //! Manage BigQuery jobs.
+use std::sync::Arc;
+
 use async_stream::stream;
 use reqwest::Client;
 use tokio_stream::Stream;
 
-use crate::auth::ServiceAccountAuthenticator;
+use crate::auth::Authenticator;
 use crate::error::BQError;
 use crate::model::get_query_results_parameters::GetQueryResultsParameters;
 use crate::model::get_query_results_response::GetQueryResultsResponse;
@@ -21,15 +23,15 @@ use crate::{process_response, urlencode, BIG_QUERY_V2_URL};
 #[derive(Clone)]
 pub struct JobApi {
     client: Client,
-    sa_auth: ServiceAccountAuthenticator,
+    auth: Arc<dyn Authenticator>,
     base_url: String,
 }
 
 impl JobApi {
-    pub(crate) fn new(client: Client, sa_auth: ServiceAccountAuthenticator) -> Self {
+    pub(crate) fn new(client: Client, auth: Arc<dyn Authenticator>) -> Self {
         Self {
             client,
-            sa_auth,
+            auth,
             base_url: BIG_QUERY_V2_URL.to_string(),
         }
     }
@@ -51,7 +53,7 @@ impl JobApi {
             project_id = urlencode(project_id)
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = self
             .client
@@ -128,7 +130,7 @@ impl JobApi {
             project_id = urlencode(project_id)
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = self
             .client
@@ -154,7 +156,7 @@ impl JobApi {
             project_id = urlencode(project_id)
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = self.client.get(req_url.as_str()).bearer_auth(access_token).build()?;
 
@@ -181,7 +183,7 @@ impl JobApi {
             job_id = urlencode(job_id),
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = self
             .client
@@ -218,7 +220,7 @@ impl JobApi {
             request_builder = request_builder.query(&[("location", location)]);
         }
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
         let request = request_builder.bearer_auth(access_token).build()?;
 
         let resp = self.client.execute(request).await?;
@@ -253,7 +255,7 @@ impl JobApi {
             request_builder = request_builder.query(&[("location", location)]);
         }
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = request_builder.bearer_auth(access_token).build()?;
 

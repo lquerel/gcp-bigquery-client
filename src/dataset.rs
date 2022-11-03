@@ -1,8 +1,10 @@
 //! Manage BigQuery dataset.
+use std::sync::Arc;
+
 use log::warn;
 use reqwest::Client;
 
-use crate::auth::ServiceAccountAuthenticator;
+use crate::auth::Authenticator;
 use crate::error::BQError;
 use crate::model::dataset::Dataset;
 use crate::model::datasets::Datasets;
@@ -15,15 +17,15 @@ use crate::{process_response, urlencode, BIG_QUERY_V2_URL};
 #[derive(Clone)]
 pub struct DatasetApi {
     client: Client,
-    sa_auth: ServiceAccountAuthenticator,
+    auth: Arc<dyn Authenticator>,
     base_url: String,
 }
 
 impl DatasetApi {
-    pub(crate) fn new(client: Client, sa_auth: ServiceAccountAuthenticator) -> Self {
+    pub(crate) fn new(client: Client, auth: Arc<dyn Authenticator>) -> Self {
         Self {
             client,
-            sa_auth,
+            auth,
             base_url: BIG_QUERY_V2_URL.to_string(),
         }
     }
@@ -61,7 +63,7 @@ impl DatasetApi {
             project_id = urlencode(&dataset.dataset_reference.project_id)
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = self
             .client
@@ -107,7 +109,7 @@ impl DatasetApi {
             project_id = urlencode(project_id)
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let mut request = self.client.get(req_url).bearer_auth(access_token);
 
@@ -166,7 +168,7 @@ impl DatasetApi {
             dataset_id = urlencode(dataset_id)
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = self
             .client
@@ -259,7 +261,7 @@ impl DatasetApi {
             dataset_id = urlencode(dataset_id)
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = self.client.get(req_url).bearer_auth(access_token).build()?;
         let response = self.client.execute(request).await?;
@@ -280,7 +282,7 @@ impl DatasetApi {
             dataset_id = urlencode(dataset_id)
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = self
             .client
@@ -305,7 +307,7 @@ impl DatasetApi {
             dataset_id = urlencode(dataset_id)
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = self
             .client
@@ -325,7 +327,7 @@ impl DatasetApi {
             project_id = urlencode(project_id)
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
         let query_request = QueryRequest::new(format!("SELECT * FROM {}.INFORMATION_SCHEMA.SCHEMATA", region));
 
         let request = self

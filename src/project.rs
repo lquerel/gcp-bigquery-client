@@ -1,7 +1,9 @@
 //! There is no persistent data associated with this resource.
+use std::sync::Arc;
+
 use reqwest::Client;
 
-use crate::auth::ServiceAccountAuthenticator;
+use crate::auth::Authenticator;
 use crate::error::BQError;
 use crate::model::get_service_account_response::GetServiceAccountResponse;
 use crate::model::project_list::ProjectList;
@@ -11,12 +13,12 @@ use crate::{process_response, urlencode, BIG_QUERY_V2_URL};
 #[derive(Clone)]
 pub struct ProjectApi {
     client: Client,
-    sa_auth: ServiceAccountAuthenticator,
+    auth: Arc<dyn Authenticator>,
     base_url: String,
 }
 
 impl ProjectApi {
-    pub(crate) fn new(client: Client, sa_auth: ServiceAccountAuthenticator) -> Self {
+    pub(crate) fn new(client: Client, auth: Arc<dyn Authenticator>) -> Self {
         Self {
             client,
             sa_auth,
@@ -39,7 +41,7 @@ impl ProjectApi {
             project_id = urlencode(project_id),
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = self.client.get(req_url).bearer_auth(access_token).build()?;
         let response = self.client.execute(request).await?;
@@ -56,7 +58,7 @@ impl ProjectApi {
     pub async fn list(&self, options: GetOptions) -> Result<ProjectList, BQError> {
         let req_url = format!("{base_url}/projects", base_url = self.base_url);
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = self
             .client
