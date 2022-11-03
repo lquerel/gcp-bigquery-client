@@ -24,7 +24,7 @@ rust-tls = ["reqwest/rustls-tls"]
 bq_load_job = ["cloud-storage"]
 
 [dependencies]
-yup-oauth2 = "7.0.1"
+yup-oauth2 = "8.0.0"
 hyper = {version="0.14", features = ["http1"]}
 hyper-rustls = {version="0.23.0", features = ["native-tokio"]}
 thiserror = "1"
