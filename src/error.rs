@@ -20,6 +20,9 @@ pub enum BQError {
     #[error("Authentication error (error: {0})")]
     YupAuthError(#[from] yup_oauth2::Error),
 
+    #[error("No token")]
+    NoToken,
+
     #[error("Request error (error: {0})")]
     RequestError(#[from] reqwest::Error),
 

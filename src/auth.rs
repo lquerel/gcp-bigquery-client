@@ -1,14 +1,16 @@
 //! Helpers to manage GCP authentication.
-use crate::error::BQError;
+use std::path::PathBuf;
+use std::sync::Arc;
+
 use async_trait::async_trait;
 use dyn_clone::{clone_trait_object, DynClone};
 use hyper::client::HttpConnector;
 use hyper_rustls::HttpsConnector;
-use std::path::PathBuf;
-use std::sync::Arc;
-use yup_oauth2::authenticator::Authenticator as YupAuthenticator;
 use yup_oauth2::{ApplicationSecret, ServiceAccountKey};
 use yup_oauth2::{InstalledFlowAuthenticator as YupInstalledFlowAuthenticator, InstalledFlowReturnMethod};
+use yup_oauth2::authenticator::Authenticator as YupAuthenticator;
+
+use crate::error::BQError;
 
 #[async_trait]
 pub trait Authenticator: DynClone + Send + Sync {
@@ -37,7 +39,8 @@ impl Authenticator for ServiceAccountAuthenticator {
                 .unwrap()
                 .token(self.scopes.as_ref())
                 .await?
-                .as_str()
+                .token()
+                .ok_or_else(|| BQError::NoToken)?
                 .to_string()
         };
         Ok(token)
@@ -134,7 +137,8 @@ impl Authenticator for InstalledFlowAuthenticator {
             .unwrap()
             .token(self.scopes.as_ref())
             .await?
-            .as_str()
+            .token()
+            .ok_or_else(|| BQError::NoToken)?
             .to_string())
     }
 }
