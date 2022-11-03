@@ -1,8 +1,10 @@
 //! Manage BigQuery table
+use std::sync::Arc;
+
 use log::warn;
 use reqwest::Client;
 
-use crate::auth::ServiceAccountAuthenticator;
+use crate::auth::Authenticator;
 use crate::error::BQError;
 use crate::model::get_iam_policy_request::GetIamPolicyRequest;
 use crate::model::policy::Policy;
@@ -17,12 +19,12 @@ use crate::{process_response, urlencode};
 #[derive(Clone)]
 pub struct TableApi {
     client: Client,
-    sa_auth: ServiceAccountAuthenticator,
+    auth: Arc<dyn Authenticator>,
 }
 
 impl TableApi {
-    pub(crate) fn new(client: Client, sa_auth: ServiceAccountAuthenticator) -> Self {
-        Self { client, sa_auth }
+    pub(crate) fn new(client: Client, auth: Arc<dyn Authenticator>) -> Self {
+        Self { client, auth }
     }
 
     /// Creates a new, empty table in the dataset.
@@ -35,7 +37,7 @@ impl TableApi {
             dataset_id = urlencode(&table.table_reference.dataset_id)
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = self
             .client
@@ -62,7 +64,7 @@ impl TableApi {
             table_id = urlencode(table_id)
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = self.client.delete(req_url.as_str()).bearer_auth(access_token).build()?;
 
@@ -117,7 +119,7 @@ impl TableApi {
             table_id = urlencode(table_id)
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let mut request_builder = self.client.get(req_url.as_str()).bearer_auth(access_token);
         if let Some(selected_fields) = selected_fields {
@@ -144,7 +146,7 @@ impl TableApi {
             dataset_id = urlencode(dataset_id)
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let mut request = self.client.get(req_url).bearer_auth(access_token);
 
@@ -184,7 +186,7 @@ impl TableApi {
             table_id = urlencode(table_id)
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = self
             .client
@@ -218,7 +220,7 @@ impl TableApi {
             table_id = urlencode(table_id)
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = self
             .client
@@ -246,7 +248,7 @@ impl TableApi {
             resource = urlencode(resource)
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = self
             .client
@@ -274,7 +276,7 @@ impl TableApi {
             resource = urlencode(resource)
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = self
             .client
@@ -305,7 +307,7 @@ impl TableApi {
             resource = urlencode(resource)
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = self
             .client

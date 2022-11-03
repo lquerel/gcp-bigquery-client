@@ -11,6 +11,9 @@ pub enum BQError {
     #[error("Invalid service account authenticator (error: {0})")]
     InvalidServiceAccountAuthenticator(std::io::Error),
 
+    #[error("Invalid installed flow authenticator (error: {0})")]
+    InvalidInstalledFlowAuthenticator(std::io::Error),
+
     #[error("Authentication error (error: {0})")]
     AuthError(#[from] yup_oauth2::error::AuthError),
 

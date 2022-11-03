@@ -1,5 +1,7 @@
 //! Manage BigQuery streaming API.
-use crate::auth::ServiceAccountAuthenticator;
+use std::sync::Arc;
+
+use crate::auth::Authenticator;
 use crate::error::BQError;
 use crate::model::data_format_options::DataFormatOptions;
 use crate::model::table_data_insert_all_request::TableDataInsertAllRequest;
@@ -11,12 +13,12 @@ use reqwest::Client;
 #[derive(Clone)]
 pub struct TableDataApi {
     client: Client,
-    sa_auth: ServiceAccountAuthenticator,
+    auth: Arc<dyn Authenticator>,
 }
 
 impl TableDataApi {
-    pub(crate) fn new(client: Client, sa_auth: ServiceAccountAuthenticator) -> Self {
-        Self { client, sa_auth }
+    pub(crate) fn new(client: Client, auth: Arc<dyn Authenticator>) -> Self {
+        Self { client, auth }
     }
 
     /// Streams data into BigQuery one record at a time without needing to run a load job. Requires the WRITER dataset
@@ -35,7 +37,7 @@ impl TableDataApi {
     ) -> Result<TableDataInsertAllResponse, BQError> {
         let req_url = format!("https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets/{dataset_id}/tables/{table_id}/insertAll", project_id=urlencode(project_id), dataset_id=urlencode(dataset_id), table_id=urlencode(table_id));
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = self
             .client
@@ -64,7 +66,7 @@ impl TableDataApi {
     ) -> Result<TableDataInsertAllResponse, BQError> {
         let req_url = format!("https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets/{dataset_id}/tables/{table_id}/data", project_id=urlencode(project_id), dataset_id=urlencode(dataset_id), table_id=urlencode(table_id));
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = self
             .client

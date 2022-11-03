@@ -1,7 +1,9 @@
 //! Manage BigQuery models.
+use std::sync::Arc;
+
 use reqwest::Client;
 
-use crate::auth::ServiceAccountAuthenticator;
+use crate::auth::Authenticator;
 use crate::error::BQError;
 use crate::model::list_models_response::ListModelsResponse;
 use crate::model::model::Model;
@@ -11,12 +13,12 @@ use crate::{process_response, urlencode};
 #[derive(Clone)]
 pub struct ModelApi {
     client: Client,
-    sa_auth: ServiceAccountAuthenticator,
+    auth: Arc<dyn Authenticator>,
 }
 
 impl ModelApi {
-    pub(crate) fn new(client: Client, sa_auth: ServiceAccountAuthenticator) -> Self {
-        Self { client, sa_auth }
+    pub(crate) fn new(client: Client, auth: Arc<dyn Authenticator>) -> Self {
+        Self { client, auth }
     }
 
     /// Lists all models in the specified dataset. Requires the READER dataset role.
@@ -35,7 +37,7 @@ impl ModelApi {
             dataset_id = urlencode(dataset_id),
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = self
             .client
@@ -62,7 +64,7 @@ impl ModelApi {
             model_id = urlencode(model_id),
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = self.client.delete(req_url).bearer_auth(access_token).build()?;
         let response = self.client.execute(request).await?;
@@ -89,7 +91,7 @@ impl ModelApi {
             model_id = urlencode(model_id),
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = self.client.get(req_url).bearer_auth(access_token).build()?;
         let response = self.client.execute(request).await?;
@@ -117,7 +119,7 @@ impl ModelApi {
             model_id = urlencode(model_id),
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = self
             .client

@@ -1,7 +1,9 @@
 //! There is no persistent data associated with this resource.
+use std::sync::Arc;
+
 use reqwest::Client;
 
-use crate::auth::ServiceAccountAuthenticator;
+use crate::auth::Authenticator;
 use crate::error::BQError;
 use crate::model::get_service_account_response::GetServiceAccountResponse;
 use crate::model::project_list::ProjectList;
@@ -11,12 +13,12 @@ use crate::{process_response, urlencode};
 #[derive(Clone)]
 pub struct ProjectApi {
     client: Client,
-    sa_auth: ServiceAccountAuthenticator,
+    auth: Arc<dyn Authenticator>,
 }
 
 impl ProjectApi {
-    pub(crate) fn new(client: Client, sa_auth: ServiceAccountAuthenticator) -> Self {
-        Self { client, sa_auth }
+    pub(crate) fn new(client: Client, auth: Arc<dyn Authenticator>) -> Self {
+        Self { client, auth }
     }
 
     /// RPC to get the service account for a project used for interactions with Google Cloud KMS.
@@ -28,7 +30,7 @@ impl ProjectApi {
             project_id = urlencode(project_id),
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = self.client.get(req_url).bearer_auth(access_token).build()?;
         let response = self.client.execute(request).await?;
@@ -45,7 +47,7 @@ impl ProjectApi {
     pub async fn list(&self, options: GetOptions) -> Result<ProjectList, BQError> {
         let req_url = "https://bigquery.googleapis.com/bigquery/v2/projects";
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = self
             .client

@@ -19,12 +19,14 @@ extern crate serde;
 extern crate serde_json;
 
 use std::env;
+use std::path::PathBuf;
+use std::sync::Arc;
 
 use reqwest::Response;
 use serde::Deserialize;
 use yup_oauth2::ServiceAccountKey;
 
-use crate::auth::{service_account_authenticator, ServiceAccountAuthenticator};
+use crate::auth::{installed_flow_authenticator, service_account_authenticator, ServiceAccountAuthenticator};
 use crate::dataset::DatasetApi;
 use crate::error::BQError;
 use crate::job::JobApi;
@@ -63,19 +65,19 @@ impl Client {
     /// * `sa_key_file` - A GCP Service Account Key file.
     pub async fn from_service_account_key_file(sa_key_file: &str) -> Self {
         let scopes = vec!["https://www.googleapis.com/auth/bigquery"];
-        let sa_auth = service_account_authenticator(scopes, sa_key_file)
+        let auth = service_account_authenticator(scopes, sa_key_file)
             .await
             .expect("expecting a valid key");
 
         let client = reqwest::Client::new();
         Self {
-            dataset_api: DatasetApi::new(client.clone(), sa_auth.clone()),
-            table_api: TableApi::new(client.clone(), sa_auth.clone()),
-            job_api: JobApi::new(client.clone(), sa_auth.clone()),
-            tabledata_api: TableDataApi::new(client.clone(), sa_auth.clone()),
-            routine_api: RoutineApi::new(client.clone(), sa_auth.clone()),
-            model_api: ModelApi::new(client.clone(), sa_auth.clone()),
-            project_api: ProjectApi::new(client, sa_auth),
+            dataset_api: DatasetApi::new(client.clone(), Arc::clone(&auth)),
+            table_api: TableApi::new(client.clone(), Arc::clone(&auth)),
+            job_api: JobApi::new(client.clone(), Arc::clone(&auth)),
+            tabledata_api: TableDataApi::new(client.clone(), Arc::clone(&auth)),
+            routine_api: RoutineApi::new(client.clone(), Arc::clone(&auth)),
+            model_api: ModelApi::new(client.clone(), Arc::clone(&auth)),
+            project_api: ProjectApi::new(client, auth),
         }
     }
 
@@ -91,17 +93,17 @@ impl Client {
         } else {
             ["https://www.googleapis.com/auth/bigquery"]
         };
-        let sa_auth = ServiceAccountAuthenticator::from_service_account_key(sa_key, &scopes).await?;
+        let auth = ServiceAccountAuthenticator::from_service_account_key(sa_key, &scopes).await?;
 
         let client = reqwest::Client::new();
         Ok(Self {
-            dataset_api: DatasetApi::new(client.clone(), sa_auth.clone()),
-            table_api: TableApi::new(client.clone(), sa_auth.clone()),
-            job_api: JobApi::new(client.clone(), sa_auth.clone()),
-            tabledata_api: TableDataApi::new(client.clone(), sa_auth.clone()),
-            routine_api: RoutineApi::new(client.clone(), sa_auth.clone()),
-            model_api: ModelApi::new(client.clone(), sa_auth.clone()),
-            project_api: ProjectApi::new(client, sa_auth),
+            dataset_api: DatasetApi::new(client.clone(), Arc::clone(&auth)),
+            table_api: TableApi::new(client.clone(), Arc::clone(&auth)),
+            job_api: JobApi::new(client.clone(), Arc::clone(&auth)),
+            tabledata_api: TableDataApi::new(client.clone(), Arc::clone(&auth)),
+            routine_api: RoutineApi::new(client.clone(), Arc::clone(&auth)),
+            model_api: ModelApi::new(client.clone(), Arc::clone(&auth)),
+            project_api: ProjectApi::new(client, auth),
         })
     }
 
@@ -112,18 +114,50 @@ impl Client {
             ["https://www.googleapis.com/auth/bigquery"]
         };
 
-        let sa_auth = ServiceAccountAuthenticator::with_workload_identity(&scopes).await?;
+        let auth = ServiceAccountAuthenticator::with_workload_identity(&scopes).await?;
 
         let client = reqwest::Client::new();
         Ok(Self {
-            dataset_api: DatasetApi::new(client.clone(), sa_auth.clone()),
-            table_api: TableApi::new(client.clone(), sa_auth.clone()),
-            job_api: JobApi::new(client.clone(), sa_auth.clone()),
-            tabledata_api: TableDataApi::new(client.clone(), sa_auth.clone()),
-            routine_api: RoutineApi::new(client.clone(), sa_auth.clone()),
-            model_api: ModelApi::new(client.clone(), sa_auth.clone()),
-            project_api: ProjectApi::new(client, sa_auth),
+            dataset_api: DatasetApi::new(client.clone(), Arc::clone(&auth)),
+            table_api: TableApi::new(client.clone(), Arc::clone(&auth)),
+            job_api: JobApi::new(client.clone(), Arc::clone(&auth)),
+            tabledata_api: TableDataApi::new(client.clone(), Arc::clone(&auth)),
+            routine_api: RoutineApi::new(client.clone(), Arc::clone(&auth)),
+            model_api: ModelApi::new(client.clone(), Arc::clone(&auth)),
+            project_api: ProjectApi::new(client, auth),
         })
+    }
+
+    pub async fn from_installed_flow_authenticator<S: AsRef<[u8]>, P: Into<PathBuf>>(
+        secret: S,
+        persistant_file_path: P,
+    ) -> Result<Self, BQError> {
+        let scopes = ["https://www.googleapis.com/auth/bigquery"];
+        let auth = installed_flow_authenticator(secret, &scopes, persistant_file_path).await?;
+
+        let client = reqwest::Client::new();
+        Ok(Self {
+            dataset_api: DatasetApi::new(client.clone(), Arc::clone(&auth)),
+            table_api: TableApi::new(client.clone(), Arc::clone(&auth)),
+            job_api: JobApi::new(client.clone(), Arc::clone(&auth)),
+            tabledata_api: TableDataApi::new(client.clone(), Arc::clone(&auth)),
+            routine_api: RoutineApi::new(client.clone(), Arc::clone(&auth)),
+            model_api: ModelApi::new(client.clone(), Arc::clone(&auth)),
+            project_api: ProjectApi::new(client, auth),
+        })
+    }
+
+    pub async fn from_installed_flow_authenticator_from_secret_file<P: Into<PathBuf>>(
+        secret_file: &str,
+        persistant_file_path: P,
+    ) -> Result<Self, BQError> {
+        Self::from_installed_flow_authenticator(
+            tokio::fs::read(secret_file)
+                .await
+                .expect("expecting a valid secret file."),
+            persistant_file_path,
+        )
+        .await
     }
 
     /// Returns a dataset API handler.
