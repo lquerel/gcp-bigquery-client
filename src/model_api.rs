@@ -7,18 +7,28 @@ use crate::auth::Authenticator;
 use crate::error::BQError;
 use crate::model::list_models_response::ListModelsResponse;
 use crate::model::model::Model;
-use crate::{process_response, urlencode};
+use crate::{process_response, urlencode, BIG_QUERY_V2_URL};
 
 /// A model API handler.
 #[derive(Clone)]
 pub struct ModelApi {
     client: Client,
     auth: Arc<dyn Authenticator>,
+    base_url: String,
 }
 
 impl ModelApi {
     pub(crate) fn new(client: Client, auth: Arc<dyn Authenticator>) -> Self {
-        Self { client, auth }
+        Self {
+            client,
+            auth,
+            base_url: BIG_QUERY_V2_URL.to_string(),
+        }
+    }
+
+    pub(crate) fn with_base_url(&mut self, base_url: String) -> &mut Self {
+        self.base_url = base_url;
+        self
     }
 
     /// Lists all models in the specified dataset. Requires the READER dataset role.
@@ -32,7 +42,8 @@ impl ModelApi {
         options: ListOptions,
     ) -> Result<ListModelsResponse, BQError> {
         let req_url = format!(
-            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets/{dataset_id}/models",
+            "{base_url}/projects/{project_id}/datasets/{dataset_id}/models",
+            base_url = self.base_url,
             project_id = urlencode(project_id),
             dataset_id = urlencode(dataset_id),
         );
@@ -58,7 +69,8 @@ impl ModelApi {
     /// * `model_id` - Model ID of the model to delete
     pub async fn delete(&self, project_id: &str, dataset_id: &str, model_id: &str) -> Result<(), BQError> {
         let req_url = &format!(
-            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets/{dataset_id}/models/{model_id}",
+            "{base_url}/projects/{project_id}/datasets/{dataset_id}/models/{model_id}",
+            base_url = self.base_url,
             project_id = urlencode(project_id),
             dataset_id = urlencode(dataset_id),
             model_id = urlencode(model_id),
@@ -85,7 +97,8 @@ impl ModelApi {
     /// * `routine_id` - Routine ID of the requested model
     pub async fn get(&self, project_id: &str, dataset_id: &str, model_id: &str) -> Result<Model, BQError> {
         let req_url = &format!(
-            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets/{dataset_id}/models/{model_id}",
+            "{base_url}/projects/{project_id}/datasets/{dataset_id}/models/{model_id}",
+            base_url = self.base_url,
             project_id = urlencode(project_id),
             dataset_id = urlencode(dataset_id),
             model_id = urlencode(model_id),
@@ -113,7 +126,8 @@ impl ModelApi {
         model: Model,
     ) -> Result<Model, BQError> {
         let req_url = &format!(
-            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets/{dataset_id}/models/{model_id}",
+            "{base_url}/projects/{project_id}/datasets/{dataset_id}/models/{model_id}",
+            base_url = self.base_url,
             project_id = urlencode(project_id),
             dataset_id = urlencode(dataset_id),
             model_id = urlencode(model_id),

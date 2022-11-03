@@ -6,9 +6,9 @@ use async_trait::async_trait;
 use dyn_clone::{clone_trait_object, DynClone};
 use hyper::client::HttpConnector;
 use hyper_rustls::HttpsConnector;
+use yup_oauth2::authenticator::Authenticator as YupAuthenticator;
 use yup_oauth2::{ApplicationSecret, ServiceAccountKey};
 use yup_oauth2::{InstalledFlowAuthenticator as YupInstalledFlowAuthenticator, InstalledFlowReturnMethod};
-use yup_oauth2::authenticator::Authenticator as YupAuthenticator;
 
 use crate::error::BQError;
 
@@ -40,7 +40,7 @@ impl Authenticator for ServiceAccountAuthenticator {
                 .token(self.scopes.as_ref())
                 .await?
                 .token()
-                .ok_or_else(|| BQError::NoToken)?
+                .ok_or(BQError::NoToken)?
                 .to_string()
         };
         Ok(token)
@@ -138,7 +138,7 @@ impl Authenticator for InstalledFlowAuthenticator {
             .token(self.scopes.as_ref())
             .await?
             .token()
-            .ok_or_else(|| BQError::NoToken)?
+            .ok_or(BQError::NoToken)?
             .to_string())
     }
 }

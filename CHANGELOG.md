@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file.
 
 - Abstraction of the Authenticator (Thanks @kiibo382).
 - InstalledFlowAuthenticator support (Thanks @kiibo382).
+- Support for BigQuery emulator (Thanks @Marcoleni)
 - Bump yup-oauth2 crate version.
 - Bump time crate version (security issue).
 
