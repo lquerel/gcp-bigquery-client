@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.16.0] - 2022-11-06
+
+### Improvement
+
+- Better error management in [Client::from_service_account_key_file](https://github.com/lquerel/gcp-bigquery-client/issues/39) (Thanks @burmecia).
+
 ## [0.15.0] - 2022-11-02
 
 ### Improvement
