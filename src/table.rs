@@ -380,7 +380,7 @@ mod test {
         let (ref project_id, ref dataset_id, ref table_id, ref sa_key) = env_vars();
         let dataset_id = &format!("{}_table", dataset_id);
 
-        let client = Client::from_service_account_key_file(sa_key).await;
+        let client = Client::from_service_account_key_file(sa_key).await?;
 
         // Delete the dataset if needed
         client.dataset().delete_if_exists(project_id, dataset_id, true).await;

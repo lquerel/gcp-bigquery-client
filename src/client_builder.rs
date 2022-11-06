@@ -46,15 +46,13 @@ impl ClientBuilder {
         Ok(client)
     }
 
-    pub async fn build_from_service_account_key_file(&self, sa_key_file: &str) -> Client {
+    pub async fn build_from_service_account_key_file(&self, sa_key_file: &str) -> Result<Client, BQError> {
         let scopes = vec![self.auth_base_url.as_str()];
-        let sa_auth = service_account_authenticator(scopes, sa_key_file)
-            .await
-            .expect("expecting a valid key");
+        let sa_auth = service_account_authenticator(scopes, sa_key_file).await?;
 
         let mut client = Client::from_authenticator(sa_auth);
         client.v2_base_url(self.v2_base_url.clone());
-        client
+        Ok(client)
     }
 
     pub async fn build_with_workload_identity(&self, readonly: bool) -> Result<Client, BQError> {

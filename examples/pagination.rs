@@ -4,7 +4,7 @@ use tokio_stream::StreamExt;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (ref project_id, ref dataset_id, ref table_id, ref gcp_sa_key) = env_vars();
-    let client = gcp_bigquery_client::Client::from_service_account_key_file(gcp_sa_key).await;
+    let client = gcp_bigquery_client::Client::from_service_account_key_file(gcp_sa_key).await?;
 
     let result_set = client.job().query_all(
         project_id,

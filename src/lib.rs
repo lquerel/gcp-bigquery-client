@@ -81,7 +81,7 @@ impl Client {
     /// Constructs a new BigQuery client.
     /// # Argument
     /// * `sa_key_file` - A GCP Service Account Key file.
-    pub async fn from_service_account_key_file(sa_key_file: &str) -> Self {
+    pub async fn from_service_account_key_file(sa_key_file: &str) -> Result<Self, BQError> {
         ClientBuilder::new()
             .build_from_service_account_key_file(sa_key_file)
             .await

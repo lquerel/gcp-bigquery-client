@@ -49,7 +49,7 @@ impl DatasetApi {
     /// let (ref project_id, ref dataset_id, ref _table_id, ref sa_key) = env_vars();
     /// let dataset_id = &format!("{}_dataset", dataset_id);
     ///
-    /// let client = Client::from_service_account_key_file(sa_key).await;
+    /// let client = Client::from_service_account_key_file(sa_key).await?;
     ///
     /// # client.dataset().delete_if_exists(project_id, dataset_id, true);
     /// client.dataset().create(Dataset::new(project_id, dataset_id)).await?;
@@ -93,7 +93,7 @@ impl DatasetApi {
     /// let (ref project_id, ref dataset_id, ref _table_id, ref sa_key) = env_vars();
     /// let dataset_id = &format!("{}_dataset", dataset_id);
     ///
-    /// let client = Client::from_service_account_key_file(sa_key).await;
+    /// let client = Client::from_service_account_key_file(sa_key).await?;
     ///
     /// let datasets = client.dataset().list(project_id, ListOptions::default().all(true)).await?;
     /// for dataset in datasets.datasets.iter() {
@@ -152,7 +152,7 @@ impl DatasetApi {
     /// let (ref project_id, ref dataset_id, ref _table_id, ref sa_key) = env_vars();
     /// let dataset_id = &format!("{}_dataset", dataset_id);
     ///
-    /// let client = Client::from_service_account_key_file(sa_key).await;
+    /// let client = Client::from_service_account_key_file(sa_key).await?;
     ///
     /// # client.dataset().delete_if_exists(project_id, dataset_id, true);
     /// client.dataset().create(Dataset::new(project_id, dataset_id)).await?;
@@ -207,7 +207,7 @@ impl DatasetApi {
     /// let (ref project_id, ref dataset_id, ref _table_id, ref sa_key) = env_vars();
     /// let dataset_id = &format!("{}_dataset", dataset_id);
     ///
-    /// let client = Client::from_service_account_key_file(sa_key).await;
+    /// let client = Client::from_service_account_key_file(sa_key).await?;
     ///
     /// client.dataset().delete_if_exists(project_id, dataset_id, true);
     /// # Ok(())
@@ -245,7 +245,7 @@ impl DatasetApi {
     /// let (ref project_id, ref dataset_id, ref _table_id, ref sa_key) = env_vars();
     /// let dataset_id = &format!("{}_dataset", dataset_id);
     ///
-    /// let client = Client::from_service_account_key_file(sa_key).await;
+    /// let client = Client::from_service_account_key_file(sa_key).await?;
     ///
     /// # client.dataset().delete_if_exists(project_id, dataset_id, true);
     /// client.dataset().create(Dataset::new(project_id, dataset_id)).await?;
@@ -428,7 +428,7 @@ mod test {
         let (ref project_id, ref dataset_id, ref _table_id, ref sa_key) = env_vars();
         let dataset_id = &format!("{}_dataset", dataset_id);
 
-        let client = Client::from_service_account_key_file(sa_key).await;
+        let client = Client::from_service_account_key_file(sa_key).await?;
 
         // Delete the dataset if needed
         let result = client.dataset().delete(project_id, dataset_id, true).await;
@@ -485,7 +485,7 @@ mod test {
         let (ref project_id, ref _dataset_id, ref _table_id, ref sa_key) = env_vars();
         //let dataset_id = &format!("{}_dataset", dataset_id);
 
-        let client = Client::from_service_account_key_file(sa_key).await;
+        let client = Client::from_service_account_key_file(sa_key).await?;
 
         let result = client
             .dataset()

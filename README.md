@@ -42,7 +42,7 @@ rows are based on a regular Rust struct implementing the trait Serialize.
 
 ```rust
     // Init BigQuery client
-    let client = gcp_bigquery_client::Client::from_service_account_key_file(gcp_sa_key).await;
+    let client = gcp_bigquery_client::Client::from_service_account_key_file(gcp_sa_key).await?;
 
     // Delete the dataset if needed
     let result = client.dataset().delete(project_id, dataset_id, true).await;
