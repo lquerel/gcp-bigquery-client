@@ -1,26 +1,38 @@
 //! Manage BigQuery dataset.
+use std::sync::Arc;
+
 use log::warn;
 use reqwest::Client;
 
-use crate::auth::ServiceAccountAuthenticator;
+use crate::auth::Authenticator;
 use crate::error::BQError;
 use crate::model::dataset::Dataset;
 use crate::model::datasets::Datasets;
 use crate::model::information_schema::schemata::Schemata;
 use crate::model::query_request::QueryRequest;
 use crate::model::query_response::{QueryResponse, ResultSet};
-use crate::{process_response, urlencode};
+use crate::{process_response, urlencode, BIG_QUERY_V2_URL};
 
 /// A dataset API handler.
 #[derive(Clone)]
 pub struct DatasetApi {
     client: Client,
-    sa_auth: ServiceAccountAuthenticator,
+    auth: Arc<dyn Authenticator>,
+    base_url: String,
 }
 
 impl DatasetApi {
-    pub(crate) fn new(client: Client, sa_auth: ServiceAccountAuthenticator) -> Self {
-        Self { client, sa_auth }
+    pub(crate) fn new(client: Client, auth: Arc<dyn Authenticator>) -> Self {
+        Self {
+            client,
+            auth,
+            base_url: BIG_QUERY_V2_URL.to_string(),
+        }
+    }
+
+    pub(crate) fn with_base_url(&mut self, base_url: String) -> &mut Self {
+        self.base_url = base_url;
+        self
     }
 
     /// Creates a new empty dataset.
@@ -37,7 +49,7 @@ impl DatasetApi {
     /// let (ref project_id, ref dataset_id, ref _table_id, ref sa_key) = env_vars();
     /// let dataset_id = &format!("{}_dataset", dataset_id);
     ///
-    /// let client = Client::from_service_account_key_file(sa_key).await;
+    /// let client = Client::from_service_account_key_file(sa_key).await?;
     ///
     /// # client.dataset().delete_if_exists(project_id, dataset_id, true);
     /// client.dataset().create(Dataset::new(project_id, dataset_id)).await?;
@@ -46,11 +58,12 @@ impl DatasetApi {
     /// ```
     pub async fn create(&self, dataset: Dataset) -> Result<Dataset, BQError> {
         let req_url = &format!(
-            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets",
+            "{base_url}/projects/{project_id}/datasets",
+            base_url = self.base_url,
             project_id = urlencode(&dataset.dataset_reference.project_id)
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = self
             .client
@@ -80,7 +93,7 @@ impl DatasetApi {
     /// let (ref project_id, ref dataset_id, ref _table_id, ref sa_key) = env_vars();
     /// let dataset_id = &format!("{}_dataset", dataset_id);
     ///
-    /// let client = Client::from_service_account_key_file(sa_key).await;
+    /// let client = Client::from_service_account_key_file(sa_key).await?;
     ///
     /// let datasets = client.dataset().list(project_id, ListOptions::default().all(true)).await?;
     /// for dataset in datasets.datasets.iter() {
@@ -91,11 +104,12 @@ impl DatasetApi {
     /// ```
     pub async fn list(&self, project_id: &str, options: ListOptions) -> Result<Datasets, BQError> {
         let req_url = &format!(
-            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets",
+            "{base_url}/projects/{project_id}/datasets",
+            base_url = self.base_url,
             project_id = urlencode(project_id)
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let mut request = self.client.get(req_url).bearer_auth(access_token);
 
@@ -138,7 +152,7 @@ impl DatasetApi {
     /// let (ref project_id, ref dataset_id, ref _table_id, ref sa_key) = env_vars();
     /// let dataset_id = &format!("{}_dataset", dataset_id);
     ///
-    /// let client = Client::from_service_account_key_file(sa_key).await;
+    /// let client = Client::from_service_account_key_file(sa_key).await?;
     ///
     /// # client.dataset().delete_if_exists(project_id, dataset_id, true);
     /// client.dataset().create(Dataset::new(project_id, dataset_id)).await?;
@@ -148,12 +162,13 @@ impl DatasetApi {
     /// ```
     pub async fn delete(&self, project_id: &str, dataset_id: &str, delete_contents: bool) -> Result<(), BQError> {
         let req_url = &format!(
-            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets/{dataset_id}",
+            "{base_url}/projects/{project_id}/datasets/{dataset_id}",
+            base_url = self.base_url,
             project_id = urlencode(project_id),
             dataset_id = urlencode(dataset_id)
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = self
             .client
@@ -192,7 +207,7 @@ impl DatasetApi {
     /// let (ref project_id, ref dataset_id, ref _table_id, ref sa_key) = env_vars();
     /// let dataset_id = &format!("{}_dataset", dataset_id);
     ///
-    /// let client = Client::from_service_account_key_file(sa_key).await;
+    /// let client = Client::from_service_account_key_file(sa_key).await?;
     ///
     /// client.dataset().delete_if_exists(project_id, dataset_id, true);
     /// # Ok(())
@@ -230,7 +245,7 @@ impl DatasetApi {
     /// let (ref project_id, ref dataset_id, ref _table_id, ref sa_key) = env_vars();
     /// let dataset_id = &format!("{}_dataset", dataset_id);
     ///
-    /// let client = Client::from_service_account_key_file(sa_key).await;
+    /// let client = Client::from_service_account_key_file(sa_key).await?;
     ///
     /// # client.dataset().delete_if_exists(project_id, dataset_id, true);
     /// client.dataset().create(Dataset::new(project_id, dataset_id)).await?;
@@ -240,12 +255,13 @@ impl DatasetApi {
     /// ```
     pub async fn get(&self, project_id: &str, dataset_id: &str) -> Result<Dataset, BQError> {
         let req_url = &format!(
-            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets/{dataset_id}",
+            "{base_url}/projects/{project_id}/datasets/{dataset_id}",
+            base_url = self.base_url,
             project_id = urlencode(project_id),
             dataset_id = urlencode(dataset_id)
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = self.client.get(req_url).bearer_auth(access_token).build()?;
         let response = self.client.execute(request).await?;
@@ -260,12 +276,13 @@ impl DatasetApi {
     /// * dataset - The request body contains an instance of Dataset.
     pub async fn patch(&self, project_id: &str, dataset_id: &str, dataset: Dataset) -> Result<Dataset, BQError> {
         let req_url = &format!(
-            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets/{dataset_id}",
+            "{base_url}/projects/{project_id}/datasets/{dataset_id}",
+            base_url = self.base_url,
             project_id = urlencode(project_id),
             dataset_id = urlencode(dataset_id)
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = self
             .client
@@ -284,12 +301,13 @@ impl DatasetApi {
     /// * dataset - The request body contains an instance of Dataset.
     pub async fn update(&self, project_id: &str, dataset_id: &str, dataset: Dataset) -> Result<Dataset, BQError> {
         let req_url = &format!(
-            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets/{dataset_id}",
+            "{base_url}/projects/{project_id}/datasets/{dataset_id}",
+            base_url = self.base_url,
             project_id = urlencode(project_id),
             dataset_id = urlencode(dataset_id)
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
 
         let request = self
             .client
@@ -304,11 +322,12 @@ impl DatasetApi {
 
     pub async fn information_schema_schemata(&self, project_id: &str, region: &str) -> Result<Vec<Schemata>, BQError> {
         let req_url = format!(
-            "https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/queries",
+            "{base_url}/projects/{project_id}/queries",
+            base_url = self.base_url,
             project_id = urlencode(project_id)
         );
 
-        let access_token = self.sa_auth.access_token().await?;
+        let access_token = self.auth.access_token().await?;
         let query_request = QueryRequest::new(format!("SELECT * FROM {}.INFORMATION_SCHEMA.SCHEMATA", region));
 
         let request = self
@@ -409,11 +428,11 @@ mod test {
         let (ref project_id, ref dataset_id, ref _table_id, ref sa_key) = env_vars();
         let dataset_id = &format!("{}_dataset", dataset_id);
 
-        let client = Client::from_service_account_key_file(sa_key).await;
+        let client = Client::from_service_account_key_file(sa_key).await?;
 
         // Delete the dataset if needed
         let result = client.dataset().delete(project_id, dataset_id, true).await;
-        if let Ok(_) = result {
+        if result.is_ok() {
             println!("Removed previous dataset '{}'", dataset_id);
         }
 
@@ -466,7 +485,7 @@ mod test {
         let (ref project_id, ref _dataset_id, ref _table_id, ref sa_key) = env_vars();
         //let dataset_id = &format!("{}_dataset", dataset_id);
 
-        let client = Client::from_service_account_key_file(sa_key).await;
+        let client = Client::from_service_account_key_file(sa_key).await?;
 
         let result = client
             .dataset()

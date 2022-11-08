@@ -37,7 +37,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Store data on GCS
         let source_uri = store_and_get_gcs_uri(GCS_BUCKET_NAME, data, &tmp_file_name).await?;
 
-        let client = Client::from_service_account_key_file(&gcp_sa_key).await;
+        let client = Client::from_service_account_key_file(&gcp_sa_key).await?;
 
         // Create BQ load job to create/update the test with the content of the json data file
         // Pre-requisite: test_batch_load dataset already created

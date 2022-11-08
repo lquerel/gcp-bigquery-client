@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.16.0] - 2022-11-06
+
+### Improvement
+
+- Better error management in [Client::from_service_account_key_file](https://github.com/lquerel/gcp-bigquery-client/issues/39) (Thanks @burmecia).
+
+## [0.15.0] - 2022-11-02
+
+### Improvement
+
+- Abstraction of the Authenticator (Thanks @kiibo382).
+- InstalledFlowAuthenticator support (Thanks @kiibo382).
+- Support for BigQuery emulator (Thanks @Marcoleni)
+- Bump yup-oauth2 crate version.
+- Bump time crate version (security issue).
+
+## [0.14.0] - 2022-09-27
+
+### Fix
+
+- Process list - Change numeric_id type from u64 to string (Thanks @kiibo382)
+
 ## [0.13.0] - 2022-07-11
 
 ### Improvement
