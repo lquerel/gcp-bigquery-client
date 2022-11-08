@@ -73,7 +73,7 @@ pub struct ResultSet {
 
 impl ResultSet {
     pub fn new(query_response: QueryResponse) -> Self {
-        if query_response.job_complete.unwrap_or(false) {
+        if query_response.job_complete.unwrap_or(false) && query_response.schema.is_some() {
             // rows and tables schema are only present for successfully completed jobs.
             let row_count = query_response.rows.as_ref().map_or(0, Vec::len) as i64;
             let table_schema = query_response.schema.as_ref().expect("Expecting a schema");
