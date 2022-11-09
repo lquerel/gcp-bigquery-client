@@ -249,6 +249,6 @@ pub(crate) async fn authorized_user_authenticator<S: AsRef<Path>>(
     secret: S,
     scopes: &[&str],
 ) -> Result<Arc<dyn Authenticator>, BQError> {
-    let authorized_user_secret = yup_oauth2::read_authorized_user_secret(secret).await.unwrap();
+    let authorized_user_secret = yup_oauth2::read_authorized_user_secret(secret).await?;
     AuthorizedUserAuthenticator::from_authorized_user_secret(authorized_user_secret, scopes).await
 }
