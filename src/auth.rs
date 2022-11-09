@@ -1,4 +1,5 @@
 //! Helpers to manage GCP authentication.
+use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -6,7 +7,12 @@ use async_trait::async_trait;
 use dyn_clone::{clone_trait_object, DynClone};
 use hyper::client::HttpConnector;
 use hyper_rustls::HttpsConnector;
+use yup_oauth2::authenticator::ApplicationDefaultCredentialsTypes;
 use yup_oauth2::authenticator::Authenticator as YupAuthenticator;
+use yup_oauth2::authorized_user::AuthorizedUserSecret;
+use yup_oauth2::ApplicationDefaultCredentialsAuthenticator as YupApplicationDefaultCredentialsAuthenticator;
+use yup_oauth2::ApplicationDefaultCredentialsFlowOpts;
+use yup_oauth2::AuthorizedUserAuthenticator as YupAuthorizedUserAuthenticator;
 use yup_oauth2::{ApplicationSecret, ServiceAccountKey};
 use yup_oauth2::{InstalledFlowAuthenticator as YupInstalledFlowAuthenticator, InstalledFlowReturnMethod};
 
@@ -158,4 +164,97 @@ pub(crate) async fn installed_flow_authenticator<S: AsRef<[u8]>, P: Into<PathBuf
 ) -> Result<Arc<dyn Authenticator>, BQError> {
     let app_secret = yup_oauth2::parse_application_secret(secret)?;
     InstalledFlowAuthenticator::from_token_file_path(app_secret, scopes, persistant_file_path).await
+}
+
+#[derive(Clone)]
+pub struct ApplicationDefaultCredentialsAuthenticator {
+    auth: Option<YupAuthenticator<HttpsConnector<HttpConnector>>>,
+    scopes: Vec<String>,
+}
+
+impl ApplicationDefaultCredentialsAuthenticator {
+    pub(crate) async fn from_scopes(scopes: &[&str]) -> Result<Arc<dyn Authenticator>, BQError> {
+        let opts = ApplicationDefaultCredentialsFlowOpts::default();
+        let auth = match YupApplicationDefaultCredentialsAuthenticator::builder(opts).await {
+            ApplicationDefaultCredentialsTypes::InstanceMetadata(auth) => auth.build().await,
+            ApplicationDefaultCredentialsTypes::ServiceAccount(auth) => auth.build().await,
+        };
+
+        match auth {
+            Err(err) => Err(BQError::InvalidApplicationDefaultCredentialsAuthenticator(err)),
+            Ok(auth) => Ok(Arc::new(ApplicationDefaultCredentialsAuthenticator {
+                auth: Some(auth),
+                scopes: scopes.iter().map(|scope| scope.to_string()).collect(),
+            })),
+        }
+    }
+}
+
+#[async_trait]
+impl Authenticator for ApplicationDefaultCredentialsAuthenticator {
+    async fn access_token(&self) -> Result<String, BQError> {
+        Ok(self
+            .auth
+            .clone()
+            .unwrap()
+            .token(self.scopes.as_ref())
+            .await?
+            .token()
+            .ok_or(BQError::NoToken)?
+            .to_string())
+    }
+}
+
+pub(crate) async fn application_default_credentials_authenticator(
+    scopes: &[&str],
+) -> Result<Arc<dyn Authenticator>, BQError> {
+    ApplicationDefaultCredentialsAuthenticator::from_scopes(scopes).await
+}
+
+#[derive(Clone)]
+pub struct AuthorizedUserAuthenticator {
+    auth: Option<YupAuthenticator<HttpsConnector<HttpConnector>>>,
+    scopes: Vec<String>,
+}
+
+impl AuthorizedUserAuthenticator {
+    pub(crate) async fn from_authorized_user_secret(
+        authorized_user_secret: AuthorizedUserSecret,
+        scopes: &[&str],
+    ) -> Result<Arc<dyn Authenticator>, BQError> {
+        let auth = YupAuthorizedUserAuthenticator::builder(authorized_user_secret)
+            .build()
+            .await;
+
+        match auth {
+            Err(err) => Err(BQError::InvalidAuthorizedUserAuthenticator(err)),
+            Ok(auth) => Ok(Arc::new(AuthorizedUserAuthenticator {
+                auth: Some(auth),
+                scopes: scopes.iter().map(|scope| scope.to_string()).collect(),
+            })),
+        }
+    }
+}
+
+#[async_trait]
+impl Authenticator for AuthorizedUserAuthenticator {
+    async fn access_token(&self) -> Result<String, BQError> {
+        Ok(self
+            .auth
+            .clone()
+            .unwrap()
+            .token(self.scopes.as_ref())
+            .await?
+            .token()
+            .ok_or(BQError::NoToken)?
+            .to_string())
+    }
+}
+
+pub(crate) async fn authorized_user_authenticator<S: AsRef<Path>>(
+    secret: S,
+    scopes: &[&str],
+) -> Result<Arc<dyn Authenticator>, BQError> {
+    let authorized_user_secret = yup_oauth2::read_authorized_user_secret(secret).await?;
+    AuthorizedUserAuthenticator::from_authorized_user_secret(authorized_user_secret, scopes).await
 }
