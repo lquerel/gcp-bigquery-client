@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.16.1] - 2022-11-09
+
+### Improvement
+
+- Application default credentials auth & authorized user auth (#46) (Thanks @kiibo382).
+
+### Fix
+
+- Installed flow auth - execute the authorization code flow before returning (#45) (Thanks @kiibo382).
+- Avoid panic when schema doesn't exist (#44) (Thanks @lee-hen).
+
 ## [0.16.0] - 2022-11-06
 
 ### Improvement
