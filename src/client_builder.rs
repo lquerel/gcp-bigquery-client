@@ -1,10 +1,13 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use yup_oauth2::ServiceAccountKey;
 
-use crate::auth::{service_account_authenticator, ServiceAccountAuthenticator};
+use crate::auth::{
+    application_default_credentials_authenticator, authorized_user_authenticator, installed_flow_authenticator,
+    service_account_authenticator, ServiceAccountAuthenticator,
+};
 use crate::error::BQError;
-use crate::{installed_flow_authenticator, Client, BIG_QUERY_AUTH_URL, BIG_QUERY_V2_URL};
+use crate::{Client, BIG_QUERY_AUTH_URL, BIG_QUERY_V2_URL};
 
 pub struct ClientBuilder {
     v2_base_url: String,
@@ -94,6 +97,27 @@ impl ClientBuilder {
             persistant_file_path,
         )
         .await
+    }
+
+    pub async fn build_from_application_default_credentials(&self) -> Result<Client, BQError> {
+        let scopes = vec![self.auth_base_url.as_str()];
+        let auth = application_default_credentials_authenticator(&scopes).await?;
+
+        let mut client = Client::from_authenticator(auth);
+        client.v2_base_url(self.v2_base_url.clone());
+        Ok(client)
+    }
+
+    pub async fn build_from_authorized_user_authenticator<P: AsRef<Path>>(
+        &self,
+        authorized_user_secret_path: P,
+    ) -> Result<Client, BQError> {
+        let scopes = vec![self.auth_base_url.as_str()];
+        let auth = authorized_user_authenticator(authorized_user_secret_path, &scopes).await?;
+
+        let mut client = Client::from_authenticator(auth);
+        client.v2_base_url(self.v2_base_url.clone());
+        Ok(client)
     }
 }
 

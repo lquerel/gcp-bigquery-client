@@ -27,7 +27,7 @@ use reqwest::Response;
 use serde::Deserialize;
 use yup_oauth2::ServiceAccountKey;
 
-use crate::auth::{installed_flow_authenticator, Authenticator};
+use crate::auth::Authenticator;
 use crate::dataset::DatasetApi;
 use crate::error::BQError;
 use crate::job::JobApi;
@@ -118,10 +118,9 @@ impl Client {
         secret: S,
         persistant_file_path: P,
     ) -> Result<Self, BQError> {
-        let scopes = ["https://www.googleapis.com/auth/bigquery"];
-        let auth = installed_flow_authenticator(secret, &scopes, persistant_file_path).await?;
-
-        Ok(Self::from_authenticator(auth))
+        ClientBuilder::new()
+            .build_from_installed_flow_authenticator(secret, persistant_file_path)
+            .await
     }
 
     pub async fn from_installed_flow_authenticator_from_secret_file<P: Into<PathBuf>>(
@@ -135,6 +134,16 @@ impl Client {
             persistant_file_path,
         )
         .await
+    }
+
+    pub async fn from_application_default_credentials() -> Result<Self, BQError> {
+        ClientBuilder::new().build_from_application_default_credentials().await
+    }
+
+    pub async fn from_authorized_user_secret(secret: &str) -> Result<Self, BQError> {
+        ClientBuilder::new()
+            .build_from_authorized_user_authenticator(secret)
+            .await
     }
 
     /// Returns a dataset API handler.
