@@ -120,10 +120,16 @@ impl InstalledFlowAuthenticator {
 
         match auth {
             Err(err) => Err(BQError::InvalidInstalledFlowAuthenticator(err)),
-            Ok(auth) => Ok(Arc::new(InstalledFlowAuthenticator {
-                auth: Some(auth),
-                scopes: scopes.iter().map(|scope| scope.to_string()).collect(),
-            })),
+            Ok(auth) => {
+                // For InstalledFlowAuthenticator, we need to call token(), because it is more natural to execute the authorization code flow before returning `InstalledFlowAuthenticator` rather than before the first API call.
+                match auth.token(scopes).await {
+                    Err(token_err) => Err(BQError::YupAuthError(token_err)),
+                    Ok(_) => Ok(Arc::new(InstalledFlowAuthenticator {
+                        auth: Some(auth),
+                        scopes: scopes.iter().map(|scope| scope.to_string()).collect(),
+                    })),
+                }
+            }
         }
     }
 }
