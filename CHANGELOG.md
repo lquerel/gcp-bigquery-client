@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.16.2] - 2022-11-12
+
+### Improvement
+
+- Example to run with bigquery-emulator (Thanks @marcoleni).
+
 ## [0.16.1] - 2022-11-09
 
 ### Improvement
