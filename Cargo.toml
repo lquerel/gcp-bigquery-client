@@ -44,3 +44,6 @@ dyn-clone = "1.0.9"
 [dev-dependencies]
 tokio-test = "0.4"
 rand = "0.8"
+wiremock = "0.5.15"
+tempfile = "3.3.0"
+fake = "2.5.0"
