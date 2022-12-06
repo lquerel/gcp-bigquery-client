@@ -14,6 +14,7 @@ use crate::model::job_cancel_response::JobCancelResponse;
 use crate::model::job_configuration::JobConfiguration;
 use crate::model::job_configuration_query::JobConfigurationQuery;
 use crate::model::job_list::JobList;
+use crate::model::job_reference::JobReference;
 use crate::model::query_request::QueryRequest;
 use crate::model::query_response::{QueryResponse, ResultSet};
 use crate::model::table_row::TableRow;
@@ -77,6 +78,7 @@ impl JobApi {
     pub fn query_all<'a>(
         &'a self,
         project_id: &'a str,
+        location:   &'a str,
         query: JobConfigurationQuery,
         page_size: Option<i32>,
     ) -> impl Stream<Item = Result<Vec<TableRow>, BQError>> + 'a {
@@ -84,7 +86,12 @@ impl JobApi {
             let job = Job {
                 configuration: Some(JobConfiguration {
                     dry_run: Some(false),
-                    query: Some(query),
+                    query:   Some(query),
+                    ..Default::default()
+                }),
+                job_reference: Some(JobReference {
+                    location:   Some(location.to_string()),
+                    project_id: Some(project_id.to_string()),
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -102,6 +109,7 @@ impl JobApi {
                             GetQueryResultsParameters {
                                 page_token,
                                 max_results: page_size,
+                                location:    Some(location.to_string()),
                                 ..Default::default()
                             },
                         )
@@ -467,10 +475,12 @@ mod test {
         }
 
         //Query all
+        let location = "us";
         let query_all_results: Result<Vec<_>, _> = client
             .job()
             .query_all(
                 project_id,
+                location,
                 JobConfigurationQuery {
                     query: format!("SELECT * FROM `{project_id}.{dataset_id}.{table_id}`"),
                     query_parameters: None,
