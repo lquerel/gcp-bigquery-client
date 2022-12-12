@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.16.3] - 2022-12-6
+
+### Improvement
+
+- Two new methods in the job API `query_all_with_location` and `query_all_with_job_reference` (Thanks @MikhailMS).
+
 ## [0.16.2] - 2022-11-12
 
 ### Improvement

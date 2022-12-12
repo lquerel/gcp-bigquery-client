@@ -100,7 +100,7 @@ impl JobApi {
                         .get_query_results(
                             project_id,
                             job_id,
-                            &GetQueryResultsParameters {
+                            GetQueryResultsParameters {
                                 page_token,
                                 max_results: page_size,
                                 ..Default::default()
@@ -131,7 +131,7 @@ impl JobApi {
     pub fn query_all_with_location<'a>(
         &'a self,
         project_id: &'a str,
-        location:   &'a str,
+        location: &'a str,
         query: JobConfigurationQuery,
         page_size: Option<i32>,
     ) -> impl Stream<Item = Result<Vec<TableRow>, BQError>> + 'a {
@@ -159,7 +159,7 @@ impl JobApi {
                         .get_query_results(
                             project_id,
                             job_id,
-                            &GetQueryResultsParameters {
+                            GetQueryResultsParameters {
                                 page_token,
                                 max_results: page_size,
                                 location:    Some(location.to_string()),
@@ -196,7 +196,7 @@ impl JobApi {
         page_size: Option<i32>,
     ) -> impl Stream<Item = Result<Vec<TableRow>, BQError>> + 'a {
         stream! {
-            let mut location = job_reference.location.as_ref().and_then(|l| Some(l.clone()));
+            let location = job_reference.location.as_ref().and_then(|l| Some(l.clone()));
 
             let job = Job {
                 configuration: Some(JobConfiguration {
@@ -216,18 +216,16 @@ impl JobApi {
                     let gqrp = GetQueryResultsParameters {
                                 page_token,
                                 max_results: page_size,
-                                location:    location,
+                                location:    location.clone(),
                                 ..Default::default()
                             };
                     let qr = self
                         .get_query_results(
                             project_id,
                             job_id,
-                            &gqrp,
+                            gqrp,
                         )
                         .await?;
-
-                    location = gqrp.location;
 
                     // Rows is present when the query finishes successfully.
                     yield Ok(qr.rows.expect("Rows are not present"));
@@ -296,7 +294,7 @@ impl JobApi {
         &self,
         project_id: &str,
         job_id: &str,
-        parameters: &GetQueryResultsParameters,
+        parameters: GetQueryResultsParameters,
     ) -> Result<GetQueryResultsResponse, BQError> {
         let req_url = format!(
             "{base_url}/projects/{project_id}/queries/{job_id}",
@@ -310,7 +308,7 @@ impl JobApi {
         let request = self
             .client
             .get(req_url.as_str())
-            .query(parameters)
+            .query(&parameters)
             .bearer_auth(access_token)
             .build()?;
 
@@ -395,7 +393,7 @@ mod test {
     use crate::error::BQError;
     use crate::model::dataset::Dataset;
     use crate::model::job_configuration_query::JobConfigurationQuery;
-    use crate::model::job_reference::{JobReference, self};
+    use crate::model::job_reference::JobReference;
     use crate::model::query_request::QueryRequest;
     use crate::model::query_response::{QueryResponse, ResultSet};
     use crate::model::table::Table;
@@ -634,7 +632,7 @@ mod test {
         // Query all with JobReference
         let job_reference = JobReference {
             project_id: Some(project_id.to_string()),
-            location:   Some(location.to_string()),
+            location: Some(location.to_string()),
             ..Default::default()
         };
         let query_all_results_with_job_reference: Result<Vec<_>, _> = client
