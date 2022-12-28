@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.16.4] - 2022-12-28
+
+### Improvement
+
+- Update `FieldType` enum to `Geography` field type (Thanks @kiibo382).
+
 ## [0.16.3] - 2022-12-6
 
 ### Improvement
