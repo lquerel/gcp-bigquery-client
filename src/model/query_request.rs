@@ -1,4 +1,5 @@
 use crate::model::connection_property::ConnectionProperty;
+use crate::model::data_format_options::DataFormatOptions;
 use crate::model::dataset_reference::DatasetReference;
 use crate::model::query_parameter::QueryParameter;
 use serde::{Deserialize, Serialize};
@@ -51,6 +52,9 @@ pub struct QueryRequest {
     /// [Optional] Whether to look for the result in the query cache. The query cache is a best-effort cache that will be flushed whenever tables in the query are modified. The default value is true.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub use_query_cache: Option<bool>,
+    /// Output format adjustments.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub format_options: Option<DataFormatOptions>,
 }
 
 impl QueryRequest {
@@ -72,6 +76,7 @@ impl QueryRequest {
             timeout_ms: None,
             use_legacy_sql: false, // force standard SQL by default
             use_query_cache: None,
+            format_options: None,
         }
     }
 }
