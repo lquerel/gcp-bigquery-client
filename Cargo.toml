@@ -1,6 +1,6 @@
 [package]
 name = "gcp-bigquery-client"
-version = "0.16.4"
+version = "0.16.5"
 authors = ["Laurent Querel <laurent.querel@gmail.com>"]
 edition = "2018"
 license = "MIT OR Apache-2.0"
@@ -24,9 +24,9 @@ rust-tls = ["reqwest/rustls-tls"]
 bq_load_job = ["cloud-storage"]
 
 [dependencies]
-yup-oauth2 = "8.0.0"
+yup-oauth2 = "8.1"
 hyper = {version="0.14", features = ["http1"]}
-hyper-rustls = {version="0.23.0", features = ["native-tokio"]}
+hyper-rustls = {version="0.23", features = ["native-tokio"]}
 thiserror = "1"
 tokio = { version = "1", default-features = false, features = ["rt-multi-thread", "net", "sync", "macros"] }
 tokio-stream = "0.1"
@@ -36,10 +36,10 @@ url = "2"
 serde = "1"
 serde_json = "1"
 log = "0.4"
-time = { version = "0.3.16", features = ["local-offset", "serde", "serde-well-known"] }
+time = { version = "0.3.17", features = ["local-offset", "serde", "serde-well-known"] }
 cloud-storage = {version="0.11.0", features = ["global-client"], optional = true}
 async-trait = "0.1.58"
-dyn-clone = "1.0.9"
+dyn-clone = "1.0.10"
 
 [dev-dependencies]
 tokio-test = "0.4"
