@@ -11,10 +11,8 @@ use gcp_bigquery_client::model::job_reference::JobReference;
 use gcp_bigquery_client::model::job_status::JobStatus;
 use gcp_bigquery_client::model::table_reference::TableReference;
 
-
 /// This example explains how to initiate and supervise a BQ load job (new line delimited json file in GCS).
 use std::env;
-
 
 #[cfg(feature = "bq_load_job")]
 const GCS_BUCKET_NAME: &str = "rust_bq_client";
