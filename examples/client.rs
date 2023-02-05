@@ -45,8 +45,8 @@ async fn main() -> Result<(), BQError> {
 
     // Delete the dataset if needed
     let result = client.dataset().delete(project_id, dataset_id, true).await;
-    if let Ok(_) = result {
-        println!("Removed previous dataset '{}'", dataset_id);
+    if result.is_ok() {
+        println!("Removed previous dataset '{dataset_id}'");
     }
 
     // Create a new dataset
@@ -102,7 +102,7 @@ async fn main() -> Result<(), BQError> {
             ),
         )
         .await?;
-    println!("Table created -> {:?}", table);
+    println!("Table created -> {table:?}");
 
     // Insert data via BigQuery Streaming API
     let mut insert_request = TableDataInsertAllRequest::new();
@@ -190,8 +190,7 @@ async fn main() -> Result<(), BQError> {
         .query(
             project_id,
             QueryRequest::new(format!(
-                "SELECT COUNT(*) AS c FROM `{}.{}.{}`",
-                project_id, dataset_id, table_id
+                "SELECT COUNT(*) AS c FROM `{project_id}.{dataset_id}.{table_id}`"
             )),
         )
         .await?;

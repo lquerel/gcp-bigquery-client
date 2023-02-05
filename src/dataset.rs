@@ -328,7 +328,7 @@ impl DatasetApi {
         );
 
         let access_token = self.auth.access_token().await?;
-        let query_request = QueryRequest::new(format!("SELECT * FROM {}.INFORMATION_SCHEMA.SCHEMATA", region));
+        let query_request = QueryRequest::new(format!("SELECT * FROM {region}.INFORMATION_SCHEMA.SCHEMATA"));
 
         let request = self
             .client
@@ -426,14 +426,14 @@ mod test {
     #[tokio::test]
     async fn test() -> Result<(), BQError> {
         let (ref project_id, ref dataset_id, ref _table_id, ref sa_key) = env_vars();
-        let dataset_id = &format!("{}_dataset", dataset_id);
+        let dataset_id = &format!("{dataset_id}_dataset");
 
         let client = Client::from_service_account_key_file(sa_key).await?;
 
         // Delete the dataset if needed
         let result = client.dataset().delete(project_id, dataset_id, true).await;
         if result.is_ok() {
-            println!("Removed previous dataset '{}'", dataset_id);
+            println!("Removed previous dataset '{dataset_id}'");
         }
 
         // Create dataset
@@ -447,19 +447,19 @@ mod test {
                     .label("env", "prod"),
             )
             .await?;
-        assert_eq!(created_dataset.id, Some(format!("{}:{}", project_id, dataset_id)));
+        assert_eq!(created_dataset.id, Some(format!("{project_id}:{dataset_id}")));
 
         // Get dataset
         let dataset = client.dataset().get(project_id, dataset_id).await?;
-        assert_eq!(dataset.id, Some(format!("{}:{}", project_id, dataset_id)));
+        assert_eq!(dataset.id, Some(format!("{project_id}:{dataset_id}")));
 
         // Patch dataset
         let dataset = client.dataset().patch(project_id, dataset_id, dataset).await?;
-        assert_eq!(dataset.id, Some(format!("{}:{}", project_id, dataset_id)));
+        assert_eq!(dataset.id, Some(format!("{project_id}:{dataset_id}")));
 
         // Update dataset
         let dataset = client.dataset().update(project_id, dataset_id, dataset).await?;
-        assert_eq!(dataset.id, Some(format!("{}:{}", project_id, dataset_id)));
+        assert_eq!(dataset.id, Some(format!("{project_id}:{dataset_id}")));
 
         // List datasets
         let datasets = client

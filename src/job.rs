@@ -427,7 +427,7 @@ mod test {
     #[tokio::test]
     async fn test() -> Result<(), BQError> {
         let (ref project_id, ref dataset_id, ref table_id, ref sa_key) = env_vars();
-        let dataset_id = &format!("{}_job", dataset_id);
+        let dataset_id = &format!("{dataset_id}_job");
 
         let client = Client::from_service_account_key_file(sa_key).await?;
 
@@ -436,7 +436,7 @@ mod test {
 
         // Create dataset
         let created_dataset = client.dataset().create(Dataset::new(project_id, dataset_id)).await?;
-        assert_eq!(created_dataset.id, Some(format!("{}:{}", project_id, dataset_id)));
+        assert_eq!(created_dataset.id, Some(format!("{project_id}:{dataset_id}")));
 
         // Create table
         let table = Table::new(
@@ -554,8 +554,7 @@ mod test {
             .query(
                 project_id,
                 QueryRequest::new(format!(
-                    "SELECT COUNT(*) AS c FROM `{}.{}.{}`",
-                    project_id, dataset_id, table_id
+                    "SELECT COUNT(*) AS c FROM `{project_id}.{dataset_id}.{table_id}`"
                 )),
             )
             .await?;

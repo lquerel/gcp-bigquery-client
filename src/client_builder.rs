@@ -60,7 +60,7 @@ impl ClientBuilder {
 
     pub async fn build_with_workload_identity(&self, readonly: bool) -> Result<Client, BQError> {
         let scope = if readonly {
-            format!("{}.readonly", BIG_QUERY_AUTH_URL)
+            format!("{BIG_QUERY_AUTH_URL}.readonly")
         } else {
             BIG_QUERY_AUTH_URL.to_string()
         };

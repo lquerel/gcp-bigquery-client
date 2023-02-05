@@ -146,7 +146,7 @@ mod test {
     #[tokio::test]
     async fn test() -> Result<(), BQError> {
         let (ref project_id, ref dataset_id, ref table_id, ref sa_key) = env_vars();
-        let dataset_id = &format!("{}_tabledata", dataset_id);
+        let dataset_id = &format!("{dataset_id}_tabledata");
 
         let client = Client::from_service_account_key_file(sa_key).await?;
 

@@ -15,6 +15,6 @@ pub struct TableDataInsertAllResponseInsertErrors {
 
 impl Display for TableDataInsertAllResponseInsertErrors {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&format!("{:?}", self))
+        f.write_str(&format!("{self:?}"))
     }
 }

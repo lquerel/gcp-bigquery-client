@@ -24,30 +24,30 @@ impl Display for ErrorProto {
         let mut buffer = String::new();
 
         if let Some(debug_info) = &self.debug_info {
-            let _ = write!(buffer, "debug_info: {}", debug_info);
+            let _ = write!(buffer, "debug_info: {debug_info}");
         }
 
         if let Some(location) = &self.location {
             if !buffer.is_empty() {
                 buffer += ", ";
             }
-            let _ = &write!(buffer, "location: {}", location);
+            let _ = &write!(buffer, "location: {location}");
         }
 
         if let Some(message) = &self.message {
             if !buffer.is_empty() {
                 buffer += ", ";
             }
-            let _ = write!(buffer, "message: {}", message);
+            let _ = write!(buffer, "message: {message}");
         }
 
         if let Some(reason) = &self.reason {
             if !buffer.is_empty() {
                 buffer += ", ";
             }
-            let _ = write!(buffer, "reason: {}", reason);
+            let _ = write!(buffer, "reason: {reason}");
         }
 
-        f.write_str(&format!("ErrorProto: {{{}}}", buffer))
+        f.write_str(&format!("ErrorProto: {{{buffer}}}"))
     }
 }
