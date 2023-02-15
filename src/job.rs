@@ -170,7 +170,7 @@ impl JobApi {
 
                         // Waiting for completed the job.
                         if !qr.job_complete.unwrap_or(false) {
-                            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+                            tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
 
                             continue;
                         }
