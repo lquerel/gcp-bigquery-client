@@ -177,7 +177,8 @@ impl JobApi {
 
 
                     // Rows is present when the query finishes successfully.
-                    yield Ok(qr.rows.expect("Rows are not present"));
+                    // Rows be empty when query result is empty.
+                    yield Ok(qr.rows.unwrap_or_else(Vec::new));
 
                     page_token = match qr.page_token {
                         None => break,
