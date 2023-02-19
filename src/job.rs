@@ -160,7 +160,7 @@ impl JobApi {
                             project_id,
                             job_id,
                             GetQueryResultsParameters {
-                                page_token,
+                                page_token: page_token.clone(),
                                 max_results: page_size,
                                 location:    Some(location.to_string()),
                                 ..Default::default()
@@ -168,8 +168,17 @@ impl JobApi {
                         )
                         .await?;
 
+                        // Waiting for completed the job.
+                        if !qr.job_complete.unwrap_or(false) {
+                            tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+
+                            continue;
+                        }
+
+
                     // Rows is present when the query finishes successfully.
-                    yield Ok(qr.rows.expect("Rows are not present"));
+                    // Rows be empty when query result is empty.
+                    yield Ok(qr.rows.unwrap_or_else(Vec::new));
 
                     page_token = match qr.page_token {
                         None => break,
