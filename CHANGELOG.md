@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.16.6] - 2023-03-06
+
+### Improvement
+
+- Fix Rows are not present when job not completed yet (Thanks @alu).
+
 ## [0.16.5] - 2023-02-05
 
 ### Improvement
