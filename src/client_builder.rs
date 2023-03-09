@@ -7,18 +7,18 @@ use crate::auth::{
     service_account_authenticator, ServiceAccountAuthenticator,
 };
 use crate::error::BQError;
-use crate::{Client, BIG_QUERY_AUTH_URL, BIG_QUERY_V2_URL};
+use crate::{Client, BIG_QUERY_AUTH_URL, BIG_QUERY_V2_URL, DRIVE_AUTH_URL};
 
 pub struct ClientBuilder {
     v2_base_url: String,
-    auth_base_url: String,
+    auth_base_urls: Vec<String>,
 }
 
 impl ClientBuilder {
     pub fn new() -> Self {
         Self {
             v2_base_url: BIG_QUERY_V2_URL.to_string(),
-            auth_base_url: BIG_QUERY_AUTH_URL.to_string(),
+            auth_base_urls: vec![BIG_QUERY_AUTH_URL.to_string(), DRIVE_AUTH_URL.to_string()],
         }
     }
 
@@ -27,8 +27,8 @@ impl ClientBuilder {
         self
     }
 
-    pub fn with_auth_base_url(&mut self, base_url: String) -> &mut Self {
-        self.auth_base_url = base_url;
+    pub fn with_auth_base_url(&mut self, base_urls: Vec<String>) -> &mut Self {
+        self.auth_base_urls = base_urls;
         self
     }
 
@@ -37,12 +37,18 @@ impl ClientBuilder {
         sa_key: ServiceAccountKey,
         readonly: bool,
     ) -> Result<Client, BQError> {
-        let scope = if readonly {
-            format!("{}.readonly", self.auth_base_url)
-        } else {
-            self.auth_base_url.clone()
-        };
-        let sa_auth = ServiceAccountAuthenticator::from_service_account_key(sa_key, &[&scope]).await?;
+        let scopes: Vec<String> = self
+            .auth_base_urls
+            .iter()
+            .map(|auth_base_url| {
+                if readonly {
+                    format!("{}.readonly", auth_base_url)
+                } else {
+                    auth_base_url.to_string()
+                }
+            })
+            .collect();
+        let sa_auth = ServiceAccountAuthenticator::from_service_account_key(sa_key, &scopes).await?;
 
         let mut client = Client::from_authenticator(sa_auth);
         client.v2_base_url(self.v2_base_url.clone());
@@ -50,8 +56,7 @@ impl ClientBuilder {
     }
 
     pub async fn build_from_service_account_key_file(&self, sa_key_file: &str) -> Result<Client, BQError> {
-        let scopes = vec![self.auth_base_url.as_str()];
-        let sa_auth = service_account_authenticator(scopes, sa_key_file).await?;
+        let sa_auth = service_account_authenticator(&self.auth_base_urls, sa_key_file).await?;
 
         let mut client = Client::from_authenticator(sa_auth);
         client.v2_base_url(self.v2_base_url.clone());
@@ -77,8 +82,7 @@ impl ClientBuilder {
         secret: S,
         persistant_file_path: P,
     ) -> Result<Client, BQError> {
-        let scopes = vec![self.auth_base_url.as_str()];
-        let auth = installed_flow_authenticator(secret, &scopes, persistant_file_path).await?;
+        let auth = installed_flow_authenticator(secret, &self.auth_base_urls, persistant_file_path).await?;
 
         let mut client = Client::from_authenticator(auth);
         client.v2_base_url(self.v2_base_url.clone());
@@ -100,8 +104,7 @@ impl ClientBuilder {
     }
 
     pub async fn build_from_application_default_credentials(&self) -> Result<Client, BQError> {
-        let scopes = vec![self.auth_base_url.as_str()];
-        let auth = application_default_credentials_authenticator(&scopes).await?;
+        let auth = application_default_credentials_authenticator(&self.auth_base_urls).await?;
 
         let mut client = Client::from_authenticator(auth);
         client.v2_base_url(self.v2_base_url.clone());
@@ -112,8 +115,7 @@ impl ClientBuilder {
         &self,
         authorized_user_secret_path: P,
     ) -> Result<Client, BQError> {
-        let scopes = vec![self.auth_base_url.as_str()];
-        let auth = authorized_user_authenticator(authorized_user_secret_path, &scopes).await?;
+        let auth = authorized_user_authenticator(authorized_user_secret_path, &self.auth_base_urls).await?;
 
         let mut client = Client::from_authenticator(auth);
         client.v2_base_url(self.v2_base_url.clone());

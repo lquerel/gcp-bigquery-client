@@ -56,7 +56,7 @@ impl Authenticator for ServiceAccountAuthenticator {
 impl ServiceAccountAuthenticator {
     pub(crate) async fn from_service_account_key(
         sa_key: ServiceAccountKey,
-        scopes: &[&str],
+        scopes: &Vec<String>,
     ) -> Result<Arc<dyn Authenticator>, BQError> {
         let auth = yup_oauth2::ServiceAccountAuthenticator::builder(sa_key).build().await;
 
@@ -80,11 +80,11 @@ impl ServiceAccountAuthenticator {
 }
 
 pub(crate) async fn service_account_authenticator(
-    scopes: Vec<&str>,
+    scopes: &Vec<String>,
     sa_key_file: &str,
 ) -> Result<Arc<dyn Authenticator>, BQError> {
     let sa_key = yup_oauth2::read_service_account_key(sa_key_file).await?;
-    ServiceAccountAuthenticator::from_service_account_key(sa_key, &scopes).await
+    ServiceAccountAuthenticator::from_service_account_key(sa_key, scopes).await
 }
 
 #[derive(Deserialize)]
@@ -116,7 +116,7 @@ pub struct InstalledFlowAuthenticator {
 impl InstalledFlowAuthenticator {
     pub(crate) async fn from_token_file_path<P: Into<PathBuf>>(
         app_secret: ApplicationSecret,
-        scopes: &[&str],
+        scopes: &Vec<String>,
         persistant_file_path: P,
     ) -> Result<Arc<dyn Authenticator>, BQError> {
         let auth = YupInstalledFlowAuthenticator::builder(app_secret, InstalledFlowReturnMethod::HTTPRedirect)
@@ -159,7 +159,7 @@ impl Authenticator for InstalledFlowAuthenticator {
 /// See [Gooogle OAuth2.0 Documentation](https://developers.google.com/identity/protocols/oauth2/native-app).
 pub(crate) async fn installed_flow_authenticator<S: AsRef<[u8]>, P: Into<PathBuf>>(
     secret: S,
-    scopes: &[&str],
+    scopes: &Vec<String>,
     persistant_file_path: P,
 ) -> Result<Arc<dyn Authenticator>, BQError> {
     let app_secret = yup_oauth2::parse_application_secret(secret)?;
@@ -173,7 +173,7 @@ pub struct ApplicationDefaultCredentialsAuthenticator {
 }
 
 impl ApplicationDefaultCredentialsAuthenticator {
-    pub(crate) async fn from_scopes(scopes: &[&str]) -> Result<Arc<dyn Authenticator>, BQError> {
+    pub(crate) async fn from_scopes(scopes: &Vec<String>) -> Result<Arc<dyn Authenticator>, BQError> {
         let opts = ApplicationDefaultCredentialsFlowOpts::default();
         let auth = match YupApplicationDefaultCredentialsAuthenticator::builder(opts).await {
             ApplicationDefaultCredentialsTypes::InstanceMetadata(auth) => auth.build().await,
@@ -206,7 +206,7 @@ impl Authenticator for ApplicationDefaultCredentialsAuthenticator {
 }
 
 pub(crate) async fn application_default_credentials_authenticator(
-    scopes: &[&str],
+    scopes: &Vec<String>,
 ) -> Result<Arc<dyn Authenticator>, BQError> {
     ApplicationDefaultCredentialsAuthenticator::from_scopes(scopes).await
 }
@@ -220,7 +220,7 @@ pub struct AuthorizedUserAuthenticator {
 impl AuthorizedUserAuthenticator {
     pub(crate) async fn from_authorized_user_secret(
         authorized_user_secret: AuthorizedUserSecret,
-        scopes: &[&str],
+        scopes: &Vec<String>,
     ) -> Result<Arc<dyn Authenticator>, BQError> {
         let auth = YupAuthorizedUserAuthenticator::builder(authorized_user_secret)
             .build()
@@ -253,8 +253,8 @@ impl Authenticator for AuthorizedUserAuthenticator {
 
 pub(crate) async fn authorized_user_authenticator<S: AsRef<Path>>(
     secret: S,
-    scopes: &[&str],
+    scopes: &Vec<String>,
 ) -> Result<Arc<dyn Authenticator>, BQError> {
     let authorized_user_secret = yup_oauth2::read_authorized_user_secret(secret).await?;
-    AuthorizedUserAuthenticator::from_authorized_user_secret(authorized_user_secret, scopes).await
+    AuthorizedUserAuthenticator::from_authorized_user_secret(authorized_user_secret, &scopes).await
 }

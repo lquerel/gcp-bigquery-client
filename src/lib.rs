@@ -51,6 +51,7 @@ pub mod tabledata;
 
 const BIG_QUERY_V2_URL: &str = "https://bigquery.googleapis.com/bigquery/v2";
 const BIG_QUERY_AUTH_URL: &str = "https://www.googleapis.com/auth/bigquery";
+const DRIVE_AUTH_URL: &str = "https://www.googleapis.com/auth/drive";
 
 /// An asynchronous BigQuery client.
 #[derive(Clone)]
