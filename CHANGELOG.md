@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.16.7] - 2023-04-25
+
+### Improvement
+
+- Update hyper-rustls version.
+
 ## [0.16.6] - 2023-03-06
 
 ### Improvement
