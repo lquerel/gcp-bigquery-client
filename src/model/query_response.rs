@@ -167,6 +167,33 @@ impl ResultSet {
         }
     }
 
+    pub fn get_serde<T>(&self, col_index: usize) -> Result<Option<T>, BQError> where T: serde::de::DeserializeOwned {
+        let json_value = self.get_json_value(col_index)?;
+        match json_value {
+            None => Ok(None),
+            Some(json_value) => match serde_json::from_value::<T>(json_value.clone()) {
+                Ok(value) => Ok(Some(value)),
+                Err(_) => {
+                    Err(BQError::InvalidColumnType {
+                    col_index,
+                    col_type: ResultSet::json_type(&json_value),
+                    type_requested: std::any::type_name::<T>().to_string(),
+                })
+                }
+            },
+        }
+    }
+
+    pub fn get_serde_by_name<T>(&self, col_name: &str) -> Result<Option<T>, BQError> where T: serde::de::DeserializeOwned {
+        let col_index = self.fields.get(col_name);
+        match col_index {
+            None => Err(BQError::InvalidColumnName {
+                col_name: col_name.into(),
+            }),
+            Some(col_index) => self.get_serde(*col_index),
+        }
+    }
+
     pub fn get_f64(&self, col_index: usize) -> Result<Option<f64>, BQError> {
         let json_value = self.get_json_value(col_index)?;
         match &json_value {
