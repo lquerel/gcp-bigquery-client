@@ -11,6 +11,7 @@ An ergonomic Rust async client library for GCP BigQuery.
 * Create tables and rows via builder patterns
 * Persist complex Rust structs in structured BigQuery tables
 * Async API
+* Support `serde::de::DeserializeOwned` for get methods
 * Support BigQuery emulator
 
 Features:
