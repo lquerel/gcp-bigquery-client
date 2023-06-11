@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.16.8] - 2023-06-11
+
+### Improvement
+
+- Add `get_serde` and `get_serde_by_name` methods to read columns for any types that implements `serde::de:DeserializeOwned`. Thanks to @andyquinterom for this contribution.
+
 ## [0.16.7] - 2023-04-25
 
 ### Improvement
