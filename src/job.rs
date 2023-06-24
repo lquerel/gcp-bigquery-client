@@ -403,6 +403,9 @@ mod test {
     use crate::model::dataset::Dataset;
     use crate::model::job_configuration_query::JobConfigurationQuery;
     use crate::model::job_reference::JobReference;
+    use crate::model::query_parameter::QueryParameter;
+    use crate::model::query_parameter_type::QueryParameterType;
+    use crate::model::query_parameter_value::QueryParameterValue;
     use crate::model::query_request::QueryRequest;
     use crate::model::query_response::{QueryResponse, ResultSet};
     use crate::model::table::Table;
@@ -418,6 +421,7 @@ mod test {
         bool_value: bool,
         string_value: String,
         record_value: FirstRecordLevel,
+        json_value: String,
     }
 
     #[derive(Serialize)]
@@ -471,6 +475,7 @@ mod test {
                         ),
                     ],
                 ),
+                TableFieldSchema::json("json_value"),
             ]),
         );
 
@@ -494,6 +499,7 @@ mod test {
                         string_value: "leaf".to_string(),
                     },
                 },
+                json_value: "{\"a\":2,\"b\":\"hello\"}".into(),
             },
         )?;
         insert_request.add_row(
@@ -511,6 +517,7 @@ mod test {
                         string_value: "leaf".to_string(),
                     },
                 },
+                json_value: "{\"a\":1,\"b\":\"goodbye\",\"c\":3}".into(),
             },
         )?;
         insert_request.add_row(
@@ -528,6 +535,7 @@ mod test {
                         string_value: "leaf".to_string(),
                     },
                 },
+                json_value: "{\"b\":\"world\",\"c\":2}".into(),
             },
         )?;
         insert_request.add_row(
@@ -545,6 +553,7 @@ mod test {
                         string_value: "leaf".to_string(),
                     },
                 },
+                json_value: "{\"a\":3,\"c\":1}".into(),
             },
         )?;
 
@@ -663,6 +672,31 @@ mod test {
         assert!(query_all_results_with_job_reference.is_ok());
         assert_eq!(query_all_results_with_job_reference.unwrap().len(), n_rows);
 
+        // Query all with json parameter
+        let query_all_results_with_parameter: Result<Vec<_>, _> = client
+            .job()
+            .query_all(
+                project_id,
+                JobConfigurationQuery {
+                    query: format!("SELECT int_value, json_value.a, json_value.b FROM `{project_id}.{dataset_id}.{table_id}` where CAST(JSON_VALUE(json_value,'$.a') as int) >= @int_value"),
+                    query_parameters: Some(vec![QueryParameter{ 
+                        name: Some("int_value".to_string()), 
+                        parameter_type: Some(QueryParameterType{ array_type: None, struct_types: None, r#type: "INTEGER".to_string() }), 
+                        parameter_value: Some(QueryParameterValue{ array_values: None, struct_values: None, value: Some("2".to_string()) }),
+                    }]),
+                    use_legacy_sql: Some(false),
+                    ..Default::default()
+                },
+                Some(2),
+            )
+            .collect::<Result<Vec<_>, _>>()
+            .await
+            .map(|vec_of_vecs| vec_of_vecs.into_iter().flatten().collect());
+
+        assert!(query_all_results_with_parameter.is_ok());
+        assert_eq!(query_all_results_with_parameter.unwrap().len(), 2);
+
+        // Delete table
         client.table().delete(project_id, dataset_id, table_id).await?;
 
         // Delete dataset
