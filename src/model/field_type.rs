@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -21,4 +21,12 @@ pub enum FieldType {
     Struct, // same as RECORD
     Geography,
     Json,
+}
+
+pub fn serialize_json_as_string<S>(json: &serde_json::value::Value, s: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let string = serde_json::to_string(json).unwrap();
+    s.serialize_str(&string)
 }
