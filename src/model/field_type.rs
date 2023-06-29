@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize, Serializer};
+use serde::{Deserialize, Serialize, Serializer, ser::Error};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -27,6 +27,6 @@ pub fn serialize_json_as_string<S>(json: &serde_json::value::Value, s: S) -> Res
 where
     S: Serializer,
 {
-    let string = serde_json::to_string(json).unwrap();
+    let string = serde_json::to_string(json).map_err(Error::custom)?;
     s.serialize_str(&string)
 }
