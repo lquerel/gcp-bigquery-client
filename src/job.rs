@@ -423,7 +423,7 @@ mod test {
         string_value: String,
         record_value: FirstRecordLevel,
         // Serialized as string but deserialized as serde json value.
-        #[serde(serialize_with="serialize_json_as_string")]
+        #[serde(serialize_with = "serialize_json_as_string")]
         json_value: serde_json::value::Value,
     }
 
@@ -684,10 +684,10 @@ mod test {
                 project_id,
                 JobConfigurationQuery {
                     query: format!("SELECT int_value, json_value.a, json_value.b FROM `{project_id}.{dataset_id}.{table_id}` where CAST(JSON_VALUE(json_value,'$.a') as int) >= @compare"),
-                    query_parameters: Some(vec![QueryParameter{ 
-                        name: Some("compare".to_string()), 
-                        parameter_type: Some(QueryParameterType{ array_type: None, struct_types: None, r#type: "INTEGER".to_string() }), 
-                        parameter_value: Some(QueryParameterValue{ array_values: None, struct_values: None, value: Some("2".to_string()) }),
+                    query_parameters: Some(vec![QueryParameter {
+                        name: Some("compare".to_string()),
+                        parameter_type: Some(QueryParameterType { array_type: None, struct_types: None, r#type: "INTEGER".to_string() }),
+                        parameter_value: Some(QueryParameterValue { array_values: None, struct_values: None, value: Some("2".to_string()) }),
                     }]),
                     use_legacy_sql: Some(false),
                     ..Default::default()
