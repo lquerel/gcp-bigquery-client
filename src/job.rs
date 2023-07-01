@@ -422,6 +422,7 @@ mod test {
         bool_value: bool,
         string_value: String,
         record_value: FirstRecordLevel,
+        // Serialized as string but deserialized as serde json value.
         #[serde(serialize_with="serialize_json_as_string")]
         json_value: serde_json::value::Value,
     }
@@ -698,6 +699,7 @@ mod test {
             .map(|vec_of_vecs| vec_of_vecs.into_iter().flatten().collect());
 
         assert!(query_all_results_with_parameter.is_ok());
+        // 2 rows match the query: {"a":2,"b":"hello"} and {"a":3,"c":1}
         assert_eq!(query_all_results_with_parameter.unwrap().len(), 2);
 
         // Delete table

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.17.0] - 2023-07-01
+
+### Improvement
+
+- Add support for JSON column types. Thanks to Michael Gibson (@mchlgibs) for this contribution.
+
 ## [0.16.8] - 2023-06-11
 
 ### Improvement
