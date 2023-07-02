@@ -178,7 +178,7 @@ impl JobApi {
 
                     // Rows is present when the query finishes successfully.
                     // Rows be empty when query result is empty.
-                    yield Ok(qr.rows.unwrap_or_else(Vec::new));
+                    yield Ok(qr.rows.unwrap_or_default());
 
                     page_token = match qr.page_token {
                         None => break,
@@ -205,7 +205,7 @@ impl JobApi {
         page_size: Option<i32>,
     ) -> impl Stream<Item = Result<Vec<TableRow>, BQError>> + 'a {
         stream! {
-            let location = job_reference.location.as_ref().and_then(|l| Some(l.clone()));
+            let location = job_reference.location.as_ref().map(|l| l.clone());
 
             let job = Job {
                 configuration: Some(JobConfiguration {
