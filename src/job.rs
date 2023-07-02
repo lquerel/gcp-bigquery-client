@@ -205,7 +205,7 @@ impl JobApi {
         page_size: Option<i32>,
     ) -> impl Stream<Item = Result<Vec<TableRow>, BQError>> + 'a {
         stream! {
-            let location = job_reference.location.as_ref().map(|l| l.clone());
+            let location = job_reference.location.as_ref().cloned();
 
             let job = Job {
                 configuration: Some(JobConfiguration {
