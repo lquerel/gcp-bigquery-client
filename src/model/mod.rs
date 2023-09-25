@@ -72,6 +72,7 @@ pub mod job_configuration_query;
 pub mod job_configuration_table_copy;
 pub mod job_list;
 pub mod job_list_jobs;
+pub mod job_list_parameters;
 pub mod job_reference;
 pub mod job_statistics;
 pub mod job_statistics2;
