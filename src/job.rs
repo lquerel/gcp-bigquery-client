@@ -335,12 +335,14 @@ impl JobApi {
 
                 let process_resp: Result<JobList, BQError> = process_response(resp).await;
 
-                yield Ok(process_resp.as_ref().expect("JobList is not present").clone());
-
-                page_token = match process_resp.unwrap_or_default().next_page_token {
-                    None => break,
-                    f => f.clone(),
+                yield match process_resp {
+                    Err(e) => {page_token=None; Err(e)},
+                    Ok(job_list) => {page_token=job_list.next_page_token.clone(); Ok(job_list.clone())}
                 };
+
+                if page_token.is_none() {
+                    break;
+                }
             }
         }
     }

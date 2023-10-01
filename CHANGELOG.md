@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.17.1] - 2023-10-01
+
+### Improvement
+
+- Feature/paginate through all jobs list #63 (Thank you @Shirlo)
+
+### Fix
+
+- Apply the same fix as #54 to query_all #64 (Thank you @LawnGnome)
+
 ## [0.17.0] - 2023-07-01
 
 ### Improvement
