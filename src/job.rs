@@ -14,6 +14,7 @@ use crate::model::job_cancel_response::JobCancelResponse;
 use crate::model::job_configuration::JobConfiguration;
 use crate::model::job_configuration_query::JobConfigurationQuery;
 use crate::model::job_list::JobList;
+use crate::model::job_list_parameters::JobListParameters;
 use crate::model::job_reference::JobReference;
 use crate::model::query_request::QueryRequest;
 use crate::model::query_response::{QueryResponse, ResultSet};
@@ -299,6 +300,49 @@ impl JobApi {
         let resp = self.client.execute(request).await?;
 
         process_response(resp).await
+    }
+
+    /// Lists all jobs that you started in the specified project paginating through all the results synchronously.
+    /// Job information is available for a six month period after creation.
+    /// The job list is sorted in reverse chronological order, by job creation time. Requires the Can
+    /// View project role, or the Is Owner project role if you set the allUsers property.
+    /// # Arguments
+    /// * `project_id` - Project ID of the jobs to list.
+    /// * `parameters` - The query parameters for jobs.list.
+    pub fn get_job_list<'a>(
+        &'a self,
+        project_id: &'a str,
+        parameters: Option<JobListParameters>,
+    ) -> impl Stream<Item = Result<JobList, BQError>> + 'a {
+        stream! {
+            let req_url = format!(
+                "{base_url}/projects/{project_id}/jobs",
+                base_url = self.base_url,
+                project_id = urlencode(project_id),
+                );
+            let mut params = parameters.unwrap_or_default();
+            let mut page_token: Option<String> = None;
+            loop {
+                let mut request_builder = self.client.get(req_url.as_str());
+
+                params.page_token = page_token;
+                request_builder = request_builder.query(&params);
+
+                let access_token = self.auth.access_token().await?;
+                let request = request_builder.bearer_auth(access_token).build()?;
+
+                let resp = self.client.execute(request).await?;
+
+                let process_resp: Result<JobList, BQError> = process_response(resp).await;
+
+                yield Ok(process_resp.as_ref().expect("JobList is not present").clone());
+
+                page_token = match process_resp.unwrap_or_default().next_page_token {
+                    None => break,
+                    f => f.clone(),
+                };
+            }
+        }
     }
 
     /// RPC to get the results of a query job.
