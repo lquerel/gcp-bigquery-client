@@ -6,6 +6,7 @@ use crate::error::BQError;
 use crate::model::data_format_options::DataFormatOptions;
 use crate::model::table_data_insert_all_request::TableDataInsertAllRequest;
 use crate::model::table_data_insert_all_response::TableDataInsertAllResponse;
+use crate::model::table_data_list_response::TableDataListResponse;
 use crate::{process_response, urlencode, BIG_QUERY_V2_URL};
 use reqwest::Client;
 
@@ -79,7 +80,7 @@ impl TableDataApi {
         dataset_id: &str,
         table_id: &str,
         parameters: ListQueryParameters,
-    ) -> Result<TableDataInsertAllResponse, BQError> {
+    ) -> Result<TableDataListResponse, BQError> {
         let req_url = format!(
             "{base_url}/projects/{project_id}/datasets/{dataset_id}/tables/{table_id}/data",
             base_url = self.base_url,
