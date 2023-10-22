@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.18.0] - 2023-10-22
+
+### Fix
+
+- Fix tabledata.list return type (Thank you @enricozb)
+
 ## [0.17.1] - 2023-10-01
 
 ### Improvement
