@@ -123,6 +123,7 @@ pub mod table_data_insert_all_request;
 pub mod table_data_insert_all_request_rows;
 pub mod table_data_insert_all_response;
 pub mod table_data_insert_all_response_insert_errors;
+pub mod table_data_list_response;
 pub mod table_field_schema;
 pub mod table_field_schema_categories;
 pub mod table_field_schema_policy;
