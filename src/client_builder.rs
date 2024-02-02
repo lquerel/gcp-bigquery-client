@@ -99,6 +99,8 @@ impl ClientBuilder {
         .await
     }
 
+    /// Build client grabbing credentials from ADC chain: https://cloud.google.com/docs/authentication/application-default-credentials
+    /// Does not support %AppData% on windows
     pub async fn build_from_application_default_credentials(&self) -> Result<Client, BQError> {
         let scopes = vec![self.auth_base_url.as_str()];
         let auth = application_default_credentials_authenticator(&scopes).await?;

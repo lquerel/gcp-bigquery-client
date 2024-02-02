@@ -174,6 +174,25 @@ pub struct ApplicationDefaultCredentialsAuthenticator {
 
 impl ApplicationDefaultCredentialsAuthenticator {
     pub(crate) async fn from_scopes(scopes: &[&str]) -> Result<Arc<dyn Authenticator>, BQError> {
+        let env = std::env::var("GOOGLE_APPLICATION_CREDENTIALS");
+
+        if let Ok(env) = env {
+            let account_key = yup_oauth2::read_service_account_key(env).await?;
+            return ServiceAccountAuthenticator::from_service_account_key(account_key, scopes).await;
+        }
+
+        let home = homedir::get_my_home()
+            .ok()
+            .flatten()
+            .map(|path| path.join(".config/gcloud/application_default_credentials.json"))
+            .map(|p| std::fs::metadata(&p).map(|m| (m, p)))
+            .transpose();
+
+        if let Ok(Some((_, p))) = home {
+            let token = yup_oauth2::read_authorized_user_secret(p).await?;
+            return AuthorizedUserAuthenticator::from_authorized_user_secret(token, scopes).await;
+        }
+
         let opts = ApplicationDefaultCredentialsFlowOpts::default();
         let auth = match YupApplicationDefaultCredentialsAuthenticator::builder(opts).await {
             ApplicationDefaultCredentialsTypes::InstanceMetadata(auth) => auth.build().await,
