@@ -58,13 +58,15 @@ macro_rules! bq_deserialize {
                     visitor.$visitor_func(value)
                 }
                 a => Err(Error::invalid_type(type_hint(a), &"JSON string")),
-                None => Err(Error::DeserializationError("missing value field".into())),
             }
         }
     };
 }
 
-impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
+impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de>
+where
+    'a: 'de,
+{
     type Error = Error;
 
     // Look at the input data to decide what Serde data model type to
