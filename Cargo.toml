@@ -1,15 +1,14 @@
 [package]
 name = "gcp-bigquery-client"
 version = "0.18.0"
-authors = ["Laurent Querel <laurent.querel@gmail.com>"]
+authors = ["Laurent Querel <laurent.querel@gmail.com>", "Viet <vly@attaindata.io>"]
 edition = "2018"
 license = "MIT OR Apache-2.0"
 description = """
 An ergonomic async client library for GCP BigQuery.
 """
-homepage = "https://github.com/lquerel/gcp-bigquery-client"
-repository = "https://github.com/lquerel/gcp-bigquery-client"
-documentation = "https://docs.rs/gcp-bigquery-client"
+homepage = "https://github.com/Klover-Fintech/gcp-bigquery-client"
+repository = "https://github.com/Klover-Fintech/gcp-bigquery-client"
 readme = "README.md"
 exclude = ["/.github/*"]
 keywords = ["gcp", "bigquery", "google-cloud"]
@@ -25,6 +24,7 @@ bq_load_job = ["cloud-storage"]
 
 [dependencies]
 yup-oauth2 = "8.3"
+homedir = "0.2.1"
 hyper = {version="0.14", features = ["http1"]}
 hyper-rustls = {version="0.24", features = ["native-tokio"]}
 thiserror = "1"
