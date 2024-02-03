@@ -3,43 +3,26 @@ use serde_json::Value;
 
 use base64::engine::Engine;
 
-use crate::model::{table_cell::TableCell, table_field_schema::TableFieldSchema};
+use crate::model::table_field_schema::TableFieldSchema;
 
 use super::Error;
 
 // Deserialize from a bigquery json value
 pub fn from_value<'a, T>(schema: &'a TableFieldSchema, json: &'a Value) -> Result<T, Error>
 where
-    T: serde::Deserialize<'a>,
+    for<'b> T: serde::Deserialize<'b>,
 {
-    let mut deserializer = Deserializer::from_value(schema, Input::Other(json));
+    let mut deserializer = Deserializer::from_value(schema, json);
     T::deserialize(&mut deserializer)
-}
-
-pub(crate) enum Input<'de> {
-    Root(&'de TableCell),
-    Other(&'de Value),
-}
-
-impl<'de> Input<'de> {
-    pub fn get_value(&self) -> Option<&Value> {
-        match self {
-            Input::Root(t) => t.value.as_ref(),
-            Input::Other(t) => match t {
-                Value::Object(o) => o.get("v"),
-                t => Some(*t),
-            },
-        }
-    }
 }
 
 pub struct Deserializer<'de> {
     schema: &'de TableFieldSchema,
-    input: Input<'de>,
+    input: &'de Value,
 }
 
 impl<'de> Deserializer<'de> {
-    pub(crate) fn from_value(schema: &'de TableFieldSchema, input: Input<'de>) -> Self {
+    pub(crate) fn from_value(schema: &'de TableFieldSchema, input: &'de Value) -> Self {
         Deserializer { schema, input }
     }
 }
@@ -50,7 +33,7 @@ macro_rules! bq_deserialize {
         where
             V: Visitor<'de>,
         {
-            match self.input.get_value() {
+            match extract(self.input) {
                 Some(Value::String(b)) => {
                     let value = b
                         .parse::<$t>()
@@ -63,10 +46,14 @@ macro_rules! bq_deserialize {
     };
 }
 
-impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de>
-where
-    'a: 'de,
-{
+fn extract(value: &serde_json::Value) -> Option<&serde_json::Value> {
+    match value {
+        Value::Object(o) => o.get("v"),
+        k => Some(k),
+    }
+}
+
+impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     type Error = Error;
 
     // Look at the input data to decide what Serde data model type to
@@ -104,7 +91,7 @@ where
     where
         V: Visitor<'de>,
     {
-        match self.input.get_value() {
+        match extract(self.input) {
             Some(Value::String(b)) => visitor.visit_borrowed_str(b),
             a => Err(Error::invalid_type(type_hint(a), &"JSON string")),
         }
@@ -121,7 +108,7 @@ where
     where
         V: Visitor<'de>,
     {
-        match self.input.get_value() {
+        match extract(self.input) {
             Some(Value::String(b)) => {
                 let bytes_buf = base64::engine::general_purpose::STANDARD
                     .decode(b)
@@ -143,7 +130,7 @@ where
     where
         V: Visitor<'de>,
     {
-        match self.input.get_value() {
+        match extract(self.input) {
             Some(o) if !matches!(o, Value::Null) => visitor.visit_some(self),
             _ => visitor.visit_none(),
         }
@@ -174,7 +161,7 @@ where
     where
         V: Visitor<'de>,
     {
-        match self.input.get_value() {
+        match extract(self.input) {
             Some(Value::Array(fields)) => {
                 let seq = SeqDeserializer::new(self.schema, fields);
                 visitor.visit_seq(seq)
@@ -187,8 +174,8 @@ where
     where
         V: Visitor<'de>,
     {
-        match self.input.get_value() {
-            Some(Value::Object(v)) => {
+        match self.input {
+            Value::Object(v) => {
                 let fields = v.get("f");
                 match fields {
                     Some(Value::Array(input)) => {
@@ -201,7 +188,7 @@ where
                     a => Err(Error::invalid_type(type_hint(a), &"JSON Array")),
                 }
             }
-            a => Err(Error::invalid_type(type_hint(a), &"JSON Object")),
+            a => Err(Error::invalid_type(type_hint(Some(a)), &"JSON Object")),
         }
     }
 
@@ -250,11 +237,11 @@ where
         self.deserialize_string(visitor)
     }
 
-    fn deserialize_ignored_any<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_ignored_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        unimplemented!()
+        visitor.visit_unit()
     }
 }
 
@@ -293,7 +280,7 @@ impl<'de> SeqAccess<'de> for SeqDeserializer<'de> {
                 self.value = Some(value);
                 let mut key = Deserializer {
                     schema: self.schema,
-                    input: Input::Other(value),
+                    input: value,
                 };
                 seed.deserialize(&mut key).map(Some)
             }
@@ -344,7 +331,7 @@ impl<'de> de::MapAccess<'de> for MapRefDeserializer<'de> {
             return Err(Error::DeserializationError("expected key but none".into()));
         };
 
-        let mut deserializer = Deserializer::from_value(schema, Input::Other(&value));
+        let mut deserializer = Deserializer::from_value(schema, value);
         seed.deserialize(&mut deserializer)
     }
 }
@@ -389,25 +376,23 @@ mod test {
 
     #[test]
     fn simple_struct() {
-        #[derive(serde::Deserialize)]
+        #[derive(Debug, serde::Deserialize)]
         struct A {
             test: bool,
             number: i32,
         }
         let test = serde_json::json!({
-            "v": {
-                "f": [
-                    {
-                        "v": "8"
-                    },
-                    {
-                        "v": "Video Games"
-                    },
-                    {
-                        "v": "true",
-                    }
-                ]
-            }
+            "f": [
+                {
+                    "v": "8"
+                },
+                {
+                    "v": "Video Games"
+                },
+                {
+                    "v": "true",
+                }
+            ]
         });
         let schema = TableFieldSchema {
             fields: Some(vec![
@@ -427,14 +412,14 @@ mod test {
                     ..Default::default()
                 },
             ]),
-            name: "mybool".into(),
+            name: "row".into(),
             r#type: crate::model::field_type::FieldType::Struct,
             ..Default::default()
         };
 
         let b: Result<A, _> = from_value(&schema, &test);
 
-        assert!(b.is_ok());
+        assert!(b.is_ok(), "unexpected error {:?}", b);
 
         let b = b.unwrap();
 

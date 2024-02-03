@@ -1,7 +1,5 @@
 use std::fmt;
 
-use crate::model::{table_row::TableRow, table_schema::TableSchema};
-
 pub mod table_cell;
 mod table_row;
 
@@ -17,10 +15,4 @@ impl serde::de::Error for Error {
     }
 }
 
-pub fn from_value<'a, T>(schema: &'a TableSchema, input: &'a TableRow) -> Result<T, Error>
-where
-    T: serde::Deserialize<'a>,
-{
-    let mut deserializer = table_row::TableRowDeserializer { schema, input };
-    T::deserialize(&mut deserializer)
-}
+pub use table_cell::from_value;

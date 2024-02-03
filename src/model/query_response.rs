@@ -123,7 +123,7 @@ impl ResultSet {
     /// Moves the cursor froward one row from its current position.
     /// A ResultSet cursor is initially positioned before the first row; the first call to the method next makes the
     /// first row the current row; the second call makes the second row the current row, and so on.
-    pub fn next<T>(&mut self) -> Result<Option<T>, BQError>
+    pub fn next_row_serde<T>(&mut self) -> Result<Option<T>, BQError>
     where
         T: serde::de::DeserializeOwned,
     {
@@ -138,9 +138,23 @@ impl ResultSet {
                 .as_ref()
                 .and_then(|rows| rows.get(self.cursor as usize));
             row.map(|row| {
+                let mut map = serde_json::Map::new();
+                if let Some(array) = row
+                    .columns
+                    .as_ref()
+                    .map(|c| c.iter().filter_map(|c| c.value.to_owned()).collect())
+                {
+                    map.insert("f".into(), array);
+                }
+                let obj = serde_json::Value::Object(map);
                 de::from_value(
-                    self.query_response.schema.as_ref().expect("schema should be present"),
-                    row,
+                    &self
+                        .query_response
+                        .schema
+                        .as_ref()
+                        .expect("schema should be present")
+                        .as_table_field_schema(),
+                    &obj,
                 )
             })
             .transpose()
