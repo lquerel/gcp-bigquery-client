@@ -10,7 +10,15 @@ use super::Error;
 // Deserialize from a bigquery json value
 pub fn from_value<'a, T>(schema: &'a TableFieldSchema, json: &'a Value) -> Result<T, Error>
 where
-    for<'b> T: serde::Deserialize<'b>,
+    T: serde::Deserialize<'a>,
+{
+    let mut deserializer = Deserializer::from_root_value(schema, json);
+    T::deserialize(&mut deserializer)
+}
+
+pub fn from_column<'a, T>(schema: &'a TableFieldSchema, json: &'a Value) -> Result<T, Error>
+where
+    T: serde::Deserialize<'a>,
 {
     let mut deserializer = Deserializer::from_value(schema, json);
     T::deserialize(&mut deserializer)
@@ -19,11 +27,24 @@ where
 pub struct Deserializer<'de> {
     schema: &'de TableFieldSchema,
     input: &'de Value,
+    extractor: fn(&serde_json::Value) -> Option<&serde_json::Value>,
 }
 
 impl<'de> Deserializer<'de> {
     pub(crate) fn from_value(schema: &'de TableFieldSchema, input: &'de Value) -> Self {
-        Deserializer { schema, input }
+        Deserializer {
+            schema,
+            input,
+            extractor: extract,
+        }
+    }
+
+    pub(crate) fn from_root_value(schema: &'de TableFieldSchema, input: &'de Value) -> Self {
+        Deserializer {
+            schema,
+            input,
+            extractor: root_extract,
+        }
     }
 }
 
@@ -51,6 +72,10 @@ fn extract(value: &serde_json::Value) -> Option<&serde_json::Value> {
         Value::Object(o) => o.get("v"),
         k => Some(k),
     }
+}
+
+fn root_extract(value: &serde_json::Value) -> Option<&serde_json::Value> {
+    Some(value)
 }
 
 impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
@@ -136,32 +161,57 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         }
     }
 
-    fn deserialize_unit<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_unit<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        unimplemented!()
+        match extract(self.input) {
+            Some(Value::Null) => visitor.visit_unit(),
+            a => Err(Error::invalid_type(type_hint(a), &"JSON NULL")),
+        }
     }
 
-    fn deserialize_unit_struct<V>(self, _name: &'static str, _visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_unit_struct<V>(self, _name: &'static str, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        unimplemented!()
+        self.deserialize_unit(visitor)
     }
 
-    fn deserialize_newtype_struct<V>(self, _name: &'static str, _visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_newtype_struct<V>(self, _name: &'static str, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        unimplemented!()
+        match (self.extractor)(self.input) {
+            Some(Value::Object(v)) => {
+                let fields = v.get("f");
+                match fields {
+                    Some(Value::Array(input)) => {
+                        let map = SeqDeserializer::new(self.schema, input);
+                        visitor.visit_seq(map)
+                    }
+                    a => Err(Error::invalid_type(type_hint(a), &"JSON Array")),
+                }
+            }
+            a => Err(Error::invalid_type(type_hint(a), &"JSON Array")),
+        }
     }
 
     fn deserialize_seq<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        match extract(self.input) {
+        match (self.extractor)(self.input) {
+            Some(Value::Object(v)) => {
+                let fields = v.get("f");
+                match fields {
+                    Some(Value::Array(input)) => {
+                        let map = SeqDeserializer::new(self.schema, input);
+                        visitor.visit_seq(map)
+                    }
+                    a => Err(Error::invalid_type(type_hint(a), &"JSON Array")),
+                }
+            }
             Some(Value::Array(fields)) => {
                 let seq = SeqDeserializer::new(self.schema, fields);
                 visitor.visit_seq(seq)
@@ -174,8 +224,34 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        match self.input {
-            Value::Object(v) => {
+        match (self.extractor)(self.input) {
+            Some(Value::Object(v)) => {
+                let fields = v.get("f");
+                match fields {
+                    Some(Value::Array(input)) => {
+                        let map = SeqDeserializer::new(self.schema, input);
+                        visitor.visit_seq(map)
+                    }
+                    a => Err(Error::invalid_type(type_hint(a), &"JSON Array")),
+                }
+            }
+            a => Err(Error::invalid_type(type_hint(a), &"JSON Object")),
+        }
+    }
+
+    fn deserialize_tuple_struct<V>(self, _name: &'static str, _len: usize, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        self.deserialize_seq(visitor)
+    }
+
+    fn deserialize_map<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        match (self.extractor)(self.input) {
+            Some(Value::Object(v)) => {
                 let fields = v.get("f");
                 match fields {
                     Some(Value::Array(input)) => {
@@ -188,34 +264,20 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
                     a => Err(Error::invalid_type(type_hint(a), &"JSON Array")),
                 }
             }
-            a => Err(Error::invalid_type(type_hint(Some(a)), &"JSON Object")),
+            a => Err(Error::invalid_type(type_hint(a), &"JSON Object")),
         }
-    }
-
-    fn deserialize_tuple_struct<V>(self, _name: &'static str, _len: usize, _visitor: V) -> Result<V::Value, Self::Error>
-    where
-        V: Visitor<'de>,
-    {
-        unimplemented!()
-    }
-
-    fn deserialize_map<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
-    where
-        V: Visitor<'de>,
-    {
-        unimplemented!()
     }
 
     fn deserialize_struct<V>(
         self,
         _name: &'static str,
-        fields: &'static [&'static str],
+        _fields: &'static [&'static str],
         visitor: V,
     ) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        self.deserialize_tuple(fields.len(), visitor)
+        self.deserialize_map(visitor)
     }
 
     fn deserialize_enum<V>(
@@ -278,10 +340,7 @@ impl<'de> SeqAccess<'de> for SeqDeserializer<'de> {
         match self.iter.next() {
             Some(value) => {
                 self.value = Some(value);
-                let mut key = Deserializer {
-                    schema: self.schema,
-                    input: value,
-                };
+                let mut key = Deserializer::from_value(self.schema, value);
                 seed.deserialize(&mut key).map(Some)
             }
             None => Ok(None),
@@ -350,28 +409,53 @@ fn type_hint(value: Option<&Value>) -> serde::de::Unexpected {
 
 #[cfg(test)]
 mod test {
-    use crate::model::{field_type::FieldType, table_field_schema::TableFieldSchema};
+    use crate::{
+        de::table_cell::from_column,
+        model::{field_type::FieldType, table_field_schema::TableFieldSchema},
+    };
 
     use super::from_value;
 
     #[test]
-    fn bool() {
+    fn bool_column() {
         let test = serde_json::json!({
             "v": "true"
         });
 
         let schema = TableFieldSchema {
-            categories: Default::default(),
-            description: Default::default(),
-            fields: Default::default(),
-            mode: Default::default(),
             name: "mybool".into(),
             policy_tags: Default::default(),
             r#type: crate::model::field_type::FieldType::Bool,
+            ..Default::default()
         };
-        let b: Result<bool, _> = from_value(&schema, &test);
+        let b: Result<bool, _> = from_column(&schema, &test);
         assert!(b.is_ok());
         assert!(b.unwrap());
+    }
+
+    #[test]
+    fn struct_column() {
+        #[derive(Debug, serde::Deserialize)]
+        pub struct A {
+            mybool: bool
+        }
+        let test = serde_json::json!({
+            "v": {"f": [{"v": "true"}]}
+        });
+
+        let schema = TableFieldSchema {
+            name: "a".into(),
+            policy_tags: Default::default(),
+            r#type: crate::model::field_type::FieldType::Struct,
+            fields: Some(vec![TableFieldSchema {
+                name: "mybool".into(),
+                r#type: crate::model::field_type::FieldType::Bool,
+                ..Default::default()
+            }]),
+            ..Default::default()
+        };
+        let b: Result<A, _> = from_column(&schema, &test);
+        assert!(b.unwrap().mybool);
     }
 
     #[test]
@@ -381,6 +465,7 @@ mod test {
             test: bool,
             number: i32,
         }
+
         let test = serde_json::json!({
             "f": [
                 {
@@ -430,16 +515,10 @@ mod test {
     #[test]
     fn tuple() {
         let a = serde_json::json!({
-            "v": {
-                "f": [
-                    {
-                        "v": "2"
-                    },
-                    {
-                        "v": "3"
-                    }
-                ]
-            }
+            "f": [
+                { "v": "2" },
+                { "v": "3" }
+            ]
         });
 
         let schema = TableFieldSchema {
@@ -461,7 +540,7 @@ mod test {
         };
         let b: Result<(i64, i64), _> = from_value(&schema, &a);
 
-        assert!(b.is_ok());
+        assert!(b.is_ok(), "failure: {:?}", b);
 
         let (a, b) = b.unwrap();
         assert_eq!(a, 2);
@@ -470,70 +549,90 @@ mod test {
 
     #[test]
     fn seq() {
+        #[derive(Debug, serde::Deserialize)]
+        struct A {
+            numbers: Vec<i32>,
+        }
         let test = serde_json::json!({
-            "v": [
-                { "v": "2" },
-                { "v": "3" }
+            "f": [
+                { "v": [
+                    { "v": "2" },
+                    { "v": "3" }
+                ]}
             ]
         });
         let schema = TableFieldSchema {
-            name: "_f0".into(),
-            r#type: FieldType::Int64,
-            mode: Some("REPEATED".into()),
+            name: "row".into(),
+            fields: Some(vec![TableFieldSchema {
+                name: "numbers".into(),
+                r#type: FieldType::Int64,
+                mode: Some("REPEATED".into()),
+                ..Default::default()
+            }]),
             ..Default::default()
         };
-        let b: Result<Vec<i64>, _> = from_value(&schema, &test);
+        let b: Result<A, _> = from_value(&schema, &test);
 
-        assert!(b.is_ok());
+        assert!(b.is_ok(), "failure: {:?}", b);
 
         let b = b.unwrap();
-        assert_eq!(b.len(), 2);
-        assert_eq!(b.first().copied(), Some(2));
-        assert_eq!(b.get(1).copied(), Some(3));
+        assert_eq!(b.numbers.len(), 2);
+        assert_eq!(b.numbers.first().copied(), Some(2));
+        assert_eq!(b.numbers.get(1).copied(), Some(3));
     }
 
     #[test]
     fn nested_seq() {
-        #[derive(serde::Deserialize)]
+        #[derive(Debug, serde::Deserialize)]
         struct B {
             number: f64,
             string: String,
         }
 
+        #[derive(Debug, serde::Deserialize)]
+        pub struct A {
+            pub b: Vec<B>,
+        }
+
         let test = serde_json::json!({
-            "v": [{
-                "v": {
-                    "f": [
-                        { "v":"7.1" },
-                        { "v": "Furniture" }
-                    ]
-                }
+            "f": [{
+                "v": [{
+                    "v": {
+                        "f": [
+                            { "v":"7.1" },
+                            { "v": "Furniture" }
+                        ]
+                    }
+                }]
             }]
         });
         let schema = TableFieldSchema {
-            name: "_f0".into(),
-            r#type: FieldType::Struct,
-            mode: Some("REPEATED".into()),
-            fields: Some(vec![
-                TableFieldSchema {
-                    name: "_f0".into(),
-                    r#type: FieldType::Float64,
-                    ..Default::default()
-                },
-                TableFieldSchema {
-                    name: "_f1".into(),
-                    r#type: FieldType::String,
-                    ..Default::default()
-                },
-            ]),
+            fields: Some(vec![TableFieldSchema {
+                name: "b".into(),
+                r#type: FieldType::Struct,
+                mode: Some("REPEATED".into()),
+                fields: Some(vec![
+                    TableFieldSchema {
+                        name: "number".into(),
+                        r#type: FieldType::Float64,
+                        ..Default::default()
+                    },
+                    TableFieldSchema {
+                        name: "string".into(),
+                        r#type: FieldType::String,
+                        ..Default::default()
+                    },
+                ]),
+                ..Default::default()
+            }]),
             ..Default::default()
         };
 
-        let b: Result<Vec<B>, _> = from_value(&schema, &test);
+        let a: Result<A, _> = from_value(&schema, &test);
 
-        assert!(b.is_ok());
+        assert!(a.is_ok(), "unexpected error: {:?}", a);
 
-        let b = b.unwrap();
+        let b = a.unwrap().b;
         assert_eq!(b.len(), 1);
 
         let b = b.first().unwrap();
@@ -541,54 +640,53 @@ mod test {
         assert_eq!(&b.string, "Furniture");
     }
 
-    // #[test]
-    // fn nested_struct_with_seq() {
-    //     #[derive(serde::Deserialize)]
-    //     struct Outer {
-    //         arr: Vec<i64>,
-    //         number: i64,
-    //         inner: Inner,
-    //     }
-    //
-    //     #[derive(serde::Deserialize, Debug, PartialEq, Eq)]
-    //     struct Inner {
-    //         a: Vec<i64>,
-    //     }
-    //     let test = serde_json::json!({
-    //         "v": {
-    //             "f": [
-    //               { "v": [ { "v": "2" }, { "v": "8" } ] },
-    //               { "v": "2" },
-    //               { "v": { "f": [ { "v": [ { "v": "7" }, { "v": "11" } ] } ] } }
-    //             ]
-    //         }
-    //     });
-    //
-    //     let outer: Outer = from_value(&test).unwrap();
-    //     assert_eq!(outer.arr.len(), 2);
-    //     assert_eq!(outer.number, 2);
-    //     assert_eq!(outer.inner.a.len(), 2)
-    // }
-    //
-    // #[test]
-    // fn nested_struct_with_option() {
-    //     #[derive(serde::Deserialize)]
-    //     struct Outer {
-    //         arr: Vec<(i64, Option<i64>)>,
-    //         number: i64,
-    //     }
-    //
-    //     let test = serde_json::json!({
-    //         "v": {
-    //             "f": [
-    //               { "v": [ { "v": { "f": [{ "v": "2" }, { "v": null } ] } } ] },
-    //               { "v": "2" },
-    //             ]
-    //         }
-    //     });
-    //
-    //     let outer: Outer = from_value(&test).unwrap();
-    //     assert_eq!(outer.arr.len(), 1);
-    //     assert_eq!(outer.number, 2);
-    // }
+    #[test]
+    fn nested_struct_with_option() {
+        #[derive(serde::Deserialize)]
+        struct Outer {
+            arr: Vec<(i64, Option<i64>)>,
+            number: i64,
+        }
+
+        let schema = TableFieldSchema {
+            fields: Some(vec![
+                TableFieldSchema {
+                    name: "arr".into(),
+                    r#type: FieldType::Struct,
+                    mode: Some("REPEATED".into()),
+                    fields: Some(vec![
+                        TableFieldSchema {
+                            name: "number".into(),
+                            r#type: FieldType::Float64,
+                            ..Default::default()
+                        },
+                        TableFieldSchema {
+                            name: "string".into(),
+                            r#type: FieldType::String,
+                            ..Default::default()
+                        },
+                    ]),
+                    ..Default::default()
+                },
+                TableFieldSchema {
+                    name: "number".into(),
+                    r#type: FieldType::Int64,
+                    mode: Some("NULLABLE".into()),
+                    ..Default::default()
+                },
+            ]),
+            ..Default::default()
+        };
+
+        let test = serde_json::json!({
+            "f": [
+              { "v": [ { "v": { "f": [{ "v": "2" }, { "v": null } ] } } ] },
+              { "v": "2" },
+            ]
+        });
+
+        let outer: Outer = from_value(&schema, &test).unwrap();
+        assert_eq!(outer.arr.len(), 1);
+        assert_eq!(outer.number, 2);
+    }
 }

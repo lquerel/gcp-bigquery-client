@@ -147,6 +147,12 @@ impl ResultSet {
                     map.insert("f".into(), array);
                 }
                 let obj = serde_json::Value::Object(map);
+
+                let mut obj_map = serde_json::Map::new();
+                obj_map.insert("v".into(), obj);
+
+                let obj = serde_json::Value::Object(obj_map);
+
                 de::from_value(
                     &self
                         .query_response
@@ -221,7 +227,7 @@ impl ResultSet {
         let json_value = self.get_borrowed_json_value(col_index)?;
         match json_value.zip(type_info) {
             None => Ok(None),
-            Some((json_value, schema)) => match de::table_cell::from_value::<T>(schema, json_value) {
+            Some((json_value, schema)) => match de::table_cell::from_column::<T>(schema, json_value) {
                 Ok(value) => Ok(Some(value)),
                 Err(_) => Err(BQError::InvalidColumnType {
                     col_index,
