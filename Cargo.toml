@@ -23,7 +23,7 @@ rust-tls = ["reqwest/rustls-tls"]
 bq_load_job = ["cloud-storage"]
 
 [dependencies]
-base64 = "0.21.7"
+base64 = "^0.21"
 yup-oauth2 = "8.3"
 homedir = "0.2.1"
 hyper = {version="0.14", features = ["http1"]}
