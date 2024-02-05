@@ -148,11 +148,6 @@ impl ResultSet {
                 }
                 let obj = serde_json::Value::Object(map);
 
-                let mut obj_map = serde_json::Map::new();
-                obj_map.insert("v".into(), obj);
-
-                let obj = serde_json::Value::Object(obj_map);
-
                 de::from_value(
                     &self
                         .query_response
