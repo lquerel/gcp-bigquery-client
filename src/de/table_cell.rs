@@ -182,19 +182,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        match (self.extractor)(self.input) {
-            Some(Value::Object(v)) => {
-                let fields = v.get("f");
-                match fields {
-                    Some(Value::Array(input)) => {
-                        let map = SeqDeserializer::new(self.schema, input);
-                        visitor.visit_seq(map)
-                    }
-                    a => Err(Error::invalid_type(type_hint(a), &"JSON Array")),
-                }
-            }
-            a => Err(Error::invalid_type(type_hint(a), &"JSON Array")),
-        }
+        self.deserialize_seq(visitor)
     }
 
     fn deserialize_seq<V>(self, visitor: V) -> Result<V::Value, Self::Error>
@@ -224,19 +212,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        match (self.extractor)(self.input) {
-            Some(Value::Object(v)) => {
-                let fields = v.get("f");
-                match fields {
-                    Some(Value::Array(input)) => {
-                        let map = SeqDeserializer::new(self.schema, input);
-                        visitor.visit_seq(map)
-                    }
-                    a => Err(Error::invalid_type(type_hint(a), &"JSON Array")),
-                }
-            }
-            a => Err(Error::invalid_type(type_hint(a), &"JSON Object")),
-        }
+        self.deserialize_seq(visitor)
     }
 
     fn deserialize_tuple_struct<V>(self, _name: &'static str, _len: usize, visitor: V) -> Result<V::Value, Self::Error>
