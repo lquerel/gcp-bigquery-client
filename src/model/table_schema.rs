@@ -25,4 +25,12 @@ impl TableSchema {
     pub fn is_none(&self) -> bool {
         self.fields.is_none()
     }
+
+    pub fn as_table_field_schema(&self) -> TableFieldSchema {
+        TableFieldSchema {
+            fields: self.fields.to_owned(),
+            r#type: super::field_type::FieldType::Struct,
+            ..Default::default()
+        }
+    }
 }

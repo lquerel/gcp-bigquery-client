@@ -39,6 +39,7 @@ use crate::tabledata::TableDataApi;
 
 pub mod auth;
 pub mod client_builder;
+pub mod de;
 pub mod dataset;
 pub mod error;
 pub mod job;

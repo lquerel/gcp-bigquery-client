@@ -1,12 +1,14 @@
-use crate::error::BQError;
 use crate::model::error_proto::ErrorProto;
 use crate::model::get_query_results_response::GetQueryResultsResponse;
 use crate::model::job_reference::JobReference;
 use crate::model::table_row::TableRow;
 use crate::model::table_schema::TableSchema;
+use crate::{de, error::BQError};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
+
+use super::table_field_schema::TableFieldSchema;
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -118,6 +120,51 @@ impl ResultSet {
         }
     }
 
+    /// Moves the cursor froward one row from its current position.
+    /// A ResultSet cursor is initially positioned before the first row; the first call to the method next makes the
+    /// first row the current row; the second call makes the second row the current row, and so on.
+    pub fn next_row_serde<T>(&mut self) -> Result<Option<T>, BQError>
+    where
+        T: serde::de::DeserializeOwned,
+    {
+        if self.cursor == (self.row_count - 1) {
+            Ok(None)
+        } else {
+            self.cursor += 1;
+            // deserialize here
+            let row = self
+                .query_response
+                .rows
+                .as_ref()
+                .and_then(|rows| rows.get(self.cursor as usize));
+            row.map(|row| {
+                let mut map = serde_json::Map::new();
+                if let Some(array) = row
+                    .columns
+                    .as_ref()
+                    .map(|c| c.iter().filter_map(|c| c.value.to_owned()).collect())
+                {
+                    map.insert("f".into(), array);
+                }
+                let obj = serde_json::Value::Object(map);
+
+                de::from_value(
+                    &self
+                        .query_response
+                        .schema
+                        .as_ref()
+                        .expect("schema should be present")
+                        .as_table_field_schema(),
+                    &obj,
+                )
+            })
+            .transpose()
+            .map_err(|e| BQError::InvalidColumnName {
+                col_name: e.to_string(),
+            })
+        }
+    }
+
     /// Total number of rows in this result set.
     pub fn row_count(&self) -> usize {
         self.row_count as usize
@@ -171,14 +218,15 @@ impl ResultSet {
     where
         T: serde::de::DeserializeOwned,
     {
-        let json_value = self.get_json_value(col_index)?;
-        match json_value {
+        let type_info = self.get_type_for_column(col_index)?;
+        let json_value = self.get_borrowed_json_value(col_index)?;
+        match json_value.zip(type_info) {
             None => Ok(None),
-            Some(json_value) => match serde_json::from_value::<T>(json_value.clone()) {
+            Some((json_value, schema)) => match de::table_cell::from_column::<T>(schema, json_value) {
                 Ok(value) => Ok(Some(value)),
                 Err(_) => Err(BQError::InvalidColumnType {
                     col_index,
-                    col_type: ResultSet::json_type(&json_value),
+                    col_type: type_info.map(|field| field.r#type.to_string()).unwrap_or_default(),
                     type_requested: std::any::type_name::<T>().to_string(),
                 }),
             },
@@ -297,7 +345,7 @@ impl ResultSet {
         }
     }
 
-    pub fn get_json_value(&self, col_index: usize) -> Result<Option<serde_json::Value>, BQError> {
+    pub fn get_borrowed_json_value(&self, col_index: usize) -> Result<Option<&serde_json::Value>, BQError> {
         if self.cursor < 0 || self.cursor == self.row_count {
             return Err(BQError::NoDataAvailable);
         }
@@ -312,7 +360,23 @@ impl ResultSet {
             .and_then(|rows| rows.get(self.cursor as usize))
             .and_then(|row| row.columns.as_ref())
             .and_then(|cols| cols.get(col_index))
-            .and_then(|col| col.value.clone()))
+            .and_then(|col| col.value.as_ref()))
+    }
+
+    pub fn get_json_value(&self, col_index: usize) -> Result<Option<serde_json::Value>, BQError> {
+        self.get_borrowed_json_value(col_index).map(|v| v.cloned())
+    }
+
+    fn get_type_for_column(&self, col_index: usize) -> Result<Option<&TableFieldSchema>, BQError> {
+        if col_index >= self.fields.len() {
+            return Err(BQError::InvalidColumnIndex { col_index });
+        }
+        Ok(self
+            .query_response
+            .schema
+            .as_ref()
+            .and_then(|schema| schema.fields.as_ref())
+            .and_then(|fields| fields.get(col_index)))
     }
 
     pub fn get_json_value_by_name(&self, col_name: &str) -> Result<Option<serde_json::Value>, BQError> {
