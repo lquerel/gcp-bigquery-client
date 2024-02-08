@@ -6,12 +6,12 @@ mod table_row;
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("error while deserializing: {0}")]
-    DeserializationError(String),
+    Deserialization(String),
 }
 
 impl serde::de::Error for Error {
     fn custom<T: fmt::Display>(msg: T) -> Error {
-        Error::DeserializationError(msg.to_string())
+        Error::Deserialization(msg.to_string())
     }
 }
 

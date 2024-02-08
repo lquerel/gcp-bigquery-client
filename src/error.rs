@@ -51,6 +51,9 @@ pub enum BQError {
         type_requested: String,
     },
 
+    #[error(transparent)]
+    Deserialization(#[from] crate::serde::de::Error),
+
     #[error("Json serialization error (error: {0})")]
     SerializationError(#[from] serde_json::Error),
 }

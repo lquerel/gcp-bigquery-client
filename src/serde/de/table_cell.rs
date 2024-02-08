@@ -56,12 +56,15 @@ macro_rules! bq_deserialize {
         {
             match extract(self.input) {
                 Some(Value::String(b)) => {
+
                     let value = b
                         .parse::<$t>()
-                        .map_err(|e| Error::DeserializationError(e.to_string()))?;
+                        .map_err(|e| Error::Deserialization(e.to_string()))?;
                     visitor.$visitor_func(value)
                 }
-                a => Err(Error::invalid_type(type_hint(a), &"JSON string")),
+                a => {
+                    Err(Error::custom(format!("unexpected value {} for {}", type_hint(a), self.schema.name)))
+                }
             }
         }
     };
@@ -118,7 +121,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     {
         match extract(self.input) {
             Some(Value::String(b)) => visitor.visit_borrowed_str(b),
-            a => Err(Error::invalid_type(type_hint(a), &"JSON string")),
+            a => Err(Error::custom(format!("unexpected value {} for {}", type_hint(a), self.schema.name))),
         }
     }
 
@@ -137,7 +140,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             Some(Value::String(b)) => {
                 let bytes_buf = base64::engine::general_purpose::STANDARD
                     .decode(b)
-                    .map_err(|e| Error::DeserializationError(e.to_string()))?;
+                    .map_err(|e| Error::Deserialization(e.to_string()))?;
                 visitor.visit_byte_buf(bytes_buf)
             }
             a => Err(Error::invalid_type(type_hint(a), &"JSON string")),
@@ -155,7 +158,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        match extract(self.input) {
+        match (self.extractor)(self.input) {
             Some(o) if !matches!(o, Value::Null) => visitor.visit_some(self),
             _ => visitor.visit_none(),
         }
@@ -232,7 +235,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
                 match fields {
                     Some(Value::Array(input)) => {
                         let Some(schema) = self.schema.fields.as_ref() else {
-                            return Err(Error::DeserializationError("missing schema".into()));
+                            return Err(Error::Deserialization("missing schema".into()));
                         };
                         let map = MapRefDeserializer::new(schema, input);
                         visitor.visit_map(map)
@@ -350,7 +353,7 @@ impl<'de> de::MapAccess<'de> for MapRefDeserializer<'de> {
         let Some(key) = self.schema.next() else {
             return Ok(None);
         };
-        let mut deserializer = crate::de::table_row::MapKeyDeserializer { input: key };
+        let mut deserializer = crate::serde::de::table_row::MapKeyDeserializer { input: key };
         self.schema_value = Some(key);
         seed.deserialize(&mut deserializer).map(Some)
     }
@@ -360,10 +363,10 @@ impl<'de> de::MapAccess<'de> for MapRefDeserializer<'de> {
         V: de::DeserializeSeed<'de>,
     {
         let Some(value) = self.iter.next() else {
-            return Err(Error::DeserializationError("expected value but none".into()));
+            return Err(Error::Deserialization("expected value but none".into()));
         };
         let Some(schema) = self.schema_value.take() else {
-            return Err(Error::DeserializationError("expected key but none".into()));
+            return Err(Error::Deserialization("expected key but none".into()));
         };
 
         let mut deserializer = Deserializer::from_value(schema, value);
@@ -386,8 +389,8 @@ fn type_hint(value: Option<&Value>) -> serde::de::Unexpected {
 #[cfg(test)]
 mod test {
     use crate::{
-        de::table_cell::from_column,
         model::{field_type::FieldType, table_field_schema::TableFieldSchema},
+        serde::de::table_cell::from_column,
     };
 
     use super::from_value;
@@ -413,7 +416,7 @@ mod test {
     fn struct_column() {
         #[derive(Debug, serde::Deserialize)]
         pub struct A {
-            mybool: bool
+            mybool: bool,
         }
         let test = serde_json::json!({
             "v": {"f": [{"v": "true"}]}

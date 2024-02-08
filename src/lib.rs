@@ -15,7 +15,7 @@
 //!
 //! For a detailed tutorial on the different ways to use GCP BigQuery Client please check out the [GitHub repository](https://github.com/lquerel/gcp-bigquery-client).
 #[macro_use]
-extern crate serde;
+extern crate serde as serde_crate;
 extern crate serde_json;
 
 use std::env;
@@ -24,7 +24,7 @@ use std::sync::Arc;
 
 use client_builder::ClientBuilder;
 use reqwest::Response;
-use serde::Deserialize;
+use serde_crate::Deserialize;
 use yup_oauth2::ServiceAccountKey;
 
 use crate::auth::Authenticator;
@@ -39,7 +39,7 @@ use crate::tabledata::TableDataApi;
 
 pub mod auth;
 pub mod client_builder;
-pub mod de;
+pub mod serde;
 pub mod dataset;
 pub mod error;
 pub mod job;
