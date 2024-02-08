@@ -2,7 +2,7 @@ use serde::de;
 
 use crate::model::table_field_schema::TableFieldSchema;
 
-use crate::de::Error;
+use super::Error;
 
 macro_rules! unsupported {
     ($method:ident) => {
@@ -10,8 +10,8 @@ macro_rules! unsupported {
         where
             V: de::Visitor<'de>,
         {
-            Err(Error::DeserializationError(
-                "row deserialization into base units is not supported".into(),
+            Err(Error::Deserialization(
+                "non-string key is not supported".into(),
             ))
         }
     };
@@ -65,7 +65,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut MapKeyDeserializer<'de> {
     where
         V: de::Visitor<'de>,
     {
-        Err(Error::DeserializationError("non-string unsupported".into()))
+        Err(Error::Deserialization("non-string unsupported".into()))
     }
     fn deserialize_newtype_struct<V>(self, _name: &'static str, visitor: V) -> Result<V::Value, Self::Error>
     where

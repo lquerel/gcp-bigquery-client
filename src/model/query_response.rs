@@ -3,8 +3,8 @@ use crate::model::get_query_results_response::GetQueryResultsResponse;
 use crate::model::job_reference::JobReference;
 use crate::model::table_row::TableRow;
 use crate::model::table_schema::TableSchema;
-use crate::{de, error::BQError};
-use serde::{Deserialize, Serialize};
+use crate::{error::BQError, serde::de};
+use serde_crate::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 
@@ -139,29 +139,26 @@ impl ResultSet {
                 .and_then(|rows| rows.get(self.cursor as usize));
             row.map(|row| {
                 let mut map = serde_json::Map::new();
-                if let Some(array) = row
-                    .columns
-                    .as_ref()
-                    .map(|c| c.iter().filter_map(|c| c.value.to_owned()).collect())
-                {
+                if let Some(array) = row.columns.as_ref().map(|c| {
+                    c.iter()
+                        .map(|c| c.value.to_owned())
+                        .map(|v| {
+                            let mut map = serde_json::Map::new();
+                            map.insert("v".into(), v.unwrap_or(Value::Null));
+                            map
+                        })
+                        .collect()
+                }) {
                     map.insert("f".into(), array);
                 }
-                let obj = serde_json::Value::Object(map);
 
-                de::from_value(
-                    &self
-                        .query_response
-                        .schema
-                        .as_ref()
-                        .expect("schema should be present")
-                        .as_table_field_schema(),
-                    &obj,
-                )
+                let obj = serde_json::Value::Object(map);
+                let schema = self.query_response.schema.as_ref().expect("schema should be present");
+
+                de::from_value(&schema.as_table_field_schema(), &obj)
             })
             .transpose()
-            .map_err(|e| BQError::InvalidColumnName {
-                col_name: e.to_string(),
-            })
+            .map_err(Into::into)
         }
     }
 
