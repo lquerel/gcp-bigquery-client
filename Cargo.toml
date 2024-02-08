@@ -48,3 +48,4 @@ rand = "0.8"
 wiremock = "0.5.19"
 tempfile = "3.6.0"
 fake = "2.6.1"
+time = { features = ["macros"] }

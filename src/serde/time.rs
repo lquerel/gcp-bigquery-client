@@ -51,7 +51,7 @@ mod test {
     #[test]
     fn time_column() {
         let test = serde_json::json!({"f": [{
-            "v": "1.707351937415963E9"
+            "v": "1.707366818084861E9"
         }]});
 
         #[derive(Deserialize)]
@@ -70,9 +70,6 @@ mod test {
             ..Default::default()
         };
         let a = from_value::<A>(&schema, &test).unwrap();
-        assert_eq!(
-            a.timestamp.date(),
-            time::Date::from_calendar_date(2024, time::Month::February, 8).unwrap()
-        );
+        assert_eq!(a.timestamp, time::macros::datetime!(2024-02-08 04:33:38.084 UTC));
     }
 }
