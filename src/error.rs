@@ -65,5 +65,6 @@ pub struct NestedResponseError {
     pub code: i64,
     pub errors: Vec<HashMap<String, String>>,
     pub message: String,
+    #[serde(default)]
     pub status: String,
 }
