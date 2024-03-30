@@ -1,10 +1,11 @@
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use yup_oauth2::ServiceAccountKey;
 
 use crate::auth::{
     application_default_credentials_authenticator, authorized_user_authenticator, installed_flow_authenticator,
-    service_account_authenticator, ServiceAccountAuthenticator,
+    service_account_authenticator, Authenticator, ServiceAccountAuthenticator,
 };
 use crate::error::BQError;
 use crate::{Client, BIG_QUERY_AUTH_URL, BIG_QUERY_V2_URL};
@@ -32,6 +33,12 @@ impl ClientBuilder {
         self
     }
 
+    pub fn build_from_authenticator(&self, auth: Arc<dyn Authenticator>) -> Client {
+        let mut client = Client::from_authenticator(auth);
+        client.v2_base_url(self.v2_base_url.clone());
+        client
+    }
+
     pub async fn build_from_service_account_key(
         &self,
         sa_key: ServiceAccountKey,
@@ -44,18 +51,14 @@ impl ClientBuilder {
         };
         let sa_auth = ServiceAccountAuthenticator::from_service_account_key(sa_key, &[&scope]).await?;
 
-        let mut client = Client::from_authenticator(sa_auth);
-        client.v2_base_url(self.v2_base_url.clone());
-        Ok(client)
+        Ok(self.build_from_authenticator(sa_auth))
     }
 
     pub async fn build_from_service_account_key_file(&self, sa_key_file: &str) -> Result<Client, BQError> {
         let scopes = vec![self.auth_base_url.as_str()];
         let sa_auth = service_account_authenticator(scopes, sa_key_file).await?;
 
-        let mut client = Client::from_authenticator(sa_auth);
-        client.v2_base_url(self.v2_base_url.clone());
-        Ok(client)
+        Ok(self.build_from_authenticator(sa_auth))
     }
 
     pub async fn build_with_workload_identity(&self, readonly: bool) -> Result<Client, BQError> {
@@ -67,9 +70,7 @@ impl ClientBuilder {
 
         let sa_auth = ServiceAccountAuthenticator::with_workload_identity(&[&scope]).await?;
 
-        let mut client = Client::from_authenticator(sa_auth);
-        client.v2_base_url(self.v2_base_url.clone());
-        Ok(client)
+        Ok(self.build_from_authenticator(sa_auth))
     }
 
     pub async fn build_from_installed_flow_authenticator<S: AsRef<[u8]>, P: Into<PathBuf>>(
