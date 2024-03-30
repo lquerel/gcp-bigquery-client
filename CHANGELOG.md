@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.18.1] - 2024-03-29
+
+### Improvement
+
+- Add support to bigquery-emulator (Thanks to @henriiik)
+- Add support to use the ClientBuilder to build a Client with an Authenticator (Thanks to @henriiik)
+
+### Fix 
+
+- Fix build issue with hyper-rustls (Thanks to @OmriSteiner and @nate-kelley-buster)
+
 ## [0.18.0] - 2023-10-22
 
 ### Fix
