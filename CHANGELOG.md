@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.18.2] - 2024-04-27
+
+### Improvement
+
+- Re-export hyper_rustls from yup (Thanks to @DoumanAsh)
+
 ## [0.18.1] - 2024-03-29
 
 ### Improvement
