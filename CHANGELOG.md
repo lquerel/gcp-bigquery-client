@@ -4,9 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [0.18.2] - 2024-04-27
 
-### Improvement
+### Maintenance
 
 - Re-export hyper_rustls from yup (Thanks to @DoumanAsh)
+- Bump versions of all dependencies to their most recent versions (including hyper and yup-oauth2)
 
 ## [0.18.1] - 2024-03-29
 
