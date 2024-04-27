@@ -6,7 +6,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use dyn_clone::{clone_trait_object, DynClone};
 use hyper::client::HttpConnector;
-use hyper_rustls::HttpsConnector;
+use yup_oauth2::hyper_rustls::HttpsConnector;
 use yup_oauth2::authenticator::ApplicationDefaultCredentialsTypes;
 use yup_oauth2::authenticator::Authenticator as YupAuthenticator;
 use yup_oauth2::authorized_user::AuthorizedUserSecret;
