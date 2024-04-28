@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.20.0] - 2024-04-28
+
+### Maintenance
+
+- Re-export yup_oauth2 as suggested by @serpex.
+
 ## [0.19.0] - 2024-04-27
 
 ### Maintenance

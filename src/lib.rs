@@ -37,6 +37,10 @@ use crate::routine::RoutineApi;
 use crate::table::TableApi;
 use crate::tabledata::TableDataApi;
 
+/// Since yup_oauth2 structs are used as parameters in public functions there is already semver
+/// coupling, as it is an error if consumer uses different version of yup_oauth than gcp-bigquery-client
+/// Export yup_oauth2 so consumers don't need to carefully keep their dependency versions in sync.
+/// (see https://github.com/lquerel/gcp-bigquery-client/pull/86)
 pub use yup_oauth2;
 
 pub mod auth;
