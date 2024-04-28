@@ -37,6 +37,8 @@ use crate::routine::RoutineApi;
 use crate::table::TableApi;
 use crate::tabledata::TableDataApi;
 
+pub use yup_oauth2;
+
 pub mod auth;
 pub mod client_builder;
 pub mod dataset;
