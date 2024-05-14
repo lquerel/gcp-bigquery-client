@@ -128,6 +128,61 @@ impl JobApi {
         }
     }
 
+    pub fn query_all_serde<'a, T>(
+        &'a self,
+        project_id: &'a str,
+        query: JobConfigurationQuery,
+        page_size: Option<i32>,
+    ) -> impl Stream<Item = Result<Vec<T>, BQError>> + 'a
+    where
+        T: serde::de::DeserializeOwned + 'a,
+    {
+        stream! {
+            let job = Job {
+                configuration: Some(JobConfiguration {
+                    dry_run: Some(false),
+                    query:   Some(query),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            };
+
+            let job = self.insert(project_id, job).await?;
+
+            if let Some(ref job_id) = job.job_reference.and_then(|r| r.job_id) {
+                let mut page_token: Option<String> = None;
+                loop {
+                    let qr = self
+                        .get_query_results(
+                            project_id,
+                            job_id,
+                            GetQueryResultsParameters {
+                                page_token: page_token.clone(),
+                                max_results: page_size,
+                                ..Default::default()
+                            },
+                        )
+                        .await?;
+
+                    // Waiting for the job to be completed.
+                    if !qr.job_complete.unwrap_or(false) {
+                        tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+                        continue;
+                    }
+
+
+                    // Rows is present when the query finishes successfully.
+                    // Rows is empty when query result is empty.
+                    yield crate::serde::de::from_query_results(&qr).map_err(Into::into);
+
+                    page_token = match qr.page_token {
+                        None => break,
+                        f => f,
+                    };
+                }
+            }
+        }
+    }
     /// Runs a BigQuery SQL query, paginating through all the results synchronously.
     /// Use this function when location of the job differs from the default value (US)
     /// # Arguments
