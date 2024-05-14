@@ -56,15 +56,16 @@ macro_rules! bq_deserialize {
         {
             match extract(self.input) {
                 Some(Value::String(b)) => {
-
                     let value = b
                         .parse::<$t>()
                         .map_err(|e| Error::Deserialization(e.to_string()))?;
                     visitor.$visitor_func(value)
                 }
-                a => {
-                    Err(Error::custom(format!("unexpected value {} for {}", type_hint(a), self.schema.name)))
-                }
+                a => Err(Error::custom(format!(
+                    "unexpected value {} for {}",
+                    type_hint(a),
+                    self.schema.name
+                ))),
             }
         }
     };
@@ -121,7 +122,11 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     {
         match extract(self.input) {
             Some(Value::String(b)) => visitor.visit_borrowed_str(b),
-            a => Err(Error::custom(format!("unexpected value {} for {}", type_hint(a), self.schema.name))),
+            a => Err(Error::custom(format!(
+                "unexpected value {} for {}",
+                type_hint(a),
+                self.schema.name
+            ))),
         }
     }
 

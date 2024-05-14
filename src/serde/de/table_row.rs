@@ -10,9 +10,7 @@ macro_rules! unsupported {
         where
             V: de::Visitor<'de>,
         {
-            Err(Error::Deserialization(
-                "non-string key is not supported".into(),
-            ))
+            Err(Error::Deserialization("non-string key is not supported".into()))
         }
     };
 }
