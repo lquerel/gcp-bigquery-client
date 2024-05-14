@@ -149,7 +149,7 @@ impl JobApi {
 
             let job = self.insert(project_id, job).await?;
 
-            if let Some(ref job_id) = job.job_reference.and_then(|r| r.job_id) {
+            if let (Some(job_id), location) = (job.job_reference.as_ref().and_then(|r| r.job_id.as_ref()), job.job_reference.as_ref().and_then(|r| r.location.as_ref())) {
                 let mut page_token: Option<String> = None;
                 loop {
                     let qr = self
@@ -157,6 +157,7 @@ impl JobApi {
                             project_id,
                             job_id,
                             GetQueryResultsParameters {
+                                location: location.cloned(),
                                 page_token: page_token.clone(),
                                 max_results: page_size,
                                 ..Default::default()
