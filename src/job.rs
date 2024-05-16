@@ -148,6 +148,7 @@ impl JobApi {
             };
 
             let job = self.insert(project_id, job).await?;
+            println!("{:?}", job.job_reference);
 
             if let (Some(job_id), location) = (job.job_reference.as_ref().and_then(|r| r.job_id.as_ref()), job.job_reference.as_ref().and_then(|r| r.location.as_ref())) {
                 let mut page_token: Option<String> = None;
