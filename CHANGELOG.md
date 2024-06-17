@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.21.0] - 2024-06-16
+
+### Maintenance
+
+- Bump version of yup_oauth2 to 10.0.1 (by @serpex).
+
 ## [0.20.0] - 2024-04-28
 
 ### Maintenance
