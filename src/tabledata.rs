@@ -10,6 +10,15 @@ use crate::model::table_data_list_response::TableDataListResponse;
 use crate::{process_response, urlencode, BIG_QUERY_V2_URL};
 use reqwest::Client;
 
+#[cfg(feature = "gzip")]
+use flate2::{write::GzEncoder, Compression};
+#[cfg(feature = "gzip")]
+use reqwest::header::{CONTENT_ENCODING, CONTENT_TYPE};
+#[cfg(feature = "gzip")]
+use serde_json::to_string;
+#[cfg(feature = "gzip")]
+use std::io::Write;
+
 /// A table data API handler.
 #[derive(Clone)]
 pub struct TableDataApi {
@@ -56,9 +65,24 @@ impl TableDataApi {
 
         let access_token = self.auth.access_token().await?;
 
+        #[cfg(feature = "gzip")]
+        let request = {
+            let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+            encoder.write_all(to_string(&insert_request)?.as_bytes())?;
+            let gzipped_data = encoder.finish()?;
+            self.client
+                .post(&req_url)
+                .header(CONTENT_ENCODING, "gzip")
+                .header(CONTENT_TYPE, "application/octet-stream")
+                .bearer_auth(access_token)
+                .body(gzipped_data)
+                .build()?
+        };
+
+        #[cfg(not(feature = "gzip"))]
         let request = self
             .client
-            .post(req_url.as_str())
+            .post(&req_url)
             .bearer_auth(access_token)
             .json(&insert_request)
             .build()?;
