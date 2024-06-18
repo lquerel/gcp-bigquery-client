@@ -43,6 +43,8 @@ use crate::tabledata::TableDataApi;
 /// (see https://github.com/lquerel/gcp-bigquery-client/pull/86)
 pub use yup_oauth2;
 
+pub use flate2::Compression;
+
 pub mod auth;
 pub mod client_builder;
 pub mod dataset;

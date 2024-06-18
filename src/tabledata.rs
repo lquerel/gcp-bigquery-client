@@ -1,4 +1,5 @@
 //! Manage BigQuery streaming API.
+use std::io::Write;
 use std::sync::Arc;
 
 use crate::auth::Authenticator;
@@ -8,6 +9,9 @@ use crate::model::table_data_insert_all_request::TableDataInsertAllRequest;
 use crate::model::table_data_insert_all_response::TableDataInsertAllResponse;
 use crate::model::table_data_list_response::TableDataListResponse;
 use crate::{process_response, urlencode, BIG_QUERY_V2_URL};
+use flate2::write::GzEncoder;
+use flate2::Compression;
+use reqwest::header::{CONTENT_ENCODING, CONTENT_TYPE};
 use reqwest::Client;
 
 /// A table data API handler.
@@ -45,6 +49,7 @@ impl TableDataApi {
         dataset_id: &str,
         table_id: &str,
         insert_request: TableDataInsertAllRequest,
+        compression: Option<Compression>,
     ) -> Result<TableDataInsertAllResponse, BQError> {
         let req_url = format!(
             "{base_url}/projects/{project_id}/datasets/{dataset_id}/tables/{table_id}/insertAll",
@@ -55,13 +60,25 @@ impl TableDataApi {
         );
 
         let access_token = self.auth.access_token().await?;
-
-        let request = self
-            .client
-            .post(req_url.as_str())
-            .bearer_auth(access_token)
-            .json(&insert_request)
-            .build()?;
+        let request = match compression {
+            Some(compression) => {
+                let mut encoder = GzEncoder::new(Vec::new(), compression);
+                encoder.write_all(serde_json::to_string(&insert_request)?.as_bytes())?;
+                let gzipped_data = encoder.finish()?;
+                self.client
+                    .post(&req_url)
+                    .header(CONTENT_ENCODING, "gzip")
+                    .header(CONTENT_TYPE, "application/octet-stream")
+                    .bearer_auth(access_token)
+                    .body(gzipped_data)
+                    .build()?
+            }
+            None => self.client
+                .post(&req_url)
+                .bearer_auth(access_token)
+                .json(&insert_request)
+                .build()?,
+        };
 
         let resp = self.client.execute(request).await?;
 
@@ -185,9 +202,27 @@ mod test {
 
         let result = client
             .tabledata()
-            .insert_all(project_id, dataset_id, table_id, insert_request)
+            .insert_all(project_id, dataset_id, table_id, insert_request, None)
             .await;
         assert!(result.is_ok(), "Error: {:?}", result);
+
+
+        let result_insert_compressed = client
+            .tabledata()
+            .insert_all(
+                project_id,
+                dataset_id,
+                table_id,
+                insert_request,
+                Some(crate::Compression::default()),
+            )
+            .await;
+
+        assert!(
+            result_insert_compressed.is_ok(),
+            "Error: {:?}",
+            result_insert_compressed
+        );
 
         // Remove table and dataset
         table.delete(&client).await?;
