@@ -17,11 +17,6 @@ pub struct ClientBuilder {
 
 impl ClientBuilder {
     pub fn new() -> Self {
-        // Note: There might be a better way to define the default provider for cryptography, but
-        // for now, without this call, the following message is produced by rustls:
-        // no process-level CryptoProvider available -- call CryptoProvider::install_default() before this point
-        let _ = rustls::crypto::ring::default_provider().install_default();
-
         Self {
             v2_base_url: BIG_QUERY_V2_URL.to_string(),
             auth_base_url: BIG_QUERY_AUTH_URL.to_string(),
