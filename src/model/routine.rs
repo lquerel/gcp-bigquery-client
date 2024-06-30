@@ -36,7 +36,7 @@ pub struct Routine {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum RoutineType {
-    ///
+    /// Unspecified routine type
     RoutineTypeUnspecified,
     /// Non-builtin permanent scalar function.
     ScalarFunction,
@@ -48,7 +48,7 @@ pub enum RoutineType {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Language {
-    ///
+    /// Unspecified language
     LanguageUnspecified,
     /// SQL language.
     Sql,

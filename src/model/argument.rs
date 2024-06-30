@@ -18,7 +18,7 @@ pub struct Argument {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Mode {
-    ///
+    /// Unspecified mode
     ModeUnspecified,
     /// The argument is input-only.
     In,
@@ -32,7 +32,7 @@ pub enum Mode {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ArgumentKind {
-    ///
+    /// Unspecified argument kind
     ArgumentKindUnspecified,
     /// The argument is a variable with fully specified type, which can be a struct or an array, but not a table.
     FixedType,

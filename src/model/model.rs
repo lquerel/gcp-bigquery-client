@@ -41,7 +41,7 @@ pub struct Model {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ModelType {
-    ///
+    /// Unspecified model type
     ModelTypeUnspecified,
     /// Linear regression model.
     LinearRegression,
