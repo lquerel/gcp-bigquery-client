@@ -25,6 +25,7 @@ use std::sync::Arc;
 use client_builder::ClientBuilder;
 use reqwest::Response;
 use serde::Deserialize;
+use storage::StorageApi;
 use yup_oauth2::ServiceAccountKey;
 
 use crate::auth::Authenticator;
@@ -52,6 +53,7 @@ pub mod model;
 pub mod model_api;
 pub mod project;
 pub mod routine;
+pub mod storage;
 pub mod table;
 pub mod tabledata;
 
@@ -68,20 +70,23 @@ pub struct Client {
     routine_api: RoutineApi,
     model_api: ModelApi,
     project_api: ProjectApi,
+    storage_api: StorageApi,
 }
 
 impl Client {
-    pub fn from_authenticator(auth: Arc<dyn Authenticator>) -> Self {
+    pub async fn from_authenticator(auth: Arc<dyn Authenticator>) -> Result<Self, BQError> {
+        let write_client = StorageApi::new_write_client().await?;
         let client = reqwest::Client::new();
-        Self {
+        Ok(Self {
             dataset_api: DatasetApi::new(client.clone(), Arc::clone(&auth)),
             table_api: TableApi::new(client.clone(), Arc::clone(&auth)),
             job_api: JobApi::new(client.clone(), Arc::clone(&auth)),
             tabledata_api: TableDataApi::new(client.clone(), Arc::clone(&auth)),
             routine_api: RoutineApi::new(client.clone(), Arc::clone(&auth)),
             model_api: ModelApi::new(client.clone(), Arc::clone(&auth)),
-            project_api: ProjectApi::new(client, auth),
-        }
+            project_api: ProjectApi::new(client, Arc::clone(&auth)),
+            storage_api: StorageApi::new(write_client, auth),
+        })
     }
 
     /// Constructs a new BigQuery client.
@@ -116,7 +121,8 @@ impl Client {
         self.tabledata_api.with_base_url(base_url.clone());
         self.routine_api.with_base_url(base_url.clone());
         self.model_api.with_base_url(base_url.clone());
-        self.project_api.with_base_url(base_url);
+        self.project_api.with_base_url(base_url.clone());
+        self.storage_api.with_base_url(base_url);
         self
     }
 
@@ -186,6 +192,11 @@ impl Client {
     pub fn project(&self) -> &ProjectApi {
         &self.project_api
     }
+
+    /// Returns a storage API handler.
+    pub fn storage(&self) -> &StorageApi {
+        &self.storage_api
+    }
 }
 
 pub(crate) fn urlencode<T: AsRef<str>>(s: T) -> String {
@@ -210,4 +221,24 @@ pub fn env_vars() -> (String, String, String, String) {
         env::var("GOOGLE_APPLICATION_CREDENTIALS").expect("Environment variable GOOGLE_APPLICATION_CREDENTIALS");
 
     (project_id, dataset_id, table_id, gcp_sa_key)
+}
+
+pub mod google {
+    #[path = "google.api.rs"]
+    pub mod api;
+
+    #[path = ""]
+    pub mod cloud {
+        #[path = ""]
+        pub mod bigquery {
+            #[path = ""]
+            pub mod storage {
+                #[path = "google.cloud.bigquery.storage.v1.rs"]
+                pub mod v1;
+            }
+        }
+    }
+
+    #[path = "google.rpc.rs"]
+    pub mod rpc;
 }

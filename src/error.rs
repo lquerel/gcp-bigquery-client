@@ -53,6 +53,9 @@ pub enum BQError {
 
     #[error("Json serialization error (error: {0})")]
     SerializationError(#[from] serde_json::Error),
+
+    #[error("Tonic transport error (error: {0}")]
+    TonicTransportError(#[from] tonic::transport::Error)
 }
 
 #[derive(Debug, Deserialize)]
