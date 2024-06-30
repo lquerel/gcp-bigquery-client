@@ -97,7 +97,7 @@ pub struct TrainingOptions {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum FeedbackType {
-    ///
+    /// Unspecified feedback type
     FeedbackTypeUnspecified,
     /// Use weighted-als for implicit feedback problems.
     Implicit,
@@ -109,7 +109,7 @@ pub enum FeedbackType {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum DistanceType {
-    ///
+    /// Unspecified distance type
     DistanceTypeUnspecified,
     /// Eculidean distance.
     Euclidean,
@@ -121,7 +121,7 @@ pub enum DistanceType {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum OptimizationStrategy {
-    ///
+    /// Unspecified optimization strategy
     OptimizationStrategyUnspecified,
     /// Uses an iterative batch gradient descent algorithm.
     BatchGradientDescent,
@@ -133,7 +133,7 @@ pub enum OptimizationStrategy {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum DataSplitMethod {
-    ///
+    /// Unspecified data split method
     DataSplitMethodUnspecified,
     /// Splits data randomly.
     Random,
@@ -151,7 +151,7 @@ pub enum DataSplitMethod {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum LossType {
-    ///
+    /// Unspecified loss type
     LossTypeUnspecified,
     /// Mean squared loss, used for linear regression.
     MeanSquaredLoss,
@@ -163,7 +163,7 @@ pub enum LossType {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum LearnRateStrategy {
-    ///
+    /// Unspecified learn rate strategy
     LearnRateStrategyUnspecified,
     /// Use line search to determine learning rate.
     LineSearch,
@@ -333,7 +333,7 @@ pub enum HolidayRegion {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum DataFrequency {
-    ///
+    /// Unspecified data frequency
     DataFrequencyUnspecified,
     /// Automatically inferred from timestamps.
     AutoFrequency,
