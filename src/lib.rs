@@ -197,6 +197,11 @@ impl Client {
     pub fn storage(&self) -> &StorageApi {
         &self.storage_api
     }
+
+    /// Returns a mutable storage API handler.
+    pub fn storage_mut(&mut self) -> &mut StorageApi {
+        &mut self.storage_api
+    }
 }
 
 pub(crate) fn urlencode<T: AsRef<str>>(s: T) -> String {

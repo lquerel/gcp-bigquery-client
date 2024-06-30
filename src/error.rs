@@ -2,6 +2,8 @@
 
 use std::collections::HashMap;
 
+use tonic::{metadata::errors::InvalidMetadataValue, Status};
+
 #[allow(clippy::upper_case_acronyms)]
 #[derive(thiserror::Error, Debug)]
 pub enum BQError {
@@ -55,7 +57,13 @@ pub enum BQError {
     SerializationError(#[from] serde_json::Error),
 
     #[error("Tonic transport error (error: {0}")]
-    TonicTransportError(#[from] tonic::transport::Error)
+    TonicTransportError(#[from] tonic::transport::Error),
+
+    #[error("Tonic invalid metadata value error (error: {0}")]
+    TonicInvalidMetadataValueError(#[from] InvalidMetadataValue),
+
+    #[error("Tonic status error (error: {0}")]
+    TonicStatusError(#[from] Status),
 }
 
 #[derive(Debug, Deserialize)]
