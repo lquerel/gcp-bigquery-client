@@ -14,7 +14,7 @@ use crate::{
     google::cloud::bigquery::storage::v1::{
         append_rows_request::{self, MissingValueInterpretation, ProtoData},
         big_query_write_client::BigQueryWriteClient,
-        AppendRowsRequest, AppendRowsResponse, ProtoSchema,
+        AppendRowsRequest, AppendRowsResponse, GetWriteStreamRequest, ProtoSchema, WriteStream, WriteStreamView,
     },
     BIG_QUERY_V2_URL,
 };
@@ -239,5 +239,23 @@ impl StorageApi {
         let meta = req.metadata_mut();
         meta.insert("authorization", bearer_value);
         Ok(req)
+    }
+
+    pub async fn get_write_stream(
+        &mut self,
+        stream_name: &StreamName,
+        view: WriteStreamView,
+    ) -> Result<WriteStream, BQError> {
+        let get_write_stream_request = GetWriteStreamRequest {
+            name: stream_name.to_string(),
+            view: view.into(),
+        };
+
+        let req = self.new_authorized_request(get_write_stream_request).await?;
+
+        let response = self.write_client.get_write_stream(req).await?;
+        let write_stream = response.into_inner();
+
+        Ok(write_stream)
     }
 }
