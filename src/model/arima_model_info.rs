@@ -23,7 +23,7 @@ pub struct ArimaModelInfo {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum SeasonalPeriods {
-    ///
+    /// Unspecified seasonal period type
     SeasonalPeriodTypeUnspecified,
     /// No seasonality
     NoSeasonality,

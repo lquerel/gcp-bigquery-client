@@ -320,12 +320,13 @@ impl JobApi {
                 base_url = self.base_url,
                 project_id = urlencode(project_id),
                 );
+
             let mut params = parameters.unwrap_or_default();
-            let mut page_token: Option<String> = None;
+            params.page_token = None;
+
             loop {
                 let mut request_builder = self.client.get(req_url.as_str());
 
-                params.page_token = page_token;
                 request_builder = request_builder.query(&params);
 
                 let access_token = self.auth.access_token().await?;
@@ -336,11 +337,11 @@ impl JobApi {
                 let process_resp: Result<JobList, BQError> = process_response(resp).await;
 
                 yield match process_resp {
-                    Err(e) => {page_token=None; Err(e)},
-                    Ok(job_list) => {page_token=job_list.next_page_token.clone(); Ok(job_list.clone())}
+                    Err(e) => {params.page_token=None; Err(e)},
+                    Ok(job_list) => {params.page_token.clone_from(&job_list.next_page_token); Ok(job_list.clone())}
                 };
 
-                if page_token.is_none() {
+                if params.page_token.is_none() {
                     break;
                 }
             }
