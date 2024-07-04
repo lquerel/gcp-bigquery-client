@@ -116,7 +116,7 @@ impl Display for StreamName {
             stream,
         } = self;
         f.write_fmt(format_args!(
-            "projects/{project}/datasets/{dataset}/tables/{table}/{stream}"
+            "projects/{project}/datasets/{dataset}/tables/{table}/streams/{stream}"
         ))
     }
 }
