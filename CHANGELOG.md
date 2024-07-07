@@ -8,7 +8,7 @@ All notable changes to this project will be documented in this file.
 
 - Bump version of `yup_oauth2` to v11 (by @serpex). `gcp-bigquery-client` can now be used with ring or aws-lc-rs as
   a TLS backend.
-- 
+- Fix Clippy warnings produced with Rust 1.78.0 (by @imor).
 
 ## [0.21.0] - 2024-06-16
 
