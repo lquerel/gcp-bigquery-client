@@ -16,16 +16,17 @@ keywords = ["gcp", "bigquery", "google-cloud"]
 categories = ["database"]
 
 [features]
-default = ["rust-tls"]
+default = ["rust-tls", "ring"]
 native-tls = ["reqwest/native-tls"]
 rust-tls = ["reqwest/rustls-tls"]
+ring = ["yup-oauth2/ring"]
+aws-lc-rs = ["yup-oauth2/aws-lc-rs"]
 # Feature used to remove cloud-storage from the standard build.
 # cloud-storage has a dependency on chrono, so the feature is there to remove this dependency by default.
 bq_load_job = ["cloud-storage"]
 
 [dependencies]
-yup-oauth2 = "10.0.1"
-rustls = { version = "0.23.10" }
+yup-oauth2 = { version = "11", default-features = false, features = ["hyper-rustls", "service-account"] }
 hyper = { version = "1.3.1", features = ["http1"] }
 hyper-util = { version = "0.1", default-features = false, features = [
     "client-legacy",
