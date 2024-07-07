@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.22.0] - 2024-07-07
+
+### Maintenance
+
+- Bump version of `yup_oauth2` to v11 (by @serpex). `gcp-bigquery-client` can now be used with ring or aws-lc-rs as
+  a TLS backend.
+- 
+
 ## [0.21.0] - 2024-06-16
 
 ### Maintenance
