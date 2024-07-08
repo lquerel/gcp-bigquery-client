@@ -25,6 +25,7 @@ use std::sync::Arc;
 use client_builder::ClientBuilder;
 use reqwest::Response;
 use serde::Deserialize;
+#[cfg(storage)]
 use storage::StorageApi;
 use yup_oauth2::ServiceAccountKey;
 
@@ -70,11 +71,13 @@ pub struct Client {
     routine_api: RoutineApi,
     model_api: ModelApi,
     project_api: ProjectApi,
+    #[cfg(storage)]
     storage_api: StorageApi,
 }
 
 impl Client {
     pub async fn from_authenticator(auth: Arc<dyn Authenticator>) -> Result<Self, BQError> {
+        #[cfg(storage)]
         let write_client = StorageApi::new_write_client().await?;
         let client = reqwest::Client::new();
         Ok(Self {
@@ -85,6 +88,7 @@ impl Client {
             routine_api: RoutineApi::new(client.clone(), Arc::clone(&auth)),
             model_api: ModelApi::new(client.clone(), Arc::clone(&auth)),
             project_api: ProjectApi::new(client, Arc::clone(&auth)),
+            #[cfg(storage)]
             storage_api: StorageApi::new(write_client, auth),
         })
     }
@@ -122,6 +126,7 @@ impl Client {
         self.routine_api.with_base_url(base_url.clone());
         self.model_api.with_base_url(base_url.clone());
         self.project_api.with_base_url(base_url.clone());
+        #[cfg(storage)]
         self.storage_api.with_base_url(base_url);
         self
     }
@@ -194,11 +199,13 @@ impl Client {
     }
 
     /// Returns a storage API handler.
+    #[cfg(storage)]
     pub fn storage(&self) -> &StorageApi {
         &self.storage_api
     }
 
     /// Returns a mutable storage API handler.
+    #[cfg(storage)]
     pub fn storage_mut(&mut self) -> &mut StorageApi {
         &mut self.storage_api
     }
@@ -228,6 +235,7 @@ pub fn env_vars() -> (String, String, String, String) {
     (project_id, dataset_id, table_id, gcp_sa_key)
 }
 
+#[cfg(storage)]
 pub mod google {
     pub mod api {
         tonic::include_proto!("google.api");

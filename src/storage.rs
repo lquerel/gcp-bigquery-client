@@ -1,3 +1,5 @@
+#![cfg(storage)]
+
 //! Manage BigQuery dataset.
 use std::{collections::HashMap, convert::TryInto, fmt::Display, sync::Arc};
 
