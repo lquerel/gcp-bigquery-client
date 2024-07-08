@@ -60,7 +60,7 @@ cloud-storage = { version = "0.11.1", features = [
 ], optional = true }
 async-trait = "0.1.80"
 dyn-clone = "1.0.17"
-prost = "0.12.6"
+prost = "0.13.0"
 prost-types = "0.12.6"
 tonic = { version = "0.11.0", features = ["transport", "tls", "tls-roots"] }
 
