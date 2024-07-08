@@ -67,12 +67,12 @@ impl From<GetQueryResultsResponse> for QueryResponse {
 pub struct ResultSet {
     cursor: i64,
     row_count: i64,
-    query_response: QueryResponse,
+    rows: Vec<TableRow>,
     fields: HashMap<String, usize>,
 }
 
 impl ResultSet {
-    pub fn new(query_response: QueryResponse) -> Self {
+    pub fn new_from_query_response(query_response: QueryResponse) -> Self {
         if query_response.job_complete.unwrap_or(false) && query_response.schema.is_some() {
             // rows and tables schema are only present for successfully completed jobs.
             let row_count = query_response.rows.as_ref().map_or(0, Vec::len) as i64;
@@ -86,24 +86,52 @@ impl ResultSet {
                 .enumerate()
                 .map(|(pos, field)| (field.name.clone(), pos))
                 .collect();
+            let rows = query_response.rows.unwrap_or_default();
             Self {
                 cursor: -1,
                 row_count,
-                query_response,
+                rows,
                 fields,
             }
         } else {
             Self {
                 cursor: -1,
                 row_count: 0,
-                query_response,
+                rows: vec![],
                 fields: HashMap::new(),
             }
         }
     }
 
-    pub fn query_response(&self) -> &QueryResponse {
-        &self.query_response
+    pub fn new_from_get_query_results_response(get_query_results_response: GetQueryResultsResponse) -> Self {
+        if get_query_results_response.job_complete.unwrap_or(false) && get_query_results_response.schema.is_some() {
+            // rows and tables schema are only present for successfully completed jobs.
+            let row_count = get_query_results_response.rows.as_ref().map_or(0, Vec::len) as i64;
+            let table_schema = get_query_results_response.schema.as_ref().expect("Expecting a schema");
+            let table_fields = table_schema
+                .fields
+                .as_ref()
+                .expect("Expecting a non empty list of fields");
+            let fields: HashMap<String, usize> = table_fields
+                .iter()
+                .enumerate()
+                .map(|(pos, field)| (field.name.clone(), pos))
+                .collect();
+            let rows = get_query_results_response.rows.unwrap_or_default();
+            Self {
+                cursor: -1,
+                row_count,
+                rows,
+                fields,
+            }
+        } else {
+            Self {
+                cursor: -1,
+                row_count: 0,
+                rows: vec![],
+                fields: HashMap::new(),
+            }
+        }
     }
 
     /// Moves the cursor froward one row from its current position.
@@ -306,10 +334,8 @@ impl ResultSet {
         }
 
         Ok(self
-            .query_response
             .rows
-            .as_ref()
-            .and_then(|rows| rows.get(self.cursor as usize))
+            .get(self.cursor as usize)
             .and_then(|row| row.columns.as_ref())
             .and_then(|cols| cols.get(col_index))
             .and_then(|col| col.value.clone()))
