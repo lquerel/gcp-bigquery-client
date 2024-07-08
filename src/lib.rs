@@ -229,21 +229,19 @@ pub fn env_vars() -> (String, String, String, String) {
 }
 
 pub mod google {
-    #[path = "google.api.rs"]
-    pub mod api;
-
-    #[path = ""]
+    pub mod api {
+        tonic::include_proto!("google.api");
+    }
     pub mod cloud {
-        #[path = ""]
         pub mod bigquery {
-            #[path = ""]
             pub mod storage {
-                #[path = "google.cloud.bigquery.storage.v1.rs"]
-                pub mod v1;
+                pub mod v1 {
+                    tonic::include_proto!("google.cloud.bigquery.storage.v1");
+                }
             }
         }
     }
-
-    #[path = "google.rpc.rs"]
-    pub mod rpc;
+    pub mod rpc {
+        tonic::include_proto!("google.rpc");
+    }
 }

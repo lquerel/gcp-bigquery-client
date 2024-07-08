@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [0.22.0] - 2024-07-07
 
+### Added
+
+- Add support for BigQuery Write Storage API (by @imor). Breaking changes:
+  - Client::from_authenticator is now async.
+  - ClientBuilder::build_from_authenticator is now async.
+
 ### Maintenance
 
 - Bump version of `yup_oauth2` to v11 (by @serpex). `gcp-bigquery-client` can now be used with ring or aws-lc-rs as
