@@ -16,7 +16,7 @@ keywords = ["gcp", "bigquery", "google-cloud"]
 categories = ["database"]
 
 [features]
-default = ["rust-tls", "ring"]
+default = ["rust-tls", "ring", "gzip"]
 native-tls = ["reqwest/native-tls"]
 rust-tls = ["reqwest/rustls-tls"]
 ring = ["yup-oauth2/ring"]

@@ -9,6 +9,8 @@ All notable changes to this project will be documented in this file.
 - Add partial support for BigQuery Storage Write API (by @imor). 
   - append_rows
   - get_write_stream
+- Add GZIP support for `insert_all` (by @Deniskore). The `gzip` feature is included by default.
+  See https://github.com/lquerel/gcp-bigquery-client/issues/74 for more information.
 
 Breaking changes:
   - Client::from_authenticator is now async.
