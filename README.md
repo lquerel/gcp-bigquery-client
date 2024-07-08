@@ -14,6 +14,7 @@ An ergonomic Rust async client library for GCP BigQuery.
 * Support for JSON column types
 * Support `serde::de::DeserializeOwned` for get methods
 * Support BigQuery emulator
+* Partial support for BigQuery Storage Write API
 
 Features:
 - rust-tls (default): RUSTLS-based
@@ -222,6 +223,7 @@ List of endpoints implemented:
 - [X] Model - All methods (not tested)
 - [X] Project (not tested)
 - [X] Routine - All methods (not tested)
+- [X] Storage Write API - Partial support
 
 ## License
 

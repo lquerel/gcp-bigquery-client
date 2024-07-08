@@ -6,7 +6,11 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- Add support for BigQuery Write Storage API (by @imor). Breaking changes:
+- Add partial support for BigQuery Storage Write API (by @imor). 
+  - append_rows
+  - get_write_stream
+
+Breaking changes:
   - Client::from_authenticator is now async.
   - ClientBuilder::build_from_authenticator is now async.
 

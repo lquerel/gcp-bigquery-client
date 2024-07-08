@@ -18,6 +18,7 @@ use crate::{
     },
     BIG_QUERY_V2_URL,
 };
+use crate::google::cloud::bigquery::storage::v1::{GetWriteStreamRequest, WriteStream, WriteStreamView};
 
 static BIG_QUERY_STORAGE_API_URL: &str = "https://bigquerystorage.googleapis.com";
 static BIGQUERY_STORAGE_API_DOMAIN: &str = "bigquerystorage.googleapis.com";
@@ -154,6 +155,7 @@ impl StorageApi {
         self
     }
 
+    /// Append rows to a table via the BigQuery Storage Write API.
     pub async fn append_rows<M: Message>(
         &mut self,
         stream_name: &StreamName,
@@ -239,6 +241,24 @@ impl StorageApi {
         let meta = req.metadata_mut();
         meta.insert("authorization", bearer_value);
         Ok(req)
+    }
+
+    pub async fn get_write_stream(
+        &mut self,
+        stream_name: &StreamName,
+        view: WriteStreamView,
+    ) -> Result<WriteStream, BQError> {
+        let get_write_stream_request = GetWriteStreamRequest {
+            name: stream_name.to_string(),
+            view: view.into(),
+        };
+
+        let req = self.new_authorized_request(get_write_stream_request).await?;
+
+        let response = self.write_client.get_write_stream(req).await?;
+        let write_stream = response.into_inner();
+
+        Ok(write_stream)
     }
 }
 
