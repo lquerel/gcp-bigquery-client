@@ -24,6 +24,11 @@ aws-lc-rs = ["yup-oauth2/aws-lc-rs"]
 # Feature used to remove cloud-storage from the standard build.
 # cloud-storage has a dependency on chrono, so the feature is there to remove this dependency by default.
 bq_load_job = ["cloud-storage"]
+gzip = ["flate2"]
+
+[dependencies.flate2]
+version = "1.0"
+optional = true
 
 [dependencies]
 yup-oauth2 = { version = "11", default-features = false, features = ["hyper-rustls", "service-account"] }
