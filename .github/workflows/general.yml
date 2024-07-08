@@ -16,6 +16,7 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
+      - uses: arduino/setup-protoc@v3
       - env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
         run: echo $GOOGLE_APPLICATION_CREDENTIALS > GOOGLE_APPLICATION_CREDENTIALS.json
@@ -53,11 +54,11 @@ jobs:
           toolchain: stable
           override: true
           components: clippy
+      - uses: arduino/setup-protoc@v3
       - uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: -- -D warnings
-
 #  coverage:
 #    name: Code coverage
 #    runs-on: ubuntu-latest
