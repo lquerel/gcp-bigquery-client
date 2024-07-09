@@ -58,9 +58,9 @@ cloud-storage = { version = "0.11.1", features = [
 ], optional = true }
 async-trait = "0.1.80"
 dyn-clone = "1.0.17"
-prost = { version = "0.12.6", optional = true }
-prost-types = { version = "0.12.6", optional = true }
-tonic = { version = "0.11.0", features = ["transport", "tls", "tls-roots"], optional = true }
+prost = { version = "0.13", optional = true }
+prost-types = { version = "0.13", optional = true }
+tonic = { version = "0.12", features = ["transport", "tls", "tls-roots"], optional = true }
 
 [dev-dependencies]
 tokio-test = "0.4.4"
@@ -70,4 +70,4 @@ tempfile = "3.10.1"
 fake = "2.9.2"
 
 [build-dependencies]
-tonic-build = { version = "0.11.0", features = ["cleanup-markdown"], optional = true }
+tonic-build = { version = "0.12", features = ["cleanup-markdown"], optional = true }
