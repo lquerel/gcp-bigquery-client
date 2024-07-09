@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 
+#[cfg(storage)]
 use tonic::{metadata::errors::InvalidMetadataValue, Status};
 
 #[allow(clippy::upper_case_acronyms)]
@@ -56,12 +57,15 @@ pub enum BQError {
     #[error("Json serialization error (error: {0})")]
     SerializationError(#[from] serde_json::Error),
 
+    #[cfg(storage)]
     #[error("Tonic transport error (error: {0}")]
     TonicTransportError(#[from] tonic::transport::Error),
 
+    #[cfg(storage)]
     #[error("Tonic invalid metadata value error (error: {0}")]
     TonicInvalidMetadataValueError(#[from] InvalidMetadataValue),
 
+    #[cfg(storage)]
     #[error("Tonic status error (error: {0}")]
     TonicStatusError(#[from] Status),
 }
