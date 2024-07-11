@@ -367,15 +367,17 @@ impl<'de> de::MapAccess<'de> for MapRefDeserializer<'de> {
     where
         V: de::DeserializeSeed<'de>,
     {
-        let Some(value) = self.iter.next() else {
-            return Err(Error::Deserialization("expected value but none".into()));
-        };
         let Some(schema) = self.schema_value.take() else {
             return Err(Error::Deserialization("expected key but none".into()));
         };
 
+        let Some(value) = self.iter.next() else {
+            return Err(Error::Deserialization(format!("expected value for '{}' but none", &schema.name)));
+        };
+
         let mut deserializer = Deserializer::from_value(schema, value);
         seed.deserialize(&mut deserializer)
+            .map_err(|e| Error::Deserialization(format!("unable to deserialize column '{}': {e:?}", &schema.name)))
     }
 }
 
