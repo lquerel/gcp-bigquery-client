@@ -8,6 +8,7 @@ use tonic::{
     Request, Streaming,
 };
 
+use crate::google::cloud::bigquery::storage::v1::{GetWriteStreamRequest, WriteStream, WriteStreamView};
 use crate::{
     auth::Authenticator,
     error::BQError,
@@ -18,7 +19,6 @@ use crate::{
     },
     BIG_QUERY_V2_URL,
 };
-use crate::google::cloud::bigquery::storage::v1::{GetWriteStreamRequest, WriteStream, WriteStreamView};
 
 static BIG_QUERY_STORAGE_API_URL: &str = "https://bigquerystorage.googleapis.com";
 static BIGQUERY_STORAGE_API_DOMAIN: &str = "bigquerystorage.googleapis.com";
@@ -264,16 +264,16 @@ impl StorageApi {
 
 #[cfg(test)]
 pub mod test {
-    use std::time::{Duration, SystemTime};
-    use prost::Message;
-    use tokio_stream::StreamExt;
-    use crate::{Client, env_vars};
     use crate::model::dataset::Dataset;
     use crate::model::field_type::FieldType;
     use crate::model::table::Table;
     use crate::model::table_field_schema::TableFieldSchema;
     use crate::model::table_schema::TableSchema;
     use crate::storage::{ColumnType, FieldDescriptor, StreamName, TableDescriptor};
+    use crate::{env_vars, Client};
+    use prost::Message;
+    use std::time::{Duration, SystemTime};
+    use tokio_stream::StreamExt;
 
     #[tokio::test]
     async fn test() -> Result<(), Box<dyn std::error::Error>> {
@@ -312,7 +312,6 @@ pub mod test {
             )
             .await?;
         assert_eq!(created_table.table_reference.table_id, table_id.to_string());
-
 
         // let (ref project_id, ref dataset_id, ref table_id, ref gcp_sa_key) = env_vars();
         //

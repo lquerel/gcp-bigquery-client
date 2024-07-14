@@ -3,17 +3,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // depending on protoc in GitHub Actions.
     //
     // To regenerate the gRPC Storage Write API from the proto file:
-    // - Comment the build_transport(false) line below.
+    // - Uncomment the following lines.
     // - Run `cargo build` to regenerate the API.
-    // - Uncomment the build_transport(false) line below.
+    // - Comment the following lines.
     // - Commit the changes.
-    tonic_build::configure()
-        .build_transport(false)
-        .build_server(false)
-        .out_dir("src/google")
-        .compile(
-            &["googleapis/google/cloud/bigquery/storage/v1/storage.proto"],
-            &["googleapis"],
-        )?;
+
+    // tonic_build::configure()
+    //     .build_server(false)
+    //     .out_dir("src/google")
+    //     .compile(
+    //         &["googleapis/google/cloud/bigquery/storage/v1/storage.proto"],
+    //         &["googleapis"],
+    //     )?;
     Ok(())
 }
