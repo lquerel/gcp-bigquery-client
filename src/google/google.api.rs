@@ -595,10 +595,8 @@ pub struct JavaSettings {
     /// - google.pubsub.v1.Publisher: TopicAdmin
     /// - google.pubsub.v1.Subscriber: SubscriptionAdmin
     #[prost(map = "string, string", tag = "2")]
-    pub service_class_names: ::std::collections::HashMap<
-        ::prost::alloc::string::String,
-        ::prost::alloc::string::String,
-    >,
+    pub service_class_names:
+        ::std::collections::HashMap<::prost::alloc::string::String, ::prost::alloc::string::String>,
     /// Some settings.
     #[prost(message, optional, tag = "3")]
     pub common: ::core::option::Option<CommonLanguageSettings>,
@@ -648,20 +646,14 @@ pub struct DotnetSettings {
     /// fully-qualified.)
     /// Example: Subscriber to SubscriberServiceApi.
     #[prost(map = "string, string", tag = "2")]
-    pub renamed_services: ::std::collections::HashMap<
-        ::prost::alloc::string::String,
-        ::prost::alloc::string::String,
-    >,
+    pub renamed_services: ::std::collections::HashMap<::prost::alloc::string::String, ::prost::alloc::string::String>,
     /// Map from full resource types to the effective short name
     /// for the resource. This is used when otherwise resource
     /// named from different services would cause naming collisions.
     /// Example entry:
     /// "datalabeling.googleapis.com/Dataset": "DataLabelingDataset"
     #[prost(map = "string, string", tag = "3")]
-    pub renamed_resources: ::std::collections::HashMap<
-        ::prost::alloc::string::String,
-        ::prost::alloc::string::String,
-    >,
+    pub renamed_resources: ::std::collections::HashMap<::prost::alloc::string::String, ::prost::alloc::string::String>,
     /// List of full resource types to ignore during generation.
     /// This is typically used for API-specific Location resources,
     /// which should be handled by the generator as if they were actually
@@ -672,9 +664,7 @@ pub struct DotnetSettings {
     /// Namespaces which must be aliased in snippets due to
     /// a known (but non-generator-predictable) naming collision
     #[prost(string, repeated, tag = "5")]
-    pub forced_namespace_aliases: ::prost::alloc::vec::Vec<
-        ::prost::alloc::string::String,
-    >,
+    pub forced_namespace_aliases: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
     /// Method signatures (in the form "service.method(signature)")
     /// which are provided separately, so shouldn't be generated.
     /// Snippets *calling* these methods are still generated, however.
@@ -796,9 +786,7 @@ impl ClientLibraryOrganization {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            ClientLibraryOrganization::Unspecified => {
-                "CLIENT_LIBRARY_ORGANIZATION_UNSPECIFIED"
-            }
+            ClientLibraryOrganization::Unspecified => "CLIENT_LIBRARY_ORGANIZATION_UNSPECIFIED",
             ClientLibraryOrganization::Cloud => "CLOUD",
             ClientLibraryOrganization::Ads => "ADS",
             ClientLibraryOrganization::Photos => "PHOTOS",
@@ -843,9 +831,7 @@ impl ClientLibraryDestination {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            ClientLibraryDestination::Unspecified => {
-                "CLIENT_LIBRARY_DESTINATION_UNSPECIFIED"
-            }
+            ClientLibraryDestination::Unspecified => "CLIENT_LIBRARY_DESTINATION_UNSPECIFIED",
             ClientLibraryDestination::Github => "GITHUB",
             ClientLibraryDestination::PackageManager => "PACKAGE_MANAGER",
         }
@@ -1093,17 +1079,7 @@ pub struct ResourceDescriptor {
 pub mod resource_descriptor {
     /// A description of the historical or future-looking state of the
     /// resource pattern.
-    #[derive(
-        Clone,
-        Copy,
-        Debug,
-        PartialEq,
-        Eq,
-        Hash,
-        PartialOrd,
-        Ord,
-        ::prost::Enumeration
-    )]
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
     #[repr(i32)]
     pub enum History {
         /// The "unset" value.
@@ -1139,17 +1115,7 @@ pub mod resource_descriptor {
         }
     }
     /// A flag representing a specific style that a resource claims to conform to.
-    #[derive(
-        Clone,
-        Copy,
-        Debug,
-        PartialEq,
-        Eq,
-        Hash,
-        PartialOrd,
-        Ord,
-        ::prost::Enumeration
-    )]
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
     #[repr(i32)]
     pub enum Style {
         /// The unspecified value. Do not use.
