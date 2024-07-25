@@ -1,6 +1,5 @@
 use serde::Serialize;
 
-use gcp_bigquery_client::env_vars;
 use gcp_bigquery_client::error::BQError;
 use gcp_bigquery_client::model::dataset::Dataset;
 use gcp_bigquery_client::model::query_request::QueryRequest;
@@ -9,6 +8,7 @@ use gcp_bigquery_client::model::table_data_insert_all_request::TableDataInsertAl
 use gcp_bigquery_client::model::table_field_schema::TableFieldSchema;
 use gcp_bigquery_client::model::table_schema::TableSchema;
 use gcp_bigquery_client::model::time_partitioning::TimePartitioning;
+use gcp_bigquery_client::{env_vars, model::query_response::ResultSet};
 use std::time::{Duration, SystemTime};
 use time::OffsetDateTime;
 
@@ -185,7 +185,7 @@ async fn main() -> Result<(), BQError> {
         .await?;
 
     // Query
-    let mut rs = client
+    let query_response = client
         .job()
         .query(
             project_id,
@@ -194,6 +194,7 @@ async fn main() -> Result<(), BQError> {
             )),
         )
         .await?;
+    let mut rs = ResultSet::new_from_query_response(query_response);
     while rs.next_row() {
         println!("Number of rows inserted: {}", rs.get_i64_by_name("c")?.unwrap());
     }

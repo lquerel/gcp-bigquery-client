@@ -92,7 +92,7 @@ mod bq {
     use fake::{Fake, StringFaker};
     use gcp_bigquery_client::{
         model::{
-            dataset::Dataset, query_request::QueryRequest, table::Table,
+            dataset::Dataset, query_request::QueryRequest, query_response::ResultSet, table::Table,
             table_data_insert_all_request::TableDataInsertAllRequest, table_field_schema::TableFieldSchema,
             table_schema::TableSchema,
         },
@@ -179,7 +179,7 @@ mod bq {
         }
 
         pub async fn get_rows(&self) -> Vec<String> {
-            let mut rs = self
+            let query_response = self
                 .client
                 .job()
                 .query(
@@ -192,6 +192,7 @@ mod bq {
                 .await
                 .unwrap();
 
+            let mut rs = ResultSet::new_from_query_response(query_response);
             let mut rows: Vec<String> = vec![];
             while rs.next_row() {
                 let name = rs.get_string_by_name(NAME_COLUMN).unwrap().unwrap();
