@@ -1746,14 +1746,14 @@ pub mod big_query_write_client {
         /// table are governed by the type of stream:
         ///
         /// * For COMMITTED streams (which includes the default stream), data is
-        ///  visible immediately upon successful append.
+        ///   visible immediately upon successful append.
         ///
         /// * For BUFFERED streams, data is made visible via a subsequent `FlushRows`
-        ///  rpc which advances a cursor to a newer offset in the stream.
+        ///   rpc which advances a cursor to a newer offset in the stream.
         ///
         /// * For PENDING streams, data is not made visible until the stream itself is
-        ///  finalized (via the `FinalizeWriteStream` rpc), and the stream is explicitly
-        ///  committed via the `BatchCommitWriteStreams` rpc.
+        ///   finalized (via the `FinalizeWriteStream` rpc), and the stream is explicitly
+        ///   committed via the `BatchCommitWriteStreams` rpc.
         pub async fn append_rows(
             &mut self,
             request: impl tonic::IntoStreamingRequest<Message = super::AppendRowsRequest>,

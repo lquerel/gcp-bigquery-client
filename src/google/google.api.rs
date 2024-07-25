@@ -704,14 +704,14 @@ pub struct MethodSettings {
     /// publishing:
     /// method_settings:
     /// - selector: google.cloud.speech.v2.Speech.BatchRecognize
-    /// long_running:
-    /// initial_poll_delay:
-    /// seconds: 60 # 1 minute
-    /// poll_delay_multiplier: 1.5
-    /// max_poll_delay:
-    /// seconds: 360 # 6 minutes
-    /// total_poll_timeout:
-    /// seconds: 54000 # 90 minutes
+    ///   long_running:
+    ///   initial_poll_delay:
+    ///   seconds: 60 # 1 minute
+    ///   poll_delay_multiplier: 1.5
+    ///   max_poll_delay:
+    ///   seconds: 360 # 6 minutes
+    ///   total_poll_timeout:
+    ///   seconds: 54000 # 90 minutes
     #[prost(message, optional, tag = "2")]
     pub long_running: ::core::option::Option<method_settings::LongRunning>,
     /// List of top-level fields of the request message, that should be
@@ -723,7 +723,7 @@ pub struct MethodSettings {
     /// publishing:
     /// method_settings:
     /// - selector: google.example.v1.ExampleService.CreateExample
-    /// auto_populated_fields:
+    ///   auto_populated_fields:
     /// - request_id
     #[prost(string, repeated, tag = "3")]
     pub auto_populated_fields: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
