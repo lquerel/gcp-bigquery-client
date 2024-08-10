@@ -141,7 +141,9 @@ impl StorageApi {
     }
 
     pub(crate) async fn new_write_client() -> Result<BigQueryWriteClient<Channel>, BQError> {
-        let tls_config = ClientTlsConfig::new().domain_name(BIGQUERY_STORAGE_API_DOMAIN);
+        let tls_config = ClientTlsConfig::new()
+            .domain_name(BIGQUERY_STORAGE_API_DOMAIN)
+            .with_native_roots();
         let channel = Channel::from_static(BIG_QUERY_STORAGE_API_URL)
             .tls_config(tls_config)?
             .connect()
