@@ -114,9 +114,9 @@ impl TableApi {
     /// * dataset_id - Dataset ID of the table to delete
     /// * table_id - Table ID of the table to delete
     /// * selected_fields - tabledata.list of table schema fields to return (comma-separated). If unspecified, all
-    /// fields are returned. A fieldMask cannot be used here because the fields will automatically be converted from
-    /// camelCase to snake_case and the conversion will fail if there are underscores. Since these are fields in
-    /// BigQuery table schemas, underscores are allowed.
+    ///   fields are returned. A fieldMask cannot be used here because the fields will automatically be converted from
+    ///   camelCase to snake_case and the conversion will fail if there are underscores. Since these are fields in
+    ///   BigQuery table schemas, underscores are allowed.
     pub async fn get(
         &self,
         project_id: &str,
@@ -253,7 +253,7 @@ impl TableApi {
     /// a policy set.
     /// # Argument
     /// * `resource` - The resource for which the policy is being requested. See the operation documentation for the
-    /// appropriate value for this field.
+    ///   appropriate value for this field.
     pub async fn get_iam_policy(
         &self,
         resource: &str,
@@ -314,7 +314,7 @@ impl TableApi {
     /// \"fail open\" without warning.
     /// # Argument
     /// * `resource` - The resource for which the policy detail is being requested. See the operation documentation for
-    /// the appropriate value for this field.
+    ///   the appropriate value for this field.
     pub async fn test_iam_permissions(
         &self,
         resource: &str,

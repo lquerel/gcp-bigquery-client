@@ -229,6 +229,7 @@ pub fn env_vars() -> (String, String, String, String) {
 }
 
 pub mod google {
+    #![allow(clippy::all)]
     #[path = "google.api.rs"]
     pub mod api;
 
@@ -238,6 +239,7 @@ pub mod google {
         pub mod bigquery {
             #[path = ""]
             pub mod storage {
+                #![allow(clippy::all)]
                 #[path = "google.cloud.bigquery.storage.v1.rs"]
                 pub mod v1;
             }

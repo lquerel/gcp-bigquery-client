@@ -75,7 +75,7 @@ impl JobApi {
     /// * `project_id`- Project ID of the query request.
     /// * `query` - The initial query configuration that is submitted when the job is inserted.
     /// * `page_size` - The size of each page fetched. By default, this is set to `None`, and the limit is 10 MB of
-    /// rows instead.
+    ///   rows instead.
     pub fn query_all<'a>(
         &'a self,
         project_id: &'a str,
@@ -135,7 +135,7 @@ impl JobApi {
     /// * `location`  - Geographic location of the job.
     /// * `query` - The initial query configuration that is submitted when the job is inserted.
     /// * `page_size` - The size of each page fetched. By default, this is set to `None`, and the limit is 10 MB of
-    /// rows instead.
+    ///   rows instead.
     pub fn query_all_with_location<'a>(
         &'a self,
         project_id: &'a str,
@@ -204,7 +204,7 @@ impl JobApi {
     /// * `job_reference` - The initital job reference configuration that is submitted when the job is inserted
     /// * `query` - The initial query configuration that is submitted when the job is inserted.
     /// * `page_size` - The size of each page fetched. By default, this is set to `None`, and the limit is 10 MB of
-    /// rows instead.
+    ///   rows instead.
     pub fn query_all_with_job_reference<'a>(
         &'a self,
         project_id: &'a str,
@@ -388,7 +388,7 @@ impl JobApi {
     /// * `project_id` - Project ID of the requested job.
     /// * `job_id` - Job ID of the requested job.
     /// * `location` - The geographic location of the job. Required except for US and EU. See
-    /// details at https://cloud.google.com/bigquery/docs/locations#specifying_your_location.
+    ///   details at https://cloud.google.com/bigquery/docs/locations#specifying_your_location.
     pub async fn get_job(&self, project_id: &str, job_id: &str, location: Option<&str>) -> Result<Job, BQError> {
         let req_url = format!(
             "{base_url}/projects/{project_id}/jobs/{job_id}",
@@ -418,7 +418,7 @@ impl JobApi {
     /// * `project_id` - Project ID of the job to cancel.
     /// * `job_id` - Job ID of the job to cancel.
     /// * `location` - The geographic location of the job. Required except for US and EU. See
-    /// details at https://cloud.google.com/bigquery/docs/locations#specifying_your_location.
+    ///   details at https://cloud.google.com/bigquery/docs/locations#specifying_your_location.
     pub async fn cancel_job(
         &self,
         project_id: &str,

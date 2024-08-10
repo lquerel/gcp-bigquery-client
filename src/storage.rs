@@ -141,6 +141,9 @@ impl StorageApi {
     }
 
     pub(crate) async fn new_write_client() -> Result<BigQueryWriteClient<Channel>, BQError> {
+        // Since Tonic 0.12.0, TLS root certificates are no longer implicit.
+        // We need to specify them explicitly.
+        // See: https://github.com/hyperium/tonic/pull/1731
         let tls_config = ClientTlsConfig::new()
             .domain_name(BIGQUERY_STORAGE_API_DOMAIN)
             .with_native_roots();
