@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.23.0] - 2024-08-10
+
+### Fix
+
+- Fix a root certificate issue following a breaking change in Tonic (by @imor).
+- Remove dependency on protoc. The generated code is now included in the repository (by @lquerel).
+
+### Maintenance
+
+- Bump versions of `thiserror`, `hyper-util`, `tokio`, `serde`, `serde_json`, `tonic`, `tonic-build`.
+
 ## [0.22.0] - 2024-07-07
 
 ### Added
