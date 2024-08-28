@@ -55,7 +55,7 @@ All notable changes to this project will be documented in this file.
 
 ### Maintenance
 
-- # Bump versions of `thiserror`, `hyper-util`, `tokio`, `serde`, `serde_json`, `tonic`, `tonic-build`.
+- Bump versions of `thiserror`, `hyper-util`, `tokio`, `serde`, `serde_json`, `tonic`, `tonic-build`.
 
 ## [0.22.0] - 2024-07-07
 
