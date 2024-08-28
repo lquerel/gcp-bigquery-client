@@ -188,7 +188,7 @@ rows are based on a regular Rust struct implementing the trait Serialize.
         .await?;
 
     // Query
-    let mut rs = client
+    let mut query_response = client
         .job()
         .query(
             project_id,
@@ -198,6 +198,7 @@ rows are based on a regular Rust struct implementing the trait Serialize.
             )),
         )
         .await?;
+    let mut rs = ResultSet::new_from_query_response(query_response);
     while rs.next_row() {
         println!("Number of rows inserted: {}", rs.get_i64_by_name("c")?.unwrap());
     }
