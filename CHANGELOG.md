@@ -6,7 +6,9 @@ All notable changes to this project will be documented in this file.
 
 #### Changed
 
-- Added a new method `ResultSet::new_from_get_query_results_response` which creates a `ResultSet` from a `GetQueryResultsResponse`.
+- Added missing routine type `TableValuedFunction` as specified in the [reference](https://cloud.google.com/bigquery/docs/reference/rest/v2/routines#RoutineType). 
+  It also fixes the data type of `creation_time` and `last_modified_time` to String type (see https://cloud.google.com/bigquery/docs/reference/rest/v2/routines). Thanks @thevaibhav-dixit. 
+- Added a new method `ResultSet::new_from_get_query_results_response` which creates a `ResultSet` from a `GetQueryResultsResponse`. Thanks @imor.
 
 - Breaking changes:
 
