@@ -2,6 +2,50 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.24.0] - 2024-08-28
+
+#### Changed
+
+- Added a new method `ResultSet::new_from_get_query_results_response` which creates a `ResultSet` from a `GetQueryResultsResponse`.
+
+- Breaking changes:
+
+  - Return type of `JobApi::query` changed from `Result<ResultSet, BQError>` to `Result<QueryResponse, BQError>`.
+  - `ResultSet::new` renamed to `ResultSet::new_from_query_response`.
+
+- Rationale for the breaking changes:
+
+  `JobApi::query` now returns `Result<QueryResponse, BQError>` instead of `Result<ResultSet, BQError>`. A `ResultSet` wraps over a `QueryResponse` but callers didn't have acces to that internal object. To allow callers access to the internal object, `JobApi::query` now returns the internal object itself. This means older code which expected a `ResultSet` will break.
+
+- Upgrading to the new version:
+
+  To fix broken code, you'll have to call `ResultSet::from_query_response` function. For example, if your code looked like this:
+
+  ```rust
+  let mut result_set = client
+        .job()
+        .query(
+            project_id,
+            query_request,
+        )
+        .await?;
+  ```
+
+  It should be updated to:
+
+  ```rust
+  let query_response = client
+        .job()
+        .query(
+            project_id,
+            query_request,
+        )
+        .await?;
+    let mut result_set = ResultSet::new_from_query_response(query_response);
+  ```
+
+  Another reason for the change was making it consistent with `JobApi::get_query_results` which already returned an unwrapped object which callers needed to manually wrap inside a `ResultSet` by calling `ResultSet::new` method.
+
 ## [0.23.0] - 2024-08-10
 
 ### Fix
@@ -17,15 +61,16 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- Add partial support for BigQuery Storage Write API (by @imor). 
+- Add partial support for BigQuery Storage Write API (by @imor).
   - append_rows
   - get_write_stream
 - Add GZIP support for `insert_all` (by @Deniskore). The `gzip` feature is included by default.
   See https://github.com/lquerel/gcp-bigquery-client/issues/74 for more information.
 
 Breaking changes:
-  - Client::from_authenticator is now async.
-  - ClientBuilder::build_from_authenticator is now async.
+
+- Client::from_authenticator is now async.
+- ClientBuilder::build_from_authenticator is now async.
 
 ### Maintenance
 
@@ -59,7 +104,7 @@ Breaking changes:
 - Add support to bigquery-emulator (Thanks to @henriiik)
 - Add support to use the ClientBuilder to build a Client with an Authenticator (Thanks to @henriiik)
 
-### Fix 
+### Fix
 
 - Fix build issue with hyper-rustls (Thanks to @OmriSteiner and @nate-kelley-buster)
 
@@ -220,10 +265,9 @@ Breaking changes:
 
 ## [0.9.3] - 2021-08-31
 
-### Fix 
+### Fix
 
 - Fix ResultSet.get_i64 not working with some valid integer notation (e.g. 123.45E4) (Thanks to @komi1230).
-
 
 ## [0.9.2] - 2021-08-30
 

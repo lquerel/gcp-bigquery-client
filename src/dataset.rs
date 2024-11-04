@@ -340,7 +340,7 @@ impl DatasetApi {
         let resp = self.client.execute(request).await?;
 
         let query_response: QueryResponse = process_response(resp).await?;
-        let mut rs = ResultSet::new(query_response);
+        let mut rs = ResultSet::new_from_query_response(query_response);
         let mut result = vec![];
         let catalog_name_pos = *rs
             .column_index("catalog_name")
