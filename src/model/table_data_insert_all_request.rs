@@ -2,6 +2,11 @@ use crate::error::BQError;
 use crate::model::table_data_insert_all_request_rows::TableDataInsertAllRequestRows;
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "gzip")]
+use flate2::{write::GzEncoder, Compression};
+#[cfg(feature = "gzip")]
+use std::io::Write;
+
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TableDataInsertAllRequest {
@@ -73,3 +78,33 @@ impl TableDataInsertAllRequest {
         self.rows.clear()
     }
 }
+
+/// A gzipped version of `TableDataInsertAllRequest`.
+#[cfg(feature = "gzip")]
+pub struct TableDataInsertAllRequestGzipped {
+    pub(crate) data: Vec<u8>,
+}
+
+#[cfg(feature = "gzip")]
+impl TryFrom<TableDataInsertAllRequest> for TableDataInsertAllRequestGzipped {
+    type Error = BQError;
+
+    fn try_from(request: TableDataInsertAllRequest) -> Result<Self, Self::Error> {
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(serde_json::to_string(&request)?.as_bytes())?;
+        let gzipped_data = encoder.finish()?;
+        Ok(Self { data: gzipped_data })
+    }
+}
+
+#[cfg(feature = "gzip")]
+impl TableDataInsertAllRequestGzipped {
+    pub fn new(data: Vec<u8>) -> Self {
+        Self { data }
+    }
+
+    pub fn len(&self) -> usize {
+        self.data.len()
+    }
+}
+

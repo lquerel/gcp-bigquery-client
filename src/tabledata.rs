@@ -5,19 +5,15 @@ use crate::auth::Authenticator;
 use crate::error::BQError;
 use crate::model::data_format_options::DataFormatOptions;
 use crate::model::table_data_insert_all_request::TableDataInsertAllRequest;
+#[cfg(feature = "gzip")]
+use crate::model::table_data_insert_all_request::TableDataInsertAllRequestGzipped;
 use crate::model::table_data_insert_all_response::TableDataInsertAllResponse;
 use crate::model::table_data_list_response::TableDataListResponse;
 use crate::{process_response, urlencode, BIG_QUERY_V2_URL};
 use reqwest::Client;
 
 #[cfg(feature = "gzip")]
-use flate2::{write::GzEncoder, Compression};
-#[cfg(feature = "gzip")]
 use reqwest::header::{CONTENT_ENCODING, CONTENT_TYPE};
-#[cfg(feature = "gzip")]
-use serde_json::to_string;
-#[cfg(feature = "gzip")]
-use std::io::Write;
 
 /// A table data API handler.
 #[derive(Clone)]
@@ -67,15 +63,13 @@ impl TableDataApi {
 
         #[cfg(feature = "gzip")]
         let request = {
-            let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
-            encoder.write_all(to_string(&insert_request)?.as_bytes())?;
-            let gzipped_data = encoder.finish()?;
+            let insert_request_gzipped = TableDataInsertAllRequestGzipped::try_from(insert_request)?;
             self.client
                 .post(&req_url)
                 .header(CONTENT_ENCODING, "gzip")
                 .header(CONTENT_TYPE, "application/octet-stream")
                 .bearer_auth(access_token)
-                .body(gzipped_data)
+                .body(insert_request_gzipped.data)
                 .build()?
         };
 
@@ -85,6 +79,45 @@ impl TableDataApi {
             .post(&req_url)
             .bearer_auth(access_token)
             .json(&insert_request)
+            .build()?;
+
+        let resp = self.client.execute(request).await?;
+
+        process_response(resp).await
+    }
+
+    /// Streams already gzipped data into BigQuery one record at a time without needing to run a load job. Requires the WRITER dataset
+    /// role.
+    /// # Arguments
+    /// * `project_id` - Project ID of the inserted data
+    /// * `dataset_id` - Dataset ID of the inserted data
+    /// * `table_id` - Table ID of the inserted data
+    /// * `insert_request_gzipped` - Gzipped data to insert.
+    #[cfg(feature = "gzip")]
+    pub async fn insert_all_gzipped(
+        &self,
+        project_id: &str,
+        dataset_id: &str,
+        table_id: &str,
+        insert_request_gzipped: TableDataInsertAllRequestGzipped,
+    ) -> Result<TableDataInsertAllResponse, BQError> {
+        let req_url = format!(
+            "{base_url}/projects/{project_id}/datasets/{dataset_id}/tables/{table_id}/insertAll",
+            base_url = self.base_url,
+            project_id = urlencode(project_id),
+            dataset_id = urlencode(dataset_id),
+            table_id = urlencode(table_id)
+        );
+
+        let access_token = self.auth.access_token().await?;
+
+        let request = self
+            .client
+            .post(&req_url)
+            .header(CONTENT_ENCODING, "gzip")
+            .header(CONTENT_TYPE, "application/octet-stream")
+            .bearer_auth(access_token)
+            .body(insert_request_gzipped.data)
             .build()?;
 
         let resp = self.client.execute(request).await?;
@@ -157,6 +190,8 @@ mod test {
     use crate::model::field_type::FieldType;
     use crate::model::table::Table;
     use crate::model::table_data_insert_all_request::TableDataInsertAllRequest;
+    #[cfg(feature = "gzip")]
+    use crate::model::table_data_insert_all_request::TableDataInsertAllRequestGzipped;
     use crate::model::table_field_schema::TableFieldSchema;
     use crate::model::table_schema::TableSchema;
     use crate::{env_vars, Client};
@@ -212,6 +247,28 @@ mod test {
             .insert_all(project_id, dataset_id, table_id, insert_request)
             .await;
         assert!(result.is_ok(), "Error: {:?}", result);
+
+        #[cfg(feature = "gzip")]
+        {
+            let mut insert_request = TableDataInsertAllRequest::new();
+            insert_request.add_row(
+                None,
+                Row {
+                    col1: "val2".into(),
+                    col2: 3,
+                    col3: true,
+                },
+            )?;
+
+            let insert_request_gzipped =
+                TableDataInsertAllRequestGzipped::try_from(insert_request).expect("Failed to gzip insert request");
+
+            let result_gzipped = client
+                .tabledata()
+                .insert_all_gzipped(project_id, dataset_id, table_id, insert_request_gzipped)
+                .await;
+            assert!(result_gzipped.is_ok(), "Error: {:?}", result_gzipped);
+        }
 
         // Remove table and dataset
         table.delete(&client).await?;
