@@ -2,9 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.24.0] - 2024-08-28
+## [0.24.1] - 2024-11-04
 
-#### Changed
+### Added
+
+- Added `insert_all_gzipped` method, see this [PR](https://github.com/lquerel/gcp-bigquery-client/pull/110) for more details. Thanks @idobenamram. 
+
+## [0.24.0] - 2024-11-04
+
+### Changed
 
 - Added missing routine type `TableValuedFunction` as specified in the [reference](https://cloud.google.com/bigquery/docs/reference/rest/v2/routines#RoutineType). 
   It also fixes the data type of `creation_time` and `last_modified_time` to String type (see https://cloud.google.com/bigquery/docs/reference/rest/v2/routines). Thanks @thevaibhav-dixit. 

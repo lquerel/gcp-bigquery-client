@@ -107,4 +107,3 @@ impl TableDataInsertAllRequestGzipped {
         self.data.len()
     }
 }
-
