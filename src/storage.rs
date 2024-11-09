@@ -37,6 +37,8 @@ pub enum ColumnType {
     String,
     Time,
     Timestamp,
+    Geography,
+    Record,
 }
 
 impl From<ColumnType> for Type {
@@ -52,11 +54,14 @@ impl From<ColumnType> for Type {
             ColumnType::String => Type::String,
             ColumnType::Time => Type::String,
             ColumnType::Timestamp => Type::String,
+            ColumnType::Geography => Type::String,
+            ColumnType::Record => Type::Message,
         }
     }
 }
 
 /// A struct to describe the schema of a field in protobuf
+#[derive(Clone)]
 pub struct FieldDescriptor {
     /// Field numbers starting from 1. Each subsequence field should be incremented by 1.
     pub number: u32,
@@ -66,12 +71,165 @@ pub struct FieldDescriptor {
 
     /// Field type
     pub typ: ColumnType,
+
+    /// Field type
+    pub type_name: Option<String>,
+}
+
+impl From<FieldDescriptor> for FieldDescriptorProto {
+    fn from(fd: FieldDescriptor) -> Self {
+        let typ: Type = fd.typ.into();
+        Self {
+            name: Some(fd.name),
+            number: Some(fd.number as i32),
+            label: None,
+            r#type: Some(typ.into()),
+            type_name: None,
+            extendee: None,
+            default_value: None,
+            oneof_index: None,
+            json_name: None,
+            options: None,
+            proto3_optional: None,
+        }
+    }
+}
+
+impl FieldDescriptor {
+    pub fn new(field_name: String, number: u32, column_type: ColumnType) -> Self {
+        Self {
+            number,
+            name: field_name,
+            typ: column_type,
+            type_name: None,
+        }
+    }
+
+    pub fn int64(field_name: String, number: u32) -> Self {
+        Self {
+            number,
+            name: field_name,
+            typ: ColumnType::Int64,
+            type_name: None,
+        }
+    }
+
+    pub fn float64(field_name: String, number: u32) -> Self {
+        Self {
+            number,
+            name: field_name,
+            typ: ColumnType::Float64,
+            type_name: None,
+        }
+    }
+
+    pub fn bool(field_name: String, number: u32) -> Self {
+        Self {
+            number,
+            name: field_name,
+            typ: ColumnType::Bool,
+            type_name: None,
+        }
+    }
+
+    pub fn string(field_name: String, number: u32) -> Self {
+        Self {
+            number,
+            name: field_name,
+            typ: ColumnType::String,
+            type_name: None,
+        }
+    }
+
+    pub fn record(field_name: String, number: u32, type_name: String) -> Self {
+        Self {
+            number,
+            name: field_name,
+            typ: ColumnType::Record,
+            type_name: Some(type_name),
+        }
+    }
+
+    pub fn bytes(field_name: String, number: u32) -> Self {
+        Self {
+            number,
+            name: field_name,
+            typ: ColumnType::Bytes,
+            type_name: None,
+        }
+    }
+
+    pub fn timestamp(field_name: String, number: u32) -> Self {
+        Self {
+            number,
+            name: field_name,
+            typ: ColumnType::Timestamp,
+            type_name: None,
+        }
+    }
+
+    pub fn date(field_name: String, number: u32) -> Self {
+        Self {
+            number,
+            name: field_name,
+            typ: ColumnType::Date,
+            type_name: None,
+        }
+    }
+
+    pub fn time(field_name: String, number: u32) -> Self {
+        Self {
+            number,
+            name: field_name,
+            typ: ColumnType::Time,
+            type_name: None,
+        }
+    }
+
+    pub fn date_time(field_name: String, number: u32) -> Self {
+        Self {
+            number,
+            name: field_name,
+            typ: ColumnType::Datetime,
+            type_name: None,
+        }
+    }
+
+    pub fn geography(field_name: String, number: u32) -> Self {
+        Self {
+            number,
+            name: field_name,
+            typ: ColumnType::Geography,
+            type_name: None,
+        }
+    }
+
+    pub fn json(field_name: String, number: u32) -> Self {
+        Self {
+            number,
+            name: field_name,
+            typ: ColumnType::String,
+            type_name: None,
+        }
+    }
 }
 
 /// A struct to describe the schema of a table in protobuf
 pub struct TableDescriptor {
-    /// Descriptors of all the fields
+    /// Descriptors of all root fields
     pub field_descriptors: Vec<FieldDescriptor>,
+    /// Descriptors of all nested types
+    pub nested_descriptors: HashMap<String, Vec<FieldDescriptor>>,
+}
+
+impl TableDescriptor {
+    /// Create a new TableDescriptor with the given root fields
+    pub fn new(field_descriptors: Vec<FieldDescriptor>) -> Self {
+        Self {
+            field_descriptors,
+            nested_descriptors: HashMap::new(),
+        }
+    }
 }
 
 /// A struct representing a stream name
@@ -192,31 +350,33 @@ impl StorageApi {
     }
 
     fn create_rows<M: Message>(table_descriptor: &TableDescriptor, rows: &[M]) -> append_rows_request::Rows {
+        let nested_descriptors = table_descriptor
+            .nested_descriptors
+            .iter()
+            .map(|(name, fds)| DescriptorProto {
+                name: Some(name.to_owned()),
+                field: fds.iter().cloned().map(FieldDescriptorProto::from).collect(),
+                extension: vec![],
+                nested_type: vec![],
+                enum_type: vec![],
+                extension_range: vec![],
+                oneof_decl: vec![],
+                options: None,
+                reserved_range: vec![],
+                reserved_name: vec![],
+            })
+            .collect();
         let field_descriptors = table_descriptor
             .field_descriptors
             .iter()
-            .map(|fd| {
-                let typ: Type = fd.typ.into();
-                FieldDescriptorProto {
-                    name: Some(fd.name.clone()),
-                    number: Some(fd.number as i32),
-                    label: None,
-                    r#type: Some(typ.into()),
-                    type_name: None,
-                    extendee: None,
-                    default_value: None,
-                    oneof_index: None,
-                    json_name: None,
-                    options: None,
-                    proto3_optional: None,
-                }
-            })
+            .cloned()
+            .map(FieldDescriptorProto::from)
             .collect();
         let proto_descriptor = DescriptorProto {
             name: Some("table_schema".to_string()),
             field: field_descriptors,
             extension: vec![],
-            nested_type: vec![],
+            nested_type: nested_descriptors,
             enum_type: vec![],
             extension_range: vec![],
             oneof_decl: vec![],
@@ -275,7 +435,7 @@ pub mod test {
     use crate::model::table::Table;
     use crate::model::table_field_schema::TableFieldSchema;
     use crate::model::table_schema::TableSchema;
-    use crate::storage::{ColumnType, FieldDescriptor, StreamName, TableDescriptor};
+    use crate::storage::{FieldDescriptor, StreamName, TableDescriptor};
     use crate::{env_vars, Client};
     use prost::Message;
     use std::time::{Duration, SystemTime};
@@ -324,28 +484,12 @@ pub mod test {
         // let mut client = crate::Client::from_service_account_key_file(gcp_sa_key).await?;
 
         let field_descriptors = vec![
-            FieldDescriptor {
-                name: "actor_id".to_string(),
-                number: 1,
-                typ: ColumnType::Int64,
-            },
-            FieldDescriptor {
-                name: "first_name".to_string(),
-                number: 2,
-                typ: ColumnType::String,
-            },
-            FieldDescriptor {
-                name: "last_name".to_string(),
-                number: 3,
-                typ: ColumnType::String,
-            },
-            FieldDescriptor {
-                name: "last_update".to_string(),
-                number: 4,
-                typ: ColumnType::Timestamp,
-            },
+            FieldDescriptor::int64("actor_id".to_string(), 1),
+            FieldDescriptor::string("first_name".to_string(), 2),
+            FieldDescriptor::string("last_name".to_string(), 3),
+            FieldDescriptor::timestamp("last_update".to_string(), 4),
         ];
-        let table_descriptor = TableDescriptor { field_descriptors };
+        let table_descriptor = TableDescriptor::new(field_descriptors);
 
         #[derive(Clone, PartialEq, Message)]
         struct Actor {
