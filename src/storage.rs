@@ -2,7 +2,10 @@
 use std::{collections::HashMap, convert::TryInto, fmt::Display, sync::Arc};
 
 use prost::Message;
-use prost_types::{field_descriptor_proto::Type, DescriptorProto, FieldDescriptorProto};
+use prost_types::{
+    field_descriptor_proto::{Label, Type},
+    DescriptorProto, FieldDescriptorProto,
+};
 use tonic::{
     transport::{Channel, ClientTlsConfig},
     Request, Streaming,
@@ -33,11 +36,11 @@ pub enum ColumnType {
     Datetime,
     Json,
     Int64,
+    Uint64,
     Float64,
     String,
     Time,
     Timestamp,
-    Geography,
     Record,
 }
 
@@ -50,14 +53,19 @@ impl From<ColumnType> for Type {
             ColumnType::Datetime => Type::String,
             ColumnType::Json => Type::String,
             ColumnType::Int64 => Type::Int64,
+            ColumnType::Uint64 => Type::Uint64,
             ColumnType::Float64 => Type::Float,
             ColumnType::String => Type::String,
             ColumnType::Time => Type::String,
             ColumnType::Timestamp => Type::String,
-            ColumnType::Geography => Type::String,
             ColumnType::Record => Type::Message,
         }
     }
+}
+
+#[derive(Clone, Copy)]
+pub enum Cardinality {
+    Repeated,
 }
 
 /// A struct to describe the schema of a field in protobuf
@@ -72,8 +80,11 @@ pub struct FieldDescriptor {
     /// Field type
     pub typ: ColumnType,
 
-    /// Field type
+    /// Field type name, if the field is structured or enum type
     pub type_name: Option<String>,
+
+    /// Field cardinality
+    pub cardinality: Option<Cardinality>,
 }
 
 impl From<FieldDescriptor> for FieldDescriptorProto {
@@ -82,9 +93,12 @@ impl From<FieldDescriptor> for FieldDescriptorProto {
         Self {
             name: Some(fd.name),
             number: Some(fd.number as i32),
-            label: None,
+            label: match fd.cardinality {
+                Some(Cardinality::Repeated) => Some(Label::Repeated.into()),
+                None => None,
+            },
             r#type: Some(typ.into()),
-            type_name: None,
+            type_name: fd.type_name,
             extendee: None,
             default_value: None,
             oneof_index: None,
@@ -102,6 +116,7 @@ impl FieldDescriptor {
             name: field_name,
             typ: column_type,
             type_name: None,
+            cardinality: None,
         }
     }
 
@@ -111,6 +126,7 @@ impl FieldDescriptor {
             name: field_name,
             typ: ColumnType::Int64,
             type_name: None,
+            cardinality: None,
         }
     }
 
@@ -120,6 +136,7 @@ impl FieldDescriptor {
             name: field_name,
             typ: ColumnType::Float64,
             type_name: None,
+            cardinality: None,
         }
     }
 
@@ -129,6 +146,7 @@ impl FieldDescriptor {
             name: field_name,
             typ: ColumnType::Bool,
             type_name: None,
+            cardinality: None,
         }
     }
 
@@ -138,6 +156,7 @@ impl FieldDescriptor {
             name: field_name,
             typ: ColumnType::String,
             type_name: None,
+            cardinality: None,
         }
     }
 
@@ -147,6 +166,7 @@ impl FieldDescriptor {
             name: field_name,
             typ: ColumnType::Record,
             type_name: Some(type_name),
+            cardinality: None,
         }
     }
 
@@ -156,6 +176,7 @@ impl FieldDescriptor {
             name: field_name,
             typ: ColumnType::Bytes,
             type_name: None,
+            cardinality: None,
         }
     }
 
@@ -165,6 +186,7 @@ impl FieldDescriptor {
             name: field_name,
             typ: ColumnType::Timestamp,
             type_name: None,
+            cardinality: None,
         }
     }
 
@@ -174,6 +196,7 @@ impl FieldDescriptor {
             name: field_name,
             typ: ColumnType::Date,
             type_name: None,
+            cardinality: None,
         }
     }
 
@@ -183,6 +206,7 @@ impl FieldDescriptor {
             name: field_name,
             typ: ColumnType::Time,
             type_name: None,
+            cardinality: None,
         }
     }
 
@@ -192,15 +216,7 @@ impl FieldDescriptor {
             name: field_name,
             typ: ColumnType::Datetime,
             type_name: None,
-        }
-    }
-
-    pub fn geography(field_name: String, number: u32) -> Self {
-        Self {
-            number,
-            name: field_name,
-            typ: ColumnType::Geography,
-            type_name: None,
+            cardinality: None,
         }
     }
 
@@ -210,6 +226,17 @@ impl FieldDescriptor {
             name: field_name,
             typ: ColumnType::String,
             type_name: None,
+            cardinality: None,
+        }
+    }
+
+    pub fn repeated(field_name: String, number: u32, column_type: ColumnType) -> Self {
+        Self {
+            number,
+            name: field_name,
+            typ: column_type,
+            type_name: None,
+            cardinality: Some(Cardinality::Repeated),
         }
     }
 }
