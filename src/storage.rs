@@ -2,7 +2,10 @@
 use std::{collections::HashMap, convert::TryInto, fmt::Display, sync::Arc};
 
 use prost::Message;
-use prost_types::{field_descriptor_proto::Type, DescriptorProto, FieldDescriptorProto};
+use prost_types::{
+    field_descriptor_proto::{Label, Type},
+    DescriptorProto, FieldDescriptorProto,
+};
 use tonic::{
     transport::{Channel, ClientTlsConfig},
     Request, Streaming,
@@ -66,6 +69,24 @@ impl From<ColumnType> for Type {
     }
 }
 
+/// Column mode
+#[derive(Clone, Copy)]
+pub enum ColumnMode {
+    Nullable,
+    Required,
+    Repeated,
+}
+
+impl From<ColumnMode> for Label {
+    fn from(value: ColumnMode) -> Self {
+        match value {
+            ColumnMode::Nullable => Label::Optional,
+            ColumnMode::Required => Label::Required,
+            ColumnMode::Repeated => Label::Repeated,
+        }
+    }
+}
+
 /// A struct to describe the schema of a field in protobuf
 pub struct FieldDescriptor {
     /// Field numbers starting from 1. Each subsequence field should be incremented by 1.
@@ -76,6 +97,9 @@ pub struct FieldDescriptor {
 
     /// Field type
     pub typ: ColumnType,
+
+    /// Field mode
+    pub mode: ColumnMode,
 }
 
 /// A struct to describe the schema of a table in protobuf
@@ -207,10 +231,11 @@ impl StorageApi {
             .iter()
             .map(|fd| {
                 let typ: Type = fd.typ.into();
+                let label: Label = fd.mode.into();
                 FieldDescriptorProto {
                     name: Some(fd.name.clone()),
                     number: Some(fd.number as i32),
-                    label: None,
+                    label: Some(label.into()),
                     r#type: Some(typ.into()),
                     type_name: None,
                     extendee: None,
@@ -285,7 +310,7 @@ pub mod test {
     use crate::model::table::Table;
     use crate::model::table_field_schema::TableFieldSchema;
     use crate::model::table_schema::TableSchema;
-    use crate::storage::{ColumnType, FieldDescriptor, StreamName, TableDescriptor};
+    use crate::storage::{ColumnMode, ColumnType, FieldDescriptor, StreamName, TableDescriptor};
     use crate::{env_vars, Client};
     use prost::Message;
     use std::time::{Duration, SystemTime};
@@ -338,21 +363,25 @@ pub mod test {
                 name: "actor_id".to_string(),
                 number: 1,
                 typ: ColumnType::Int64,
+                mode: ColumnMode::Nullable,
             },
             FieldDescriptor {
                 name: "first_name".to_string(),
                 number: 2,
                 typ: ColumnType::String,
+                mode: ColumnMode::Nullable,
             },
             FieldDescriptor {
                 name: "last_name".to_string(),
                 number: 3,
                 typ: ColumnType::String,
+                mode: ColumnMode::Nullable,
             },
             FieldDescriptor {
                 name: "last_update".to_string(),
                 number: 4,
                 typ: ColumnType::String,
+                mode: ColumnMode::Nullable,
             },
         ];
         let table_descriptor = TableDescriptor { field_descriptors };
