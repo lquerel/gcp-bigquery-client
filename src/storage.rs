@@ -24,36 +24,44 @@ static BIG_QUERY_STORAGE_API_URL: &str = "https://bigquerystorage.googleapis.com
 // Service Name
 static BIGQUERY_STORAGE_API_DOMAIN: &str = "bigquerystorage.googleapis.com";
 
-/// BigQuery column type
+/// Protobuf column type
 #[derive(Clone, Copy)]
 pub enum ColumnType {
-    Bool,
-    Bytes,
-    Date,
-    Datetime,
-    Json,
+    Double,
+    Float,
     Int64,
-    Float32,
-    Float64,
+    Uint64,
+    Int32,
+    Fixed64,
+    Fixed32,
+    Bool,
     String,
-    Time,
-    Timestamp,
+    Bytes,
+    Uint32,
+    Sfixed32,
+    Sfixed64,
+    Sint32,
+    Sint64,
 }
 
 impl From<ColumnType> for Type {
     fn from(value: ColumnType) -> Self {
         match value {
-            ColumnType::Bool => Type::Bool,
-            ColumnType::Bytes => Type::Bytes,
-            ColumnType::Date => Type::String,
-            ColumnType::Datetime => Type::String,
-            ColumnType::Json => Type::String,
+            ColumnType::Double => Type::Double,
+            ColumnType::Float => Type::Float,
             ColumnType::Int64 => Type::Int64,
-            ColumnType::Float32 => Type::Float,
-            ColumnType::Float64 => Type::Double,
+            ColumnType::Uint64 => Type::Uint64,
+            ColumnType::Int32 => Type::Int32,
+            ColumnType::Fixed64 => Type::Fixed64,
+            ColumnType::Fixed32 => Type::Fixed32,
+            ColumnType::Bool => Type::Bool,
             ColumnType::String => Type::String,
-            ColumnType::Time => Type::String,
-            ColumnType::Timestamp => Type::String,
+            ColumnType::Bytes => Type::Bytes,
+            ColumnType::Uint32 => Type::Uint32,
+            ColumnType::Sfixed32 => Type::Sfixed32,
+            ColumnType::Sfixed64 => Type::Sfixed64,
+            ColumnType::Sint32 => Type::Sint32,
+            ColumnType::Sint64 => Type::Sfixed64,
         }
     }
 }
@@ -344,7 +352,7 @@ pub mod test {
             FieldDescriptor {
                 name: "last_update".to_string(),
                 number: 4,
-                typ: ColumnType::Timestamp,
+                typ: ColumnType::String,
             },
         ];
         let table_descriptor = TableDescriptor { field_descriptors };
