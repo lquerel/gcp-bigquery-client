@@ -15,7 +15,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         FieldDescriptor::int64("actor_id".to_string(), 1),
         FieldDescriptor::string("first_name".to_string(), 2),
         FieldDescriptor::string("last_name".to_string(), 3),
-        FieldDescriptor::timestamp("last_update".to_string(), 4),
+        FieldDescriptor::string("last_update".to_string(), 4),
     ];
     let table_descriptor = TableDescriptor::new(field_descriptors);
 

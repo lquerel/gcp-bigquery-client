@@ -4,7 +4,7 @@ use std::{collections::HashMap, convert::TryInto, fmt::Display, sync::Arc};
 use prost::Message;
 use prost_types::{
     field_descriptor_proto::{Label, Type},
-    DescriptorProto, FieldDescriptorProto,
+    DescriptorProto, EnumDescriptorProto, EnumValueDescriptorProto, FieldDescriptorProto,
 };
 use tonic::{
     transport::{Channel, ClientTlsConfig},
@@ -27,45 +27,68 @@ static BIG_QUERY_STORAGE_API_URL: &str = "https://bigquerystorage.googleapis.com
 // Service Name
 static BIGQUERY_STORAGE_API_DOMAIN: &str = "bigquerystorage.googleapis.com";
 
-/// BigQuery column type
+/// Protobuf column type
 #[derive(Clone, Copy)]
 pub enum ColumnType {
-    Bool,
-    Bytes,
-    Date,
-    Datetime,
-    Json,
+    Double,
+    Float,
     Int64,
     Uint64,
-    Float64,
+    Int32,
+    Fixed64,
+    Fixed32,
+    Bool,
     String,
-    Time,
-    Timestamp,
-    Record,
+    Bytes,
+    Uint32,
+    Sfixed32,
+    Sfixed64,
+    Sint32,
+    Sint64,
+    Message,
+    Enum,
 }
 
 impl From<ColumnType> for Type {
     fn from(value: ColumnType) -> Self {
         match value {
-            ColumnType::Bool => Type::Bool,
-            ColumnType::Bytes => Type::Bytes,
-            ColumnType::Date => Type::String,
-            ColumnType::Datetime => Type::String,
-            ColumnType::Json => Type::String,
+            ColumnType::Double => Type::Double,
+            ColumnType::Float => Type::Float,
             ColumnType::Int64 => Type::Int64,
             ColumnType::Uint64 => Type::Uint64,
-            ColumnType::Float64 => Type::Float,
+            ColumnType::Int32 => Type::Int32,
+            ColumnType::Fixed64 => Type::Fixed64,
+            ColumnType::Fixed32 => Type::Fixed32,
+            ColumnType::Bool => Type::Bool,
             ColumnType::String => Type::String,
-            ColumnType::Time => Type::String,
-            ColumnType::Timestamp => Type::String,
-            ColumnType::Record => Type::Message,
+            ColumnType::Bytes => Type::Bytes,
+            ColumnType::Uint32 => Type::Uint32,
+            ColumnType::Sfixed32 => Type::Sfixed32,
+            ColumnType::Sfixed64 => Type::Sfixed64,
+            ColumnType::Sint32 => Type::Sint32,
+            ColumnType::Sint64 => Type::Sfixed64,
+            ColumnType::Message => Type::Message,
+            ColumnType::Enum => Type::Enum,
         }
     }
 }
 
+/// Column mode
 #[derive(Clone, Copy)]
-pub enum Cardinality {
+pub enum ColumnMode {
+    Nullable,
+    Required,
     Repeated,
+}
+
+impl From<ColumnMode> for Label {
+    fn from(value: ColumnMode) -> Self {
+        match value {
+            ColumnMode::Nullable => Label::Optional,
+            ColumnMode::Required => Label::Required,
+            ColumnMode::Repeated => Label::Repeated,
+        }
+    }
 }
 
 /// A struct to describe the schema of a field in protobuf
@@ -80,23 +103,21 @@ pub struct FieldDescriptor {
     /// Field type
     pub typ: ColumnType,
 
+    /// Field mode
+    pub mode: ColumnMode,
+
     /// Field type name, if the field is structured or enum type
     pub type_name: Option<String>,
-
-    /// Field cardinality
-    pub cardinality: Option<Cardinality>,
 }
 
 impl From<FieldDescriptor> for FieldDescriptorProto {
     fn from(fd: FieldDescriptor) -> Self {
         let typ: Type = fd.typ.into();
+        let label: Label = fd.mode.into();
         Self {
-            name: Some(fd.name),
+            name: Some(fd.name.clone()),
             number: Some(fd.number as i32),
-            label: match fd.cardinality {
-                Some(Cardinality::Repeated) => Some(Label::Repeated.into()),
-                None => None,
-            },
+            label: Some(label.into()),
             r#type: Some(typ.into()),
             type_name: fd.type_name,
             extendee: None,
@@ -110,133 +131,153 @@ impl From<FieldDescriptor> for FieldDescriptorProto {
 }
 
 impl FieldDescriptor {
-    pub fn new(field_name: String, number: u32, column_type: ColumnType) -> Self {
+    pub fn new(name: String, number: u32, column_type: ColumnType) -> Self {
         Self {
             number,
-            name: field_name,
+            name,
             typ: column_type,
+            mode: ColumnMode::Nullable,
             type_name: None,
-            cardinality: None,
         }
     }
 
-    pub fn int64(field_name: String, number: u32) -> Self {
+    pub fn int64(name: String, number: u32) -> Self {
         Self {
             number,
-            name: field_name,
+            name,
             typ: ColumnType::Int64,
+            mode: ColumnMode::Nullable,
             type_name: None,
-            cardinality: None,
         }
     }
 
-    pub fn float64(field_name: String, number: u32) -> Self {
+    pub fn uint64(name: String, number: u32) -> Self {
         Self {
             number,
-            name: field_name,
-            typ: ColumnType::Float64,
+            name,
+            typ: ColumnType::Uint64,
+            mode: ColumnMode::Nullable,
             type_name: None,
-            cardinality: None,
         }
     }
 
-    pub fn bool(field_name: String, number: u32) -> Self {
+    pub fn int32(name: String, number: u32) -> Self {
         Self {
             number,
-            name: field_name,
+            name,
+            typ: ColumnType::Int32,
+            mode: ColumnMode::Nullable,
+            type_name: None,
+        }
+    }
+
+    pub fn uint32(name: String, number: u32) -> Self {
+        Self {
+            number,
+            name,
+            typ: ColumnType::Uint32,
+            mode: ColumnMode::Nullable,
+            type_name: None,
+        }
+    }
+
+    pub fn float(name: String, number: u32) -> Self {
+        Self {
+            number,
+            name,
+            typ: ColumnType::Float,
+            mode: ColumnMode::Nullable,
+            type_name: None,
+        }
+    }
+
+    pub fn double(name: String, number: u32) -> Self {
+        Self {
+            number,
+            name,
+            typ: ColumnType::Double,
+            mode: ColumnMode::Nullable,
+            type_name: None,
+        }
+    }
+
+    pub fn bool(name: String, number: u32) -> Self {
+        Self {
+            number,
+            name,
             typ: ColumnType::Bool,
+            mode: ColumnMode::Nullable,
             type_name: None,
-            cardinality: None,
         }
     }
 
-    pub fn string(field_name: String, number: u32) -> Self {
+    pub fn string(name: String, number: u32) -> Self {
         Self {
             number,
-            name: field_name,
+            name,
             typ: ColumnType::String,
+            mode: ColumnMode::Nullable,
             type_name: None,
-            cardinality: None,
         }
     }
 
-    pub fn record(field_name: String, number: u32, type_name: String) -> Self {
+    pub fn message(name: String, number: u32, type_name: String) -> Self {
         Self {
             number,
-            name: field_name,
-            typ: ColumnType::Record,
+            name,
+            typ: ColumnType::Message,
+            mode: ColumnMode::Nullable,
             type_name: Some(type_name),
-            cardinality: None,
         }
     }
 
-    pub fn bytes(field_name: String, number: u32) -> Self {
+    pub fn bytes(name: String, number: u32) -> Self {
         Self {
             number,
-            name: field_name,
+            name,
             typ: ColumnType::Bytes,
+            mode: ColumnMode::Nullable,
             type_name: None,
-            cardinality: None,
         }
     }
 
-    pub fn timestamp(field_name: String, number: u32) -> Self {
+    pub fn json(name: String, number: u32) -> Self {
         Self {
             number,
-            name: field_name,
-            typ: ColumnType::Timestamp,
-            type_name: None,
-            cardinality: None,
-        }
-    }
-
-    pub fn date(field_name: String, number: u32) -> Self {
-        Self {
-            number,
-            name: field_name,
-            typ: ColumnType::Date,
-            type_name: None,
-            cardinality: None,
-        }
-    }
-
-    pub fn time(field_name: String, number: u32) -> Self {
-        Self {
-            number,
-            name: field_name,
-            typ: ColumnType::Time,
-            type_name: None,
-            cardinality: None,
-        }
-    }
-
-    pub fn date_time(field_name: String, number: u32) -> Self {
-        Self {
-            number,
-            name: field_name,
-            typ: ColumnType::Datetime,
-            type_name: None,
-            cardinality: None,
-        }
-    }
-
-    pub fn json(field_name: String, number: u32) -> Self {
-        Self {
-            number,
-            name: field_name,
+            name,
             typ: ColumnType::String,
+            mode: ColumnMode::Nullable,
             type_name: None,
-            cardinality: None,
         }
     }
 
-    pub fn repeated(field_name: String, number: u32, column_type: ColumnType) -> Self {
+    pub fn repeated(name: String, number: u32, column_type: ColumnType) -> Self {
         Self {
             number,
-            name: field_name,
+            name,
             typ: column_type,
+            mode: ColumnMode::Repeated,
             type_name: None,
-            cardinality: Some(Cardinality::Repeated),
+        }
+    }
+}
+
+/// A struct to describe the schema of a field in protobuf
+#[derive(Clone)]
+pub struct VariantDescriptor {
+    /// Field numbers starting from 1. Each subsequence field should be incremented by 1.
+    pub number: u32,
+
+    /// Field name
+    pub name: String,
+}
+
+impl From<VariantDescriptor> for EnumValueDescriptorProto {
+    fn from(value: VariantDescriptor) -> Self {
+        Self {
+            name: Some(value.name),
+            number: Some(value.number as i32),
+            options: None,
         }
     }
 }
@@ -247,6 +288,8 @@ pub struct TableDescriptor {
     pub field_descriptors: Vec<FieldDescriptor>,
     /// Descriptors of all nested types
     pub nested_descriptors: HashMap<String, Vec<FieldDescriptor>>,
+    /// Descriptors of enum types
+    pub enums: HashMap<String, Vec<VariantDescriptor>>,
 }
 
 impl TableDescriptor {
@@ -255,6 +298,7 @@ impl TableDescriptor {
         Self {
             field_descriptors,
             nested_descriptors: HashMap::new(),
+            enums: HashMap::new(),
         }
     }
 }
@@ -377,6 +421,12 @@ impl StorageApi {
     }
 
     fn create_rows<M: Message>(table_descriptor: &TableDescriptor, rows: &[M]) -> append_rows_request::Rows {
+        let field_descriptors = table_descriptor
+            .field_descriptors
+            .iter()
+            .cloned()
+            .map(FieldDescriptorProto::from)
+            .collect();
         let nested_descriptors = table_descriptor
             .nested_descriptors
             .iter()
@@ -393,18 +443,23 @@ impl StorageApi {
                 reserved_name: vec![],
             })
             .collect();
-        let field_descriptors = table_descriptor
-            .field_descriptors
+        let enums = table_descriptor
+            .enums
             .iter()
-            .cloned()
-            .map(FieldDescriptorProto::from)
+            .map(|(name, variants)| EnumDescriptorProto {
+                name: Some(name.clone()),
+                value: variants.iter().cloned().map(EnumValueDescriptorProto::from).collect(),
+                options: None,
+                reserved_range: vec![],
+                reserved_name: vec![],
+            })
             .collect();
         let proto_descriptor = DescriptorProto {
             name: Some("table_schema".to_string()),
             field: field_descriptors,
             extension: vec![],
             nested_type: nested_descriptors,
-            enum_type: vec![],
+            enum_type: enums,
             extension_range: vec![],
             oneof_decl: vec![],
             options: None,
@@ -514,7 +569,7 @@ pub mod test {
             FieldDescriptor::int64("actor_id".to_string(), 1),
             FieldDescriptor::string("first_name".to_string(), 2),
             FieldDescriptor::string("last_name".to_string(), 3),
-            FieldDescriptor::timestamp("last_update".to_string(), 4),
+            FieldDescriptor::string("last_update".to_string(), 4),
         ];
         let table_descriptor = TableDescriptor::new(field_descriptors);
 
