@@ -1,6 +1,6 @@
 use gcp_bigquery_client::{
     env_vars,
-    storage::{ColumnType, FieldDescriptor, StreamName, TableDescriptor},
+    storage::{FieldDescriptor, StreamName, TableDescriptor},
 };
 use prost::Message;
 use tokio_stream::StreamExt;
@@ -12,28 +12,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut client = gcp_bigquery_client::Client::from_service_account_key_file(gcp_sa_key).await?;
 
     let field_descriptors = vec![
-        FieldDescriptor {
-            name: "actor_id".to_string(),
-            number: 1,
-            typ: ColumnType::Int64,
-        },
-        FieldDescriptor {
-            name: "first_name".to_string(),
-            number: 2,
-            typ: ColumnType::String,
-        },
-        FieldDescriptor {
-            name: "last_name".to_string(),
-            number: 3,
-            typ: ColumnType::String,
-        },
-        FieldDescriptor {
-            name: "last_update".to_string(),
-            number: 4,
-            typ: ColumnType::Timestamp,
-        },
+        FieldDescriptor::int64("actor_id".to_string(), 1),
+        FieldDescriptor::string("first_name".to_string(), 2),
+        FieldDescriptor::string("last_name".to_string(), 3),
+        FieldDescriptor::string("last_update".to_string(), 4),
     ];
-    let table_descriptor = TableDescriptor { field_descriptors };
+    let table_descriptor = TableDescriptor::new(field_descriptors);
 
     #[derive(Clone, PartialEq, Message)]
     struct Actor {
