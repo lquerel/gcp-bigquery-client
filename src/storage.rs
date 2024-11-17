@@ -2,7 +2,10 @@
 use std::{collections::HashMap, convert::TryInto, fmt::Display, sync::Arc};
 
 use prost::Message;
-use prost_types::{field_descriptor_proto::Type, DescriptorProto, FieldDescriptorProto};
+use prost_types::{
+    field_descriptor_proto::{Label, Type},
+    DescriptorProto, FieldDescriptorProto,
+};
 use tonic::{
     transport::{Channel, ClientTlsConfig},
     Request, Streaming,
@@ -24,34 +27,62 @@ static BIG_QUERY_STORAGE_API_URL: &str = "https://bigquerystorage.googleapis.com
 // Service Name
 static BIGQUERY_STORAGE_API_DOMAIN: &str = "bigquerystorage.googleapis.com";
 
-/// BigQuery column type
+/// Protobuf column type
 #[derive(Clone, Copy)]
 pub enum ColumnType {
-    Bool,
-    Bytes,
-    Date,
-    Datetime,
-    Json,
+    Double,
+    Float,
     Int64,
-    Float64,
+    Uint64,
+    Int32,
+    Fixed64,
+    Fixed32,
+    Bool,
     String,
-    Time,
-    Timestamp,
+    Bytes,
+    Uint32,
+    Sfixed32,
+    Sfixed64,
+    Sint32,
+    Sint64,
 }
 
 impl From<ColumnType> for Type {
     fn from(value: ColumnType) -> Self {
         match value {
-            ColumnType::Bool => Type::Bool,
-            ColumnType::Bytes => Type::Bytes,
-            ColumnType::Date => Type::String,
-            ColumnType::Datetime => Type::String,
-            ColumnType::Json => Type::String,
+            ColumnType::Double => Type::Double,
+            ColumnType::Float => Type::Float,
             ColumnType::Int64 => Type::Int64,
-            ColumnType::Float64 => Type::Float,
+            ColumnType::Uint64 => Type::Uint64,
+            ColumnType::Int32 => Type::Int32,
+            ColumnType::Fixed64 => Type::Fixed64,
+            ColumnType::Fixed32 => Type::Fixed32,
+            ColumnType::Bool => Type::Bool,
             ColumnType::String => Type::String,
-            ColumnType::Time => Type::String,
-            ColumnType::Timestamp => Type::String,
+            ColumnType::Bytes => Type::Bytes,
+            ColumnType::Uint32 => Type::Uint32,
+            ColumnType::Sfixed32 => Type::Sfixed32,
+            ColumnType::Sfixed64 => Type::Sfixed64,
+            ColumnType::Sint32 => Type::Sint32,
+            ColumnType::Sint64 => Type::Sfixed64,
+        }
+    }
+}
+
+/// Column mode
+#[derive(Clone, Copy)]
+pub enum ColumnMode {
+    Nullable,
+    Required,
+    Repeated,
+}
+
+impl From<ColumnMode> for Label {
+    fn from(value: ColumnMode) -> Self {
+        match value {
+            ColumnMode::Nullable => Label::Optional,
+            ColumnMode::Required => Label::Required,
+            ColumnMode::Repeated => Label::Repeated,
         }
     }
 }
@@ -66,6 +97,9 @@ pub struct FieldDescriptor {
 
     /// Field type
     pub typ: ColumnType,
+
+    /// Field mode
+    pub mode: ColumnMode,
 }
 
 /// A struct to describe the schema of a table in protobuf
@@ -197,10 +231,11 @@ impl StorageApi {
             .iter()
             .map(|fd| {
                 let typ: Type = fd.typ.into();
+                let label: Label = fd.mode.into();
                 FieldDescriptorProto {
                     name: Some(fd.name.clone()),
                     number: Some(fd.number as i32),
-                    label: None,
+                    label: Some(label.into()),
                     r#type: Some(typ.into()),
                     type_name: None,
                     extendee: None,
@@ -275,7 +310,7 @@ pub mod test {
     use crate::model::table::Table;
     use crate::model::table_field_schema::TableFieldSchema;
     use crate::model::table_schema::TableSchema;
-    use crate::storage::{ColumnType, FieldDescriptor, StreamName, TableDescriptor};
+    use crate::storage::{ColumnMode, ColumnType, FieldDescriptor, StreamName, TableDescriptor};
     use crate::{env_vars, Client};
     use prost::Message;
     use std::time::{Duration, SystemTime};
@@ -328,21 +363,25 @@ pub mod test {
                 name: "actor_id".to_string(),
                 number: 1,
                 typ: ColumnType::Int64,
+                mode: ColumnMode::Nullable,
             },
             FieldDescriptor {
                 name: "first_name".to_string(),
                 number: 2,
                 typ: ColumnType::String,
+                mode: ColumnMode::Nullable,
             },
             FieldDescriptor {
                 name: "last_name".to_string(),
                 number: 3,
                 typ: ColumnType::String,
+                mode: ColumnMode::Nullable,
             },
             FieldDescriptor {
                 name: "last_update".to_string(),
                 number: 4,
-                typ: ColumnType::Timestamp,
+                typ: ColumnType::String,
+                mode: ColumnMode::Nullable,
             },
         ];
         let table_descriptor = TableDescriptor { field_descriptors };
