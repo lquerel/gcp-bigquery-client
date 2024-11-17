@@ -131,130 +131,170 @@ impl From<FieldDescriptor> for FieldDescriptorProto {
 }
 
 impl FieldDescriptor {
-    pub fn new(name: String, number: u32, column_type: ColumnType) -> Self {
+    pub fn new<N>(name: N, number: u32, column_type: ColumnType) -> Self
+    where
+        N: Into<String>,
+    {
         Self {
             number,
-            name,
+            name: name.into(),
             typ: column_type,
             mode: ColumnMode::Nullable,
             type_name: None,
         }
     }
 
-    pub fn int64(name: String, number: u32) -> Self {
+    pub fn int64<N>(name: N, number: u32) -> Self
+    where
+        N: Into<String>,
+    {
         Self {
             number,
-            name,
+            name: name.into(),
             typ: ColumnType::Int64,
             mode: ColumnMode::Nullable,
             type_name: None,
         }
     }
 
-    pub fn uint64(name: String, number: u32) -> Self {
+    pub fn uint64<N>(name: N, number: u32) -> Self
+    where
+        N: Into<String>,
+    {
         Self {
             number,
-            name,
+            name: name.into(),
             typ: ColumnType::Uint64,
             mode: ColumnMode::Nullable,
             type_name: None,
         }
     }
 
-    pub fn int32(name: String, number: u32) -> Self {
+    pub fn int32<N>(name: N, number: u32) -> Self
+    where
+        N: Into<String>,
+    {
         Self {
             number,
-            name,
+            name: name.into(),
             typ: ColumnType::Int32,
             mode: ColumnMode::Nullable,
             type_name: None,
         }
     }
 
-    pub fn uint32(name: String, number: u32) -> Self {
+    pub fn uint32<N>(name: N, number: u32) -> Self
+    where
+        N: Into<String>,
+    {
         Self {
             number,
-            name,
+            name: name.into(),
             typ: ColumnType::Uint32,
             mode: ColumnMode::Nullable,
             type_name: None,
         }
     }
 
-    pub fn float(name: String, number: u32) -> Self {
+    pub fn float<N>(name: N, number: u32) -> Self
+    where
+        N: Into<String>,
+    {
         Self {
             number,
-            name,
+            name: name.into(),
             typ: ColumnType::Float,
             mode: ColumnMode::Nullable,
             type_name: None,
         }
     }
 
-    pub fn double(name: String, number: u32) -> Self {
+    pub fn double<N>(name: N, number: u32) -> Self
+    where
+        N: Into<String>,
+    {
         Self {
             number,
-            name,
+            name: name.into(),
             typ: ColumnType::Double,
             mode: ColumnMode::Nullable,
             type_name: None,
         }
     }
 
-    pub fn bool(name: String, number: u32) -> Self {
+    pub fn bool<N>(name: N, number: u32) -> Self
+    where
+        N: Into<String>,
+    {
         Self {
             number,
-            name,
+            name: name.into(),
             typ: ColumnType::Bool,
             mode: ColumnMode::Nullable,
             type_name: None,
         }
     }
 
-    pub fn string(name: String, number: u32) -> Self {
+    pub fn string<N>(name: N, number: u32) -> Self
+    where
+        N: Into<String>,
+    {
         Self {
             number,
-            name,
+            name: name.into(),
             typ: ColumnType::String,
             mode: ColumnMode::Nullable,
             type_name: None,
         }
     }
 
-    pub fn message(name: String, number: u32, type_name: String) -> Self {
+    pub fn message<N, TN>(name: N, number: u32, type_name: TN) -> Self
+    where
+        N: Into<String>,
+        TN: Into<String>,
+    {
         Self {
             number,
-            name,
+            name: name.into(),
             typ: ColumnType::Message,
             mode: ColumnMode::Nullable,
-            type_name: Some(type_name),
+            type_name: Some(type_name.into()),
         }
     }
 
-    pub fn bytes(name: String, number: u32) -> Self {
+    pub fn bytes<N>(name: N, number: u32) -> Self
+    where
+        N: Into<String>,
+    {
         Self {
             number,
-            name,
+            name: name.into(),
             typ: ColumnType::Bytes,
             mode: ColumnMode::Nullable,
             type_name: None,
         }
     }
 
-    pub fn json(name: String, number: u32) -> Self {
+    pub fn json<N>(name: N, number: u32) -> Self
+    where
+        N: Into<String>,
+    {
         Self {
             number,
-            name,
+            name: name.into(),
             typ: ColumnType::String,
             mode: ColumnMode::Nullable,
             type_name: None,
         }
     }
 
-    pub fn repeated(name: String, number: u32, column_type: ColumnType) -> Self {
+    pub fn repeated<N>(name: N, number: u32, column_type: ColumnType) -> Self
+    where
+        N: Into<String>,
+    {
         Self {
             number,
-            name,
+            name: name.into(),
             typ: column_type,
             mode: ColumnMode::Repeated,
             type_name: None,
