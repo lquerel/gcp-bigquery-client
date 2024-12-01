@@ -1,6 +1,6 @@
 use gcp_bigquery_client::{
     env_vars,
-    storage::{ColumnMode, ColumnType, FieldDescriptor, StreamName, TableDescriptor},
+    storage::{ColumnMode, ColumnType, FieldDescriptor, StorageApi, StreamName, TableDescriptor},
 };
 use prost::Message;
 use tokio_stream::StreamExt;
@@ -71,10 +71,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let stream_name = StreamName::new_default(project_id.clone(), dataset_id.clone(), table_id.clone());
     let trace_id = "test_client".to_string();
 
-    let mut streaming = client
-        .storage_mut()
-        .append_rows(&stream_name, &table_descriptor, &[actor1, actor2], trace_id)
-        .await?;
+    let rows = StorageApi::create_rows(&table_descriptor, &[actor1, actor2]);
+    let mut streaming = client.storage_mut().append_rows(&stream_name, rows, trace_id).await?;
 
     while let Some(resp) = streaming.next().await {
         let resp = resp?;

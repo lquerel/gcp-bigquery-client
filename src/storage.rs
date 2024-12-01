@@ -196,11 +196,10 @@ impl StorageApi {
     }
 
     /// Append rows to a table via the BigQuery Storage Write API.
-    pub async fn append_rows<M: Message>(
+    pub async fn append_rows(
         &mut self,
         stream_name: &StreamName,
-        table_descriptor: &TableDescriptor,
-        rows: &[M],
+        rows: append_rows_request::Rows,
         trace_id: String,
     ) -> Result<Streaming<AppendRowsResponse>, BQError> {
         let write_stream = stream_name.to_string();
@@ -211,7 +210,7 @@ impl StorageApi {
             trace_id,
             missing_value_interpretations: HashMap::new(),
             default_missing_value_interpretation: MissingValueInterpretation::Unspecified.into(),
-            rows: Some(Self::create_rows(table_descriptor, rows)),
+            rows: Some(rows),
         };
 
         let req = self
@@ -225,7 +224,7 @@ impl StorageApi {
         Ok(streaming)
     }
 
-    fn create_rows<M: Message>(table_descriptor: &TableDescriptor, rows: &[M]) -> append_rows_request::Rows {
+    pub fn create_rows<M: Message>(table_descriptor: &TableDescriptor, rows: &[M]) -> append_rows_request::Rows {
         let field_descriptors = table_descriptor
             .field_descriptors
             .iter()
@@ -310,7 +309,7 @@ pub mod test {
     use crate::model::table::Table;
     use crate::model::table_field_schema::TableFieldSchema;
     use crate::model::table_schema::TableSchema;
-    use crate::storage::{ColumnMode, ColumnType, FieldDescriptor, StreamName, TableDescriptor};
+    use crate::storage::{ColumnMode, ColumnType, FieldDescriptor, StorageApi, StreamName, TableDescriptor};
     use crate::{env_vars, Client};
     use prost::Message;
     use std::time::{Duration, SystemTime};
@@ -418,10 +417,8 @@ pub mod test {
         let stream_name = StreamName::new_default(project_id.clone(), dataset_id.clone(), table_id.clone());
         let trace_id = "test_client".to_string();
 
-        let mut streaming = client
-            .storage_mut()
-            .append_rows(&stream_name, &table_descriptor, &[actor1, actor2], trace_id)
-            .await?;
+        let rows = StorageApi::create_rows(&table_descriptor, &[actor1, actor2]);
+        let mut streaming = client.storage_mut().append_rows(&stream_name, rows, trace_id).await?;
 
         while let Some(resp) = streaming.next().await {
             let resp = resp?;
