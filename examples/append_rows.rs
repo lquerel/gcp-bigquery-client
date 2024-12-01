@@ -1,6 +1,6 @@
 use gcp_bigquery_client::{
     env_vars,
-    storage::{ColumnType, FieldDescriptor, StreamName, TableDescriptor},
+    storage::{ColumnMode, ColumnType, FieldDescriptor, StreamName, TableDescriptor},
 };
 use prost::Message;
 use tokio_stream::StreamExt;
@@ -16,21 +16,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             name: "actor_id".to_string(),
             number: 1,
             typ: ColumnType::Int64,
+            mode: ColumnMode::Required,
         },
         FieldDescriptor {
             name: "first_name".to_string(),
             number: 2,
             typ: ColumnType::String,
+            mode: ColumnMode::Required,
         },
         FieldDescriptor {
             name: "last_name".to_string(),
             number: 3,
             typ: ColumnType::String,
+            mode: ColumnMode::Required,
         },
         FieldDescriptor {
             name: "last_update".to_string(),
             number: 4,
-            typ: ColumnType::Timestamp,
+            typ: ColumnType::String,
+            mode: ColumnMode::Required,
         },
     ];
     let table_descriptor = TableDescriptor { field_descriptors };
