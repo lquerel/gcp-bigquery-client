@@ -196,11 +196,10 @@ impl StorageApi {
     }
 
     /// Append rows to a table via the BigQuery Storage Write API.
-    pub async fn append_rows<M: Message>(
+    pub async fn append_rows(
         &mut self,
         stream_name: &StreamName,
-        table_descriptor: &TableDescriptor,
-        rows: &[M],
+        rows: append_rows_request::Rows,
         trace_id: String,
     ) -> Result<Streaming<AppendRowsResponse>, BQError> {
         let write_stream = stream_name.to_string();
@@ -211,7 +210,7 @@ impl StorageApi {
             trace_id,
             missing_value_interpretations: HashMap::new(),
             default_missing_value_interpretation: MissingValueInterpretation::Unspecified.into(),
-            rows: Some(Self::create_rows(table_descriptor, rows)),
+            rows: Some(rows),
         };
 
         let req = self
@@ -225,7 +224,10 @@ impl StorageApi {
         Ok(streaming)
     }
 
-    fn create_rows<M: Message>(table_descriptor: &TableDescriptor, rows: &[M]) -> append_rows_request::Rows {
+    pub fn create_rows<M: Message>(
+        table_descriptor: &TableDescriptor,
+        rows: &[M],
+    ) -> (append_rows_request::Rows, usize) {
         let field_descriptors = table_descriptor
             .field_descriptors
             .iter()
@@ -263,15 +265,32 @@ impl StorageApi {
             proto_descriptor: Some(proto_descriptor),
         };
 
-        let rows = rows.iter().map(|m| m.encode_to_vec()).collect();
+        const MAX_SIZE: usize = 9 * 1024 * 1024; // 9 MB
 
-        let proto_rows = crate::google::cloud::bigquery::storage::v1::ProtoRows { serialized_rows: rows };
+        let mut serialized_rows = Vec::new();
+        let mut total_size = 0;
+
+        for row in rows {
+            let encoded_row = row.encode_to_vec();
+            let current_size = encoded_row.len();
+
+            if total_size + current_size > MAX_SIZE {
+                break;
+            }
+
+            serialized_rows.push(encoded_row);
+            total_size += current_size;
+        }
+
+        let num_rows_processed = serialized_rows.len();
+
+        let proto_rows = crate::google::cloud::bigquery::storage::v1::ProtoRows { serialized_rows };
 
         let proto_data = ProtoData {
             writer_schema: Some(proto_schema),
             rows: Some(proto_rows),
         };
-        append_rows_request::Rows::ProtoRows(proto_data)
+        (append_rows_request::Rows::ProtoRows(proto_data), num_rows_processed)
     }
 
     async fn new_authorized_request<D>(&self, t: D) -> Result<Request<D>, BQError> {
@@ -310,7 +329,7 @@ pub mod test {
     use crate::model::table::Table;
     use crate::model::table_field_schema::TableFieldSchema;
     use crate::model::table_schema::TableSchema;
-    use crate::storage::{ColumnMode, ColumnType, FieldDescriptor, StreamName, TableDescriptor};
+    use crate::storage::{ColumnMode, ColumnType, FieldDescriptor, StorageApi, StreamName, TableDescriptor};
     use crate::{env_vars, Client};
     use prost::Message;
     use std::time::{Duration, SystemTime};
@@ -418,10 +437,8 @@ pub mod test {
         let stream_name = StreamName::new_default(project_id.clone(), dataset_id.clone(), table_id.clone());
         let trace_id = "test_client".to_string();
 
-        let mut streaming = client
-            .storage_mut()
-            .append_rows(&stream_name, &table_descriptor, &[actor1, actor2], trace_id)
-            .await?;
+        let (rows, _) = StorageApi::create_rows(&table_descriptor, &[actor1, actor2]);
+        let mut streaming = client.storage_mut().append_rows(&stream_name, rows, trace_id).await?;
 
         while let Some(resp) = streaming.next().await {
             let resp = resp?;
