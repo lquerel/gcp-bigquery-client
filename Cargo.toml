@@ -62,7 +62,7 @@ async-trait = "0.1.83"
 dyn-clone = "1.0.17"
 prost = "0.13.3"
 prost-types = "0.13.3"
-tonic = { version = "0.12.3", features = ["transport", "tls", "tls-roots"] }
+tonic = { version = "0.12.3", default-features = false, features = ["channel", "codegen", "prost", "tls", "tls-roots"] }
 
 [dev-dependencies]
 tokio-test = "0.4.4"
