@@ -467,11 +467,12 @@ pub mod test {
         .await?;
         assert_eq!(num_append_rows_calls, 1);
 
-        // artifically limit the size of the rows to test the loop
-        let max_size = 9 * 1024 * 1024; // 9 MB
+        // It was found after experimenting that one row in this test encodes to about 38 bytes
+        // We artificially limit the size of the rows to test that the loop processes all the rows
+        let max_size = 50; // 50 bytes
         let num_append_rows_calls =
             call_append_rows(&mut client, &table_descriptor, &stream_name, trace_id, rows, max_size).await?;
-        assert_eq!(num_append_rows_calls, 1);
+        assert_eq!(num_append_rows_calls, 2);
 
         Ok(())
     }
