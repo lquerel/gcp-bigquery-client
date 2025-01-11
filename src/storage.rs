@@ -351,8 +351,23 @@ pub mod test {
     use std::time::{Duration, SystemTime};
     use tokio_stream::StreamExt;
 
+    #[derive(Clone, PartialEq, Message)]
+    struct Actor {
+        #[prost(int32, tag = "1")]
+        actor_id: i32,
+
+        #[prost(string, tag = "2")]
+        first_name: String,
+
+        #[prost(string, tag = "3")]
+        last_name: String,
+
+        #[prost(string, tag = "4")]
+        last_update: String,
+    }
+
     #[tokio::test]
-    async fn test() -> Result<(), Box<dyn std::error::Error>> {
+    async fn test_append_rows() -> Result<(), Box<dyn std::error::Error>> {
         let (ref project_id, ref dataset_id, ref table_id, ref sa_key) = env_vars();
         let dataset_id = &format!("{dataset_id}_storage");
 
@@ -421,21 +436,6 @@ pub mod test {
         ];
         let table_descriptor = TableDescriptor { field_descriptors };
 
-        #[derive(Clone, PartialEq, Message)]
-        struct Actor {
-            #[prost(int32, tag = "1")]
-            actor_id: i32,
-
-            #[prost(string, tag = "2")]
-            first_name: String,
-
-            #[prost(string, tag = "3")]
-            last_name: String,
-
-            #[prost(string, tag = "4")]
-            last_update: String,
-        }
-
         let actor1 = Actor {
             actor_id: 1,
             first_name: "John".to_string(),
@@ -453,19 +453,50 @@ pub mod test {
         let stream_name = StreamName::new_default(project_id.clone(), dataset_id.clone(), table_id.clone());
         let trace_id = "test_client".to_string();
 
-        let mut rows: &[Actor] = &[actor1, actor2];
-        const MAX_SIZE: usize = 9 * 1024 * 1024; // 9 MB
+        let rows: &[Actor] = &[actor1, actor2];
 
+        let max_size = 9 * 1024 * 1024; // 9 MB
+        let num_append_rows_calls = call_append_rows(
+            &mut client,
+            &table_descriptor,
+            &stream_name,
+            trace_id.clone(),
+            rows,
+            max_size,
+        )
+        .await?;
+        assert_eq!(num_append_rows_calls, 1);
+
+        // artifically limit the size of the rows to test the loop
+        let max_size = 9 * 1024 * 1024; // 9 MB
+        let num_append_rows_calls =
+            call_append_rows(&mut client, &table_descriptor, &stream_name, trace_id, rows, max_size).await?;
+        assert_eq!(num_append_rows_calls, 1);
+
+        Ok(())
+    }
+
+    async fn call_append_rows(
+        client: &mut Client,
+        table_descriptor: &TableDescriptor,
+        stream_name: &StreamName,
+        trace_id: String,
+        mut rows: &[Actor],
+        max_size: usize,
+    ) -> Result<u8, Box<dyn std::error::Error>> {
         // This loop is needed because the AppendRows API has a payload size limit of 10MB and the create_rows
         // function may not process all the rows in the rows slice due to the 10MB limit. Even though in this
         // example we are only sending two rows (which won't breach the 10MB limit), in a real-world scenario,
         // we may have to send more rows and the loop will be needed to process all the rows.
+        let mut num_append_rows_calls = 0;
         loop {
-            let (encoded_rows, num_processed) = StorageApi::create_rows(&table_descriptor, rows, MAX_SIZE);
+            let (encoded_rows, num_processed) = StorageApi::create_rows(table_descriptor, rows, max_size);
             let mut streaming = client
                 .storage_mut()
-                .append_rows(&stream_name, encoded_rows, trace_id.clone())
+                .append_rows(stream_name, encoded_rows, trace_id.clone())
                 .await?;
+
+            num_append_rows_calls += 1;
 
             while let Some(resp) = streaming.next().await {
                 let resp = resp?;
@@ -481,6 +512,6 @@ pub mod test {
             rows = &rows[num_processed..];
         }
 
-        Ok(())
+        Ok(num_append_rows_calls)
     }
 }
