@@ -244,7 +244,7 @@ impl StorageApi {
     pub fn create_rows<M: Message>(
         table_descriptor: &TableDescriptor,
         rows: &[M],
-        max_size: usize,
+        max_size_bytes: usize,
     ) -> (append_rows_request::Rows, usize) {
         let field_descriptors = table_descriptor
             .field_descriptors
@@ -290,7 +290,7 @@ impl StorageApi {
             let encoded_row = row.encode_to_vec();
             let current_size = encoded_row.len();
 
-            if total_size + current_size > max_size {
+            if total_size + current_size > max_size_bytes {
                 break;
             }
 
