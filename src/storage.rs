@@ -453,13 +453,32 @@ pub mod test {
         let stream_name = StreamName::new_default(project_id.clone(), dataset_id.clone(), table_id.clone());
         let trace_id = "test_client".to_string();
 
+        let mut rows: &[Actor] = &[actor1, actor2];
         const MAX_SIZE: usize = 9 * 1024 * 1024; // 9 MB
-        let (rows, _) = StorageApi::create_rows(&table_descriptor, &[actor1, actor2], MAX_SIZE);
-        let mut streaming = client.storage_mut().append_rows(&stream_name, rows, trace_id).await?;
 
-        while let Some(resp) = streaming.next().await {
-            let resp = resp?;
-            println!("response: {resp:#?}");
+        // This loop is needed because the AppendRows API has a payload size limit of 10MB and the create_rows
+        // function may not process all the rows in the rows slice due to the 10MB limit. Even though in this
+        // example we are only sending two rows (which won't breach the 10MB limit), in a real-world scenario,
+        // we may have to send more rows and the loop will be needed to process all the rows.
+        loop {
+            let (encoded_rows, num_processed) = StorageApi::create_rows(&table_descriptor, rows, MAX_SIZE);
+            let mut streaming = client
+                .storage_mut()
+                .append_rows(&stream_name, encoded_rows, trace_id.clone())
+                .await?;
+
+            while let Some(resp) = streaming.next().await {
+                let resp = resp?;
+                println!("response: {resp:#?}");
+            }
+
+            // All the rows have been processed
+            if num_processed == rows.len() {
+                break;
+            }
+
+            // Process the remaining rows
+            rows = &rows[num_processed..];
         }
 
         Ok(())
