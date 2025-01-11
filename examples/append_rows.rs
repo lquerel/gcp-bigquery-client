@@ -71,7 +71,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let stream_name = StreamName::new_default(project_id.clone(), dataset_id.clone(), table_id.clone());
     let trace_id = "test_client".to_string();
 
-    let (rows, _) = StorageApi::create_rows(&table_descriptor, &[actor1, actor2]);
+    const MAX_SIZE: usize = 9 * 1024 * 1024; // 9 MB
+    let (rows, _) = StorageApi::create_rows(&table_descriptor, &[actor1, actor2], MAX_SIZE);
     let mut streaming = client.storage_mut().append_rows(&stream_name, rows, trace_id).await?;
 
     while let Some(resp) = streaming.next().await {

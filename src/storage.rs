@@ -227,6 +227,7 @@ impl StorageApi {
     pub fn create_rows<M: Message>(
         table_descriptor: &TableDescriptor,
         rows: &[M],
+        max_size: usize,
     ) -> (append_rows_request::Rows, usize) {
         let field_descriptors = table_descriptor
             .field_descriptors
@@ -265,8 +266,6 @@ impl StorageApi {
             proto_descriptor: Some(proto_descriptor),
         };
 
-        const MAX_SIZE: usize = 9 * 1024 * 1024; // 9 MB
-
         let mut serialized_rows = Vec::new();
         let mut total_size = 0;
 
@@ -274,7 +273,7 @@ impl StorageApi {
             let encoded_row = row.encode_to_vec();
             let current_size = encoded_row.len();
 
-            if total_size + current_size > MAX_SIZE {
+            if total_size + current_size > max_size {
                 break;
             }
 
@@ -437,7 +436,8 @@ pub mod test {
         let stream_name = StreamName::new_default(project_id.clone(), dataset_id.clone(), table_id.clone());
         let trace_id = "test_client".to_string();
 
-        let (rows, _) = StorageApi::create_rows(&table_descriptor, &[actor1, actor2]);
+        const MAX_SIZE: usize = 9 * 1024 * 1024; // 9 MB
+        let (rows, _) = StorageApi::create_rows(&table_descriptor, &[actor1, actor2], MAX_SIZE);
         let mut streaming = client.storage_mut().append_rows(&stream_name, rows, trace_id).await?;
 
         while let Some(resp) = streaming.next().await {
