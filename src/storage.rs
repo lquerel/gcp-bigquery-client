@@ -224,6 +224,23 @@ impl StorageApi {
         Ok(streaming)
     }
 
+    /// This function encodes the `rows` slice into a protobuf message
+    /// while ensuring that the total size of the encoded rows does
+    /// not exceed the `max_size` argument. The encoded rows are returned
+    /// in the first value of the tuple returned by this function.
+    ///
+    /// Note that it is possible that not all the rows in the `rows` slice
+    /// were encoded due to the `max_size` limit.  The callers can find
+    /// out how many rows were processed by looking at the second value in
+    /// the tuple returned by this function. If the number of rows processed
+    /// is less than the number of rows in the `rows` slice, then the caller
+    /// can call this function again with the rows remaing at the end of the
+    /// slice to encode them.
+    ///
+    /// The AppendRows API has a payload size limit of 10MB. Some of the
+    /// space in the 10MB limit is used by the request metadata, so the
+    /// `max_size` argument should be set to a value less than 10MB. 9MB
+    /// is a good value to use for the `max_size` argument.
     pub fn create_rows<M: Message>(
         table_descriptor: &TableDescriptor,
         rows: &[M],
