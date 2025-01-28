@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.25.1] - 2025-01-28
+
+### Added
+
+- Add interval to field type. Thanks @Groennbeck [PR #117](https://github.com/lquerel/gcp-bigquery-client/pull/117)
+
 ## [0.25.0] - 2025-01-12
 
 ### Added
