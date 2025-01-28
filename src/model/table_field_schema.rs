@@ -205,4 +205,16 @@ impl TableFieldSchema {
             r#type: FieldType::Json,
         }
     }
+
+    pub fn interval(field_name: &str) -> Self {
+        Self {
+            categories: None,
+            description: None,
+            fields: None,
+            mode: None,
+            name: field_name.into(),
+            policy_tags: None,
+            r#type: FieldType::Interval,
+        }
+    }
 }
