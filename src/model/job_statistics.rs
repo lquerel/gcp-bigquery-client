@@ -38,6 +38,7 @@ pub struct JobStatistics {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reservation_usage: Option<Vec<JobStatisticsReservationUsage>>,
     /// [Output-only] Name of the primary reservation assigned to this job. Note that this could be different than reservations reported in the reservation usage field if parent reservations were used to execute this job.
+    #[serde(alias = "reservation_id")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reservation_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
