@@ -1,6 +1,6 @@
 [package]
 name = "gcp-bigquery-client"
-version = "0.25.1"
+version = "0.26.0"
 authors = ["Laurent Querel <laurent.querel@gmail.com>"]
 edition = "2021"
 license = "MIT OR Apache-2.0"

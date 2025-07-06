@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.26.0] - 2025-07-06
+
+### Fix
+
+- Fix BigQuery job_statistics.reservation_id serde to use snake_case. Thanks @benjaminran [PR #120](https://github.com/lquerel/gcp-bigquery-client/pull/120)
+
 ## [0.25.1] - 2025-01-28
 
 ### Added
