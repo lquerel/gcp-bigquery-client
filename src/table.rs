@@ -95,12 +95,12 @@ impl TableApi {
         match self.delete(project_id, dataset_id, table_id).await {
             Err(BQError::ResponseError { error }) => {
                 if error.error.code != 404 {
-                    warn!("table.delete_if_exists: unexpected error: {:?}", error);
+                    warn!("table.delete_if_exists: unexpected error: {error:?}");
                 }
                 false
             }
             Err(err) => {
-                warn!("table.delete_if_exists: unexpected error: {:?}", err);
+                warn!("table.delete_if_exists: unexpected error: {err:?}");
                 false
             }
             Ok(_) => true,
