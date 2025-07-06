@@ -31,13 +31,13 @@ version = "1.0"
 optional = true
 
 [dependencies]
-yup-oauth2 = { version = "11", default-features = false, features = ["hyper-rustls", "service-account"] }
-hyper = { version = "1.5.2", features = ["http1"] }
-hyper-util = { version = "0.1.10", default-features = false, features = [
+yup-oauth2 = { version = "12", default-features = false, features = ["hyper-rustls", "service-account"] }
+hyper = { version = "1.6.0", features = ["http1"] }
+hyper-util = { version = "0.1.14", default-features = false, features = [
     "client-legacy",
 ] }
-thiserror = "1.0.67"
-tokio = { version = "1.43.0", default-features = false, features = [
+thiserror = "2.0.12"
+tokio = { version = "1.46.1", default-features = false, features = [
     "rt-multi-thread",
     "net",
     "sync",
@@ -47,10 +47,10 @@ tokio-stream = "0.1.17"
 async-stream = "0.3.6"
 reqwest = { version = "0.12.12", default-features = false, features = ["json"] }
 url = "2.5.4"
-serde = "1.0.217"
-serde_json = "1.0.137"
-log = "0.4.25"
-time = { version = "0.3.37", features = [
+serde = "1.0.219"
+serde_json = "1.0.140"
+log = "0.4.27"
+time = { version = "0.3.41", features = [
     "local-offset",
     "serde",
     "serde-well-known",
@@ -58,17 +58,17 @@ time = { version = "0.3.37", features = [
 cloud-storage = { version = "0.11.1", features = [
     "global-client",
 ], optional = true }
-async-trait = "0.1.85"
-dyn-clone = "1.0.17"
+async-trait = "0.1.88"
+dyn-clone = "1.0.19"
 prost = "0.13.4"
 prost-types = "0.13.4"
 tonic = { version = "0.12.3", default-features = false, features = ["channel", "codegen", "prost", "tls", "tls-roots"] }
 
 [dev-dependencies]
 tokio-test = "0.4.4"
-rand = "0.9.0"
-wiremock = "0.6.2"
-tempfile = "3.13.0"
+rand = "0.9.1"
+wiremock = "0.6.4"
+tempfile = "3.20.0"
 fake = "3.1.0"
 
 [build-dependencies]
