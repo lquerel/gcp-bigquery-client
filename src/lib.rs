@@ -14,6 +14,9 @@
 //! Other OAuth flows will be added later.
 //!
 //! For a detailed tutorial on the different ways to use GCP BigQuery Client please check out the [GitHub repository](https://github.com/lquerel/gcp-bigquery-client).
+
+#![allow(clippy::result_large_err)]
+
 #[macro_use]
 extern crate serde;
 extern crate serde_json;
