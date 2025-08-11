@@ -8,10 +8,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // - Comment the following lines.
     // - Commit the changes.
 
-    // tonic_build::configure()
+    // tonic_prost_build::configure()
     //     .build_server(false)
     //     .out_dir("src/google")
-    //     .compile(
+    //     .compile_protos(
     //         &["googleapis/google/cloud/bigquery/storage/v1/storage.proto"],
     //         &["googleapis"],
     //     )?;
