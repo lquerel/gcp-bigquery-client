@@ -28,7 +28,7 @@ static BIG_QUERY_STORAGE_API_URL: &str = "https://bigquerystorage.googleapis.com
 static BIGQUERY_STORAGE_API_DOMAIN: &str = "bigquerystorage.googleapis.com";
 
 /// Protobuf column type
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum ColumnType {
     Double,
     Float,
@@ -70,7 +70,7 @@ impl From<ColumnType> for Type {
 }
 
 /// Column mode
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum ColumnMode {
     Nullable,
     Required,
@@ -88,6 +88,7 @@ impl From<ColumnMode> for Label {
 }
 
 /// A struct to describe the schema of a field in protobuf
+#[derive(Debug)]
 pub struct FieldDescriptor {
     /// Field numbers starting from 1. Each subsequence field should be incremented by 1.
     pub number: u32,
@@ -103,12 +104,14 @@ pub struct FieldDescriptor {
 }
 
 /// A struct to describe the schema of a table in protobuf
+#[derive(Debug)]
 pub struct TableDescriptor {
     /// Descriptors of all the fields
     pub field_descriptors: Vec<FieldDescriptor>,
 }
 
 /// A struct representing a stream name
+#[derive(Debug)]
 pub struct StreamName {
     /// Name of the project
     project: String,
