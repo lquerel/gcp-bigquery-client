@@ -487,7 +487,6 @@ impl StorageApi {
         };
 
         let request = Self::new_authorized_request(self.auth.clone(), get_write_stream_request).await?;
-
         let response = self.write_client.get_write_stream(request).await?;
         let write_stream = response.into_inner();
 
@@ -513,11 +512,9 @@ impl StorageApi {
             rows: Some(rows),
         };
 
-        let req =
+        let request =
             Self::new_authorized_request(self.auth.clone(), tokio_stream::iter(vec![append_rows_request])).await?;
-
-        let response = self.write_client.append_rows(req).await?;
-
+        let response = self.write_client.append_rows(request).await?;
         let streaming = response.into_inner();
 
         Ok(streaming)
@@ -537,7 +534,7 @@ impl StorageApi {
         batches: Vec<Vec<M>>,
         max_concurrent_batches: usize,
         trace_id: &str,
-    ) -> Result<Vec<Vec<Result<AppendRowsResponse, Status>>>, BQError>
+    ) -> Result<Vec<(usize, Vec<Result<AppendRowsResponse, Status>>)>, BQError>
     where
         M: Message + Send + 'static,
     {
@@ -545,63 +542,57 @@ impl StorageApi {
             return Ok(Vec::new());
         }
 
-        let proto_schema = Self::create_proto_schema(table_descriptor);
-        let concurrency_semaphore = Arc::new(Semaphore::new(max_concurrent_batches));
-
         let batches_num = batches.len();
+        let proto_schema = Self::create_proto_schema(table_descriptor);
+        let semaphore = Arc::new(Semaphore::new(max_concurrent_batches));
+
         let mut join_set = JoinSet::new();
         for (idx, batch) in batches.into_iter().enumerate() {
+            // Acquire a concurrency slot and hold it until responses are fully drained.
+            let permit = semaphore.clone().acquire_owned().await?;
+
             let stream_name = stream_name.clone();
             let trace_id = trace_id.to_string();
             let proto_schema = proto_schema.clone();
-            let semaphore = concurrency_semaphore.clone();
             let mut client = self.clone();
-
-            // Acquire a concurrency slot and hold it until responses are fully drained.
-            let permit = semaphore.acquire_owned().await?;
 
             join_set.spawn(async move {
                 // Build the request stream for this batch.
                 let request_stream = AppendRequestsStream::new(batch, proto_schema, stream_name, trace_id);
 
-                // Authorize and send the bidirectional streaming request.
-                // If authorization or request creation fails, capture the error as a single Status.
-                let mut responses_vec = Vec::new();
+                let mut responses = Vec::new();
                 match Self::new_authorized_request(client.auth.clone(), request_stream).await {
                     Ok(request) => match client.write_client.append_rows(request).await {
                         Ok(response) => {
                             let mut streaming_response = response.into_inner();
                             while let Some(response) = streaming_response.next().await {
-                                responses_vec.push(response);
+                                responses.push(response);
                             }
                         }
                         Err(status) => {
-                            responses_vec.push(Err(status));
+                            responses.push(Err(status));
                         }
                     },
                     Err(err) => {
-                        responses_vec.push(Err(Status::unknown(err.to_string())));
+                        responses.push(Err(Status::unknown(err.to_string())));
                     }
                 }
 
                 // Free the concurrency slot only after fully draining the responses or after an error.
                 drop(permit);
 
-                (idx, responses_vec)
+                (idx, responses)
             });
         }
 
-        // Collect all task results and reorder by original batch index.
-        let mut ordered = vec![None; batches_num];
-        while let Some(result) = join_set.join_next().await {
-            let (idx, responses) = result?;
-            ordered[idx] = Some(responses);
+        // Collect all task results in the order of completion, we do not care about the order of the batches.
+        let mut responses = Vec::with_capacity(batches_num);
+        while let Some(response) = join_set.join_next().await {
+            let (idx, response) = response?;
+            responses.push((idx, response));
         }
 
-        // Convert from Option slots to concrete Vec, preserving order.
-        let results = ordered.into_iter().map(|opt| opt.unwrap_or_default()).collect();
-
-        Ok(results)
+        Ok(responses)
     }
 }
 
@@ -825,10 +816,5 @@ pub mod test {
             .unwrap();
 
         assert_eq!(batch_responses.len(), 4);
-
-        for batch_response in batch_responses {
-            println!("Response: {:?}", batch_response);
-            println!("----");
-        }
     }
 }
