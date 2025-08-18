@@ -11,9 +11,11 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::{collections::HashMap, convert::TryInto, fmt::Display, sync::Arc};
 use tokio::pin;
+use tokio::sync::Semaphore;
+use tokio::task::JoinHandle;
 use tonic::{
     transport::{Channel, ClientTlsConfig},
-    Request, Streaming,
+    Request, Status, Streaming,
 };
 
 use crate::google::cloud::bigquery::storage::v1::{GetWriteStreamRequest, ProtoRows, WriteStream, WriteStreamView};
@@ -333,11 +335,11 @@ impl StorageApi {
         let bearer_token = format!("Bearer {access_token}");
         let bearer_value = bearer_token.as_str().try_into()?;
 
-        let mut req = Request::new(message);
-        let meta = req.metadata_mut();
+        let mut request = Request::new(message);
+        let meta = request.metadata_mut();
         meta.insert("authorization", bearer_value);
 
-        Ok(req)
+        Ok(request)
     }
 
     fn create_field_descriptors(table_descriptor: &TableDescriptor) -> Vec<FieldDescriptorProto> {
@@ -415,6 +417,11 @@ impl StorageApi {
         Ok(streaming)
     }
 
+    // POSSIBLE MECHANISM:
+    // 1. A semaphore is used by each task spawned by the futured unordered
+    // 2. When it's acquired, the semaphore permit is stored and sent to a tokio task which drives
+    //      reponses
+
     /// Appends rows to a table using batched concurrent processing with configurable concurrency limit.
     /// For each batch in `batches`, creates a stream that yields `AppendRowsRequest` messages up to 10MB.
     /// Processes batches concurrently using `FuturesUnordered` with a maximum of `max_concurrent_batches` running simultaneously.
@@ -425,7 +432,7 @@ impl StorageApi {
         batches: Vec<Vec<M>>,
         max_concurrent_batches: usize,
         trace_id: &str,
-    ) -> Result<Vec<Vec<AppendRowsResponse>>, BQError>
+    ) -> Result<Vec<Streaming<AppendRowsResponse>>, BQError>
     where
         M: Message + Send + 'static,
     {
@@ -434,53 +441,25 @@ impl StorageApi {
         }
 
         let proto_schema = Self::create_proto_schema(table_descriptor);
+        let concurrency_semaphore = Arc::new(Semaphore::new(max_concurrent_batches));
         let mut futures = FuturesUnordered::new();
-        let mut batch = batches.into_iter();
 
-        for _ in 0..max_concurrent_batches {
-            let Some(batch) = batch.next() else {
-                break;
-            };
-
+        // We load all the batches into memory since we have the semaphore controlling the concurrency.
+        for batch in batches {
             let request_stream =
                 AppendRequestsStream::new(batch, proto_schema.clone(), stream_name.clone(), trace_id.to_string());
 
-            let client = self.clone();
-            let auth = self.auth.clone();
-
-            let future = Self::process_batch_stream(client, auth, request_stream);
+            let future = Self::process_batch_stream(
+                concurrency_semaphore.clone(),
+                self.clone(),
+                self.auth.clone(),
+                request_stream,
+            )
+            .await?;
             futures.push(future);
         }
 
-        // Process completed futures and add new ones
-        let mut completed_batches = Vec::new();
-
-        while let Some(result) = futures.next().await {
-            let batch_responses = result?;
-            completed_batches.push(batch_responses);
-
-            // Add a new batch if available
-            if let Some(batch) = batch.next() {
-                let request_stream =
-                    AppendRequestsStream::new(batch, proto_schema.clone(), stream_name.clone(), trace_id.to_string());
-
-                let client = self.clone();
-                let auth = self.auth.clone();
-
-                let future = Self::process_batch_stream(client, auth, request_stream);
-                futures.push(future);
-            }
-        }
-
-        let mut all_responses = Vec::with_capacity(completed_batches.len());
-        for i in 0..completed_batches.len() {
-            // TODO: implement this.
-            // if let Some(batch_responses) = completed_batches.remove(&i) {
-            //     all_responses.push(batch_responses);
-            // }
-        }
-
-        Ok(all_responses)
+        Ok(vec![])
     }
 
     pub async fn get_write_stream(
@@ -503,29 +482,33 @@ impl StorageApi {
 
     /// Helper function to process a single batch of messages and return all responses
     async fn process_batch_stream<S>(
+        concurrency_semaphore: Arc<Semaphore>,
         mut client: StorageApi,
         auth: Arc<dyn Authenticator>,
         request_stream: S,
-    ) -> Result<Vec<AppendRowsResponse>, BQError>
+    ) -> Result<JoinHandle<Vec<Result<AppendRowsResponse, Status>>>, BQError>
     where
-        S: Stream<Item = AppendRowsRequest>,
+        S: Stream<Item = AppendRowsRequest> + Send + 'static,
     {
-        let mut batch_responses = Vec::new();
+        // TODO: remove acquire.
+        let permit = concurrency_semaphore.acquire_owned().await.unwrap();
 
-        pin!(request_stream);
-        while let Some(append_request) = request_stream.next().await {
-            let request = Self::new_authorized_request(auth.clone(), tokio_stream::iter(vec![append_request])).await?;
+        let request = Self::new_authorized_request(auth.clone(), request_stream).await?;
+        let mut response = client.write_client.append_rows(request).await?.into_inner();
 
-            let response = client.write_client.append_rows(request).await?;
-            let mut streaming = response.into_inner();
-
-            // Drive the response stream to completion
-            while let Some(response_result) = streaming.next().await {
-                batch_responses.push(response_result?);
+        let handle = tokio::task::spawn(async move {
+            let mut responses = Vec::new();
+            while let Some(response) = response.next().await {
+                responses.push(response);
             }
-        }
 
-        Ok(batch_responses)
+            // We drop the permit because we consumed all the responses now.
+            drop(permit);
+
+            responses
+        });
+
+        Ok(handle)
     }
 }
 
@@ -742,18 +725,24 @@ pub mod test {
         ];
 
         // Test with concurrency limit of 2
-        let results = client
+        let batch_responses = client
             .storage_mut()
             .append_rows_concurrent(&stream_name, &table_descriptor, batches, 2, trace_id)
             .await
             .unwrap();
 
-        assert_eq!(results.len(), 4);
+        assert_eq!(batch_responses.len(), 4);
 
-        // Each batch should have at least one response
-        for batch_responses in results {
-            assert!(!batch_responses.is_empty());
-            println!("Batch responses: {} responses", batch_responses.len());
+        for mut batch_response in batch_responses {
+            while let Some(response) = batch_response.next().await {
+                println!("Response: {:?}", response);
+            }
+            println!("----");
         }
+        // // Each batch should have at least one response
+        // for batch_responses in results {
+        //     assert!(!batch_responses.is_empty());
+        //     println!("Batch responses: {} responses", batch_responses.len());
+        // }
     }
 }
