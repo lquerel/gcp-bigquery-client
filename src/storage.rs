@@ -1,6 +1,7 @@
 //! Manage BigQuery dataset.
 use futures::stream::{FuturesUnordered, Stream};
 use futures::StreamExt;
+use pin_project::pin_project;
 use prost::Message;
 use prost_types::{
     field_descriptor_proto::{Label, Type},
@@ -160,7 +161,9 @@ impl Display for StreamName {
 
 /// A stream that yields [`AppendRowsRequest`] messages from a batch of messages.
 /// Each request is guaranteed to be under 10MB in size.
+#[pin_project]
 pub struct AppendRequestsStream<M> {
+    #[pin]
     batch: Vec<M>,
     proto_schema: ProtoSchema,
     stream_name: StreamName,
@@ -187,7 +190,9 @@ where
     type Item = AppendRowsRequest;
 
     fn poll_next(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        if self.current_index >= self.batch.len() {
+        let this = self.project();
+
+        if *this.current_index >= this.batch.len() {
             return Poll::Ready(None);
         }
 
@@ -196,7 +201,7 @@ where
         let mut processed_count = 0;
 
         // Process messages from current_index onwards
-        for msg in self.batch.iter().skip(self.current_index) {
+        for msg in this.batch.iter().skip(*this.current_index) {
             let encoded = msg.encode_to_vec();
             let size = encoded.len();
 
@@ -215,20 +220,20 @@ where
 
         let proto_rows = ProtoRows { serialized_rows };
         let proto_data = ProtoData {
-            writer_schema: Some(self.proto_schema.clone()),
+            writer_schema: Some(this.proto_schema.clone()),
             rows: Some(proto_rows),
         };
 
         let append_rows_request = AppendRowsRequest {
-            write_stream: self.stream_name.to_string(),
+            write_stream: this.stream_name.to_string(),
             offset: None,
-            trace_id: self.trace_id.clone(),
+            trace_id: this.trace_id.clone(),
             missing_value_interpretations: HashMap::new(),
             default_missing_value_interpretation: MissingValueInterpretation::Unspecified.into(),
             rows: Some(append_rows_request::Rows::ProtoRows(proto_data)),
         };
 
-        self.current_index += processed_count;
+        *this.current_index += processed_count;
 
         Poll::Ready(Some(append_rows_request))
     }
