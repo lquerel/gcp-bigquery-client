@@ -1,5 +1,6 @@
 //! Manage BigQuery dataset.
-use futures::future::join_all;
+use futures::stream::FuturesUnordered;
+use futures::StreamExt;
 use prost::Message;
 use prost_types::{
     field_descriptor_proto::{Label, Type},
@@ -375,22 +376,25 @@ impl StorageApi {
     {
         let proto_schema = Self::create_proto_schema(table_descriptor);
 
-        let futures = batches.into_iter().map(|batch| {
+        let mut futures_unordered = FuturesUnordered::new();
+
+        for batch in batches {
             let proto_schema = proto_schema.clone();
             let stream_name = stream_name.clone_stream_name();
             let trace_id = trace_id.to_string();
-
             let mut this = self.clone();
-            async move {
+
+            let future = async move {
                 this.append_batch_messages(&stream_name, &proto_schema, batch, &trace_id)
                     .await
-            }
-        });
+            };
 
-        let results = join_all(futures).await;
+            futures_unordered.push(future);
+        }
+
         let mut all_responses = Vec::new();
 
-        for result in results {
+        while let Some(result) = futures_unordered.next().await {
             match result {
                 Ok(responses) => all_responses.extend(responses),
                 Err(e) => return Err(e),
