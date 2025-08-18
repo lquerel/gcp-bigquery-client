@@ -537,6 +537,7 @@ pub mod test {
                 mode: ColumnMode::Nullable,
             },
         ];
+
         TableDescriptor { field_descriptors }
     }
 
@@ -608,9 +609,8 @@ pub mod test {
 
             num_append_rows_calls += 1;
 
-            while let Some(resp) = streaming.next().await {
-                let resp = resp?;
-                println!("response: {resp:#?}");
+            while let Some(response) = streaming.next().await {
+                response?;
             }
 
             // All the rows have been processed
