@@ -156,6 +156,17 @@ impl Display for StreamName {
     }
 }
 
+impl StreamName {
+    fn clone_stream_name(&self) -> StreamName {
+        StreamName::new(
+            self.project.clone(),
+            self.dataset.clone(),
+            self.table.clone(),
+            self.stream.clone(),
+        )
+    }
+}
+
 /// A dataset API handler.
 #[derive(Clone)]
 pub struct StorageApi {
@@ -216,45 +227,7 @@ impl StorageApi {
         rows: &[M],
         max_size_bytes: usize,
     ) -> (append_rows_request::Rows, usize) {
-        let field_descriptors = table_descriptor
-            .field_descriptors
-            .iter()
-            .map(|fd| {
-                let typ: Type = fd.typ.into();
-                let label: Label = fd.mode.into();
-
-                FieldDescriptorProto {
-                    name: Some(fd.name.clone()),
-                    number: Some(fd.number as i32),
-                    label: Some(label.into()),
-                    r#type: Some(typ.into()),
-                    type_name: None,
-                    extendee: None,
-                    default_value: None,
-                    oneof_index: None,
-                    json_name: None,
-                    options: None,
-                    proto3_optional: None,
-                }
-            })
-            .collect();
-
-        let proto_descriptor = DescriptorProto {
-            name: Some("table_schema".to_string()),
-            field: field_descriptors,
-            extension: vec![],
-            nested_type: vec![],
-            enum_type: vec![],
-            extension_range: vec![],
-            oneof_decl: vec![],
-            options: None,
-            reserved_range: vec![],
-            reserved_name: vec![],
-        };
-
-        let proto_schema = ProtoSchema {
-            proto_descriptor: Some(proto_descriptor),
-        };
+        let proto_schema = Self::create_proto_schema(table_descriptor);
 
         let mut serialized_rows = Vec::new();
         let mut total_size = 0;
@@ -295,6 +268,54 @@ impl StorageApi {
         Ok(req)
     }
 
+    fn create_field_descriptors(table_descriptor: &TableDescriptor) -> Vec<FieldDescriptorProto> {
+        table_descriptor
+            .field_descriptors
+            .iter()
+            .map(|fd| {
+                let typ: Type = fd.typ.into();
+                let label: Label = fd.mode.into();
+
+                FieldDescriptorProto {
+                    name: Some(fd.name.clone()),
+                    number: Some(fd.number as i32),
+                    label: Some(label.into()),
+                    r#type: Some(typ.into()),
+                    type_name: None,
+                    extendee: None,
+                    default_value: None,
+                    oneof_index: None,
+                    json_name: None,
+                    options: None,
+                    proto3_optional: None,
+                }
+            })
+            .collect()
+    }
+
+    fn create_proto_descriptor(field_descriptors: Vec<FieldDescriptorProto>) -> DescriptorProto {
+        DescriptorProto {
+            name: Some("table_schema".to_string()),
+            field: field_descriptors,
+            extension: vec![],
+            nested_type: vec![],
+            enum_type: vec![],
+            extension_range: vec![],
+            oneof_decl: vec![],
+            options: None,
+            reserved_range: vec![],
+            reserved_name: vec![],
+        }
+    }
+
+    fn create_proto_schema(table_descriptor: &TableDescriptor) -> ProtoSchema {
+        let field_descriptors = Self::create_field_descriptors(table_descriptor);
+        let proto_descriptor = Self::create_proto_descriptor(field_descriptors);
+        ProtoSchema {
+            proto_descriptor: Some(proto_descriptor),
+        }
+    }
+
     /// Append rows to a table via the BigQuery Storage Write API.
     pub async fn append_rows(
         &mut self,
@@ -332,54 +353,9 @@ impl StorageApi {
         M: Message + Send + 'static,
         S: Stream<Item = Vec<M>> + Send + 'static,
     {
-        // Precompute the proto schema once per batched call to avoid repeated allocations.
-        let field_descriptors = table_descriptor
-            .field_descriptors
-            .iter()
-            .map(|fd| {
-                let typ: Type = fd.typ.into();
-                let label: Label = fd.mode.into();
+        let proto_schema = Self::create_proto_schema(table_descriptor);
 
-                FieldDescriptorProto {
-                    name: Some(fd.name.clone()),
-                    number: Some(fd.number as i32),
-                    label: Some(label.into()),
-                    r#type: Some(typ.into()),
-                    type_name: None,
-                    extendee: None,
-                    default_value: None,
-                    oneof_index: None,
-                    json_name: None,
-                    options: None,
-                    proto3_optional: None,
-                }
-            })
-            .collect();
-
-        let proto_descriptor = DescriptorProto {
-            name: Some("table_schema".to_string()),
-            field: field_descriptors,
-            extension: vec![],
-            nested_type: vec![],
-            enum_type: vec![],
-            extension_range: vec![],
-            oneof_decl: vec![],
-            options: None,
-            reserved_range: vec![],
-            reserved_name: vec![],
-        };
-
-        let proto_schema = ProtoSchema {
-            proto_descriptor: Some(proto_descriptor),
-        };
-
-        // Clone what we need inside the task.
-        let stream_name = StreamName::new(
-            stream_name.project.clone(),
-            stream_name.dataset.clone(),
-            stream_name.table.clone(),
-            stream_name.stream.clone(),
-        );
+        let stream_name = stream_name.clone_stream_name();
         let auth = self.auth.clone();
         let write_client = self.write_client.clone();
 
@@ -391,12 +367,7 @@ impl StorageApi {
         while let Some(batch) = batches.next().await {
             let auth = auth.clone();
             let write_client = write_client.clone();
-            let stream_name = StreamName::new(
-                stream_name.project.clone(),
-                stream_name.dataset.clone(),
-                stream_name.table.clone(),
-                stream_name.stream.clone(),
-            );
+            let stream_name = stream_name.clone_stream_name();
             let trace_id = trace_id.clone();
             let proto_schema = proto_schema.clone();
 
@@ -451,12 +422,7 @@ impl StorageApi {
                         let response = flush_batch(
                             write_client.clone(),
                             auth.clone(),
-                            StreamName::new(
-                                stream_name.project.clone(),
-                                stream_name.dataset.clone(),
-                                stream_name.table.clone(),
-                                stream_name.stream.clone(),
-                            ),
+                            stream_name.clone_stream_name(),
                             trace_id.clone(),
                             proto_schema.clone(),
                             // We take the serialized rows and move them into the future.
@@ -544,6 +510,82 @@ pub mod test {
         last_update: String,
     }
 
+    fn create_test_table_descriptor() -> TableDescriptor {
+        let field_descriptors = vec![
+            FieldDescriptor {
+                name: "actor_id".to_string(),
+                number: 1,
+                typ: ColumnType::Int64,
+                mode: ColumnMode::Nullable,
+            },
+            FieldDescriptor {
+                name: "first_name".to_string(),
+                number: 2,
+                typ: ColumnType::String,
+                mode: ColumnMode::Nullable,
+            },
+            FieldDescriptor {
+                name: "last_name".to_string(),
+                number: 3,
+                typ: ColumnType::String,
+                mode: ColumnMode::Nullable,
+            },
+            FieldDescriptor {
+                name: "last_update".to_string(),
+                number: 4,
+                typ: ColumnType::String,
+                mode: ColumnMode::Nullable,
+            },
+        ];
+        TableDescriptor { field_descriptors }
+    }
+
+    async fn setup_test_table(
+        client: &mut Client,
+        project_id: &str,
+        dataset_id: &str,
+        table_id: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        client.dataset().delete_if_exists(project_id, dataset_id, true).await;
+
+        let created_dataset = client.dataset().create(Dataset::new(project_id, dataset_id)).await?;
+        assert_eq!(created_dataset.id, Some(format!("{project_id}:{dataset_id}")));
+
+        let table = Table::new(
+            project_id,
+            dataset_id,
+            table_id,
+            TableSchema::new(vec![
+                TableFieldSchema::new("actor_id", FieldType::Int64),
+                TableFieldSchema::new("first_name", FieldType::String),
+                TableFieldSchema::new("last_name", FieldType::String),
+                TableFieldSchema::new("last_update", FieldType::Timestamp),
+            ]),
+        );
+        let created_table = client
+            .table()
+            .create(
+                table
+                    .description("A table used for unit tests")
+                    .label("owner", "me")
+                    .label("env", "prod")
+                    .expiration_time(SystemTime::now() + Duration::from_secs(3600)),
+            )
+            .await?;
+        assert_eq!(created_table.table_reference.table_id, table_id.to_string());
+
+        Ok(())
+    }
+
+    fn create_test_actor(id: i32, first_name: &str) -> Actor {
+        Actor {
+            actor_id: id,
+            first_name: first_name.to_string(),
+            last_name: "Doe".to_string(),
+            last_update: "2007-02-15 09:34:33 UTC".to_string(),
+        }
+    }
+
     async fn call_append_rows(
         client: &mut Client,
         table_descriptor: &TableDescriptor,
@@ -584,84 +626,19 @@ pub mod test {
     }
 
     #[tokio::test]
-    async fn test_append_rows() -> Result<(), Box<dyn std::error::Error>> {
+    async fn test_append_rows() {
         let (ref project_id, ref dataset_id, ref table_id, ref sa_key) = env_vars();
         let dataset_id = &format!("{dataset_id}_storage");
 
-        let mut client = Client::from_service_account_key_file(sa_key).await?;
+        let mut client = Client::from_service_account_key_file(sa_key).await.unwrap();
 
-        // Delete the dataset if needed
-        client.dataset().delete_if_exists(project_id, dataset_id, true).await;
+        setup_test_table(&mut client, project_id, dataset_id, table_id)
+            .await
+            .unwrap();
 
-        // Create dataset
-        let created_dataset = client.dataset().create(Dataset::new(project_id, dataset_id)).await?;
-        assert_eq!(created_dataset.id, Some(format!("{project_id}:{dataset_id}")));
-
-        // Create table
-        let table = Table::new(
-            project_id,
-            dataset_id,
-            table_id,
-            TableSchema::new(vec![
-                TableFieldSchema::new("actor_id", FieldType::Int64),
-                TableFieldSchema::new("first_name", FieldType::String),
-                TableFieldSchema::new("last_name", FieldType::String),
-                TableFieldSchema::new("last_update", FieldType::Timestamp),
-            ]),
-        );
-        let created_table = client
-            .table()
-            .create(
-                table
-                    .description("A table used for unit tests")
-                    .label("owner", "me")
-                    .label("env", "prod")
-                    .expiration_time(SystemTime::now() + Duration::from_secs(3600)),
-            )
-            .await?;
-        assert_eq!(created_table.table_reference.table_id, table_id.to_string());
-
-        let field_descriptors = vec![
-            FieldDescriptor {
-                name: "actor_id".to_string(),
-                number: 1,
-                typ: ColumnType::Int64,
-                mode: ColumnMode::Nullable,
-            },
-            FieldDescriptor {
-                name: "first_name".to_string(),
-                number: 2,
-                typ: ColumnType::String,
-                mode: ColumnMode::Nullable,
-            },
-            FieldDescriptor {
-                name: "last_name".to_string(),
-                number: 3,
-                typ: ColumnType::String,
-                mode: ColumnMode::Nullable,
-            },
-            FieldDescriptor {
-                name: "last_update".to_string(),
-                number: 4,
-                typ: ColumnType::String,
-                mode: ColumnMode::Nullable,
-            },
-        ];
-        let table_descriptor = TableDescriptor { field_descriptors };
-
-        let actor1 = Actor {
-            actor_id: 1,
-            first_name: "John".to_string(),
-            last_name: "Doe".to_string(),
-            last_update: "2007-02-15 09:34:33 UTC".to_string(),
-        };
-
-        let actor2 = Actor {
-            actor_id: 2,
-            first_name: "Jane".to_string(),
-            last_name: "Doe".to_string(),
-            last_update: "2008-02-15 09:34:33 UTC".to_string(),
-        };
+        let table_descriptor = create_test_table_descriptor();
+        let actor1 = create_test_actor(1, "John");
+        let actor2 = create_test_actor(2, "Jane");
 
         let stream_name = StreamName::new_default(project_id.clone(), dataset_id.clone(), table_id.clone());
         let trace_id = "test_client".to_string();
@@ -677,120 +654,46 @@ pub mod test {
             rows,
             max_size,
         )
-        .await?;
+        .await
+        .unwrap();
         assert_eq!(num_append_rows_calls, 1);
 
         // It was found after experimenting that one row in this test encodes to about 38 bytes
         // We artificially limit the size of the rows to test that the loop processes all the rows
         let max_size = 50; // 50 bytes
         let num_append_rows_calls =
-            call_append_rows(&mut client, &table_descriptor, &stream_name, trace_id, rows, max_size).await?;
+            call_append_rows(&mut client, &table_descriptor, &stream_name, trace_id, rows, max_size)
+                .await
+                .unwrap();
         assert_eq!(num_append_rows_calls, 2);
-
-        Ok(())
     }
 
     #[tokio::test]
-    async fn test_append_rows_batched() -> Result<(), Box<dyn std::error::Error>> {
+    async fn test_append_rows_batched() {
         let (ref project_id, ref dataset_id, ref table_id, ref sa_key) = env_vars();
         let dataset_id = &format!("{dataset_id}_storage");
 
-        let mut client = Client::from_service_account_key_file(sa_key).await?;
+        let mut client = Client::from_service_account_key_file(sa_key).await.unwrap();
 
-        // Delete the dataset if needed
-        client.dataset().delete_if_exists(project_id, dataset_id, true).await;
+        setup_test_table(&mut client, project_id, dataset_id, table_id)
+            .await
+            .unwrap();
 
-        // Create dataset
-        let created_dataset = client.dataset().create(Dataset::new(project_id, dataset_id)).await?;
-        assert_eq!(created_dataset.id, Some(format!("{project_id}:{dataset_id}")));
-
-        // Create table
-        let table = Table::new(
-            project_id,
-            dataset_id,
-            table_id,
-            TableSchema::new(vec![
-                TableFieldSchema::new("actor_id", FieldType::Int64),
-                TableFieldSchema::new("first_name", FieldType::String),
-                TableFieldSchema::new("last_name", FieldType::String),
-                TableFieldSchema::new("last_update", FieldType::Timestamp),
-            ]),
-        );
-        let created_table = client
-            .table()
-            .create(
-                table
-                    .description("A table used for unit tests")
-                    .label("owner", "me")
-                    .label("env", "prod")
-                    .expiration_time(SystemTime::now() + Duration::from_secs(3600)),
-            )
-            .await?;
-        assert_eq!(created_table.table_reference.table_id, table_id.to_string());
-
-        let field_descriptors = vec![
-            FieldDescriptor {
-                name: "actor_id".to_string(),
-                number: 1,
-                typ: ColumnType::Int64,
-                mode: ColumnMode::Nullable,
-            },
-            FieldDescriptor {
-                name: "first_name".to_string(),
-                number: 2,
-                typ: ColumnType::String,
-                mode: ColumnMode::Nullable,
-            },
-            FieldDescriptor {
-                name: "last_name".to_string(),
-                number: 3,
-                typ: ColumnType::String,
-                mode: ColumnMode::Nullable,
-            },
-            FieldDescriptor {
-                name: "last_update".to_string(),
-                number: 4,
-                typ: ColumnType::String,
-                mode: ColumnMode::Nullable,
-            },
-        ];
-        let table_descriptor = TableDescriptor { field_descriptors };
-
-        let actor1 = Actor {
-            actor_id: 1,
-            first_name: "John".to_string(),
-            last_name: "Doe".to_string(),
-            last_update: "2007-02-15 09:34:33 UTC".to_string(),
-        };
-
-        let actor2 = Actor {
-            actor_id: 2,
-            first_name: "John".to_string(),
-            last_name: "Doe".to_string(),
-            last_update: "2007-02-15 09:34:33 UTC".to_string(),
-        };
-
-        let actor3 = Actor {
-            actor_id: 3,
-            first_name: "Jane".to_string(),
-            last_name: "Doe".to_string(),
-            last_update: "2008-02-15 09:34:33 UTC".to_string(),
-        };
+        let table_descriptor = create_test_table_descriptor();
+        let actor1 = create_test_actor(1, "John");
+        let actor2 = create_test_actor(2, "Alex");
+        let actor3 = create_test_actor(3, "Jane");
 
         let stream_name = StreamName::new_default(project_id.clone(), dataset_id.clone(), table_id.clone());
         let trace_id = "test_client".to_string();
 
-        let batches = tokio_stream::iter(vec![
-            vec![actor1, actor2],
-            vec![actor3]
-        ]);
+        let batches = tokio_stream::iter(vec![vec![actor1, actor2], vec![actor3]]);
 
-        let results = client.storage_mut().append_rows_batched(
-            &stream_name,
-            &table_descriptor,
-            batches,
-            trace_id
-        ).await.unwrap();
+        let results = client
+            .storage_mut()
+            .append_rows_batched(&stream_name, &table_descriptor, batches, trace_id)
+            .await
+            .unwrap();
         assert_eq!(results.len(), 2);
 
         for mut result in results {
@@ -798,7 +701,5 @@ pub mod test {
                 println!("response: {result:#?}");
             }
         }
-
-        Ok(())
     }
 }
