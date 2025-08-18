@@ -1,14 +1,11 @@
 //! Manage BigQuery dataset.
-use futures::future::BoxFuture;
-use futures::stream::FuturesUnordered;
-use futures::FutureExt;
+use futures::future::join_all;
 use prost::Message;
 use prost_types::{
     field_descriptor_proto::{Label, Type},
     DescriptorProto, FieldDescriptorProto,
 };
 use std::{collections::HashMap, convert::TryInto, fmt::Display, sync::Arc};
-use tokio_stream::{Stream, StreamExt};
 use tonic::{
     transport::{Channel, ClientTlsConfig},
     Request, Streaming,
@@ -311,6 +308,7 @@ impl StorageApi {
     fn create_proto_schema(table_descriptor: &TableDescriptor) -> ProtoSchema {
         let field_descriptors = Self::create_field_descriptors(table_descriptor);
         let proto_descriptor = Self::create_proto_descriptor(field_descriptors);
+
         ProtoSchema {
             proto_descriptor: Some(proto_descriptor),
         }
@@ -342,127 +340,147 @@ impl StorageApi {
         Ok(streaming)
     }
 
-    pub async fn append_rows_batched<M, S>(
+    pub async fn append_rows_batched<M>(
         &mut self,
         stream_name: &StreamName,
         table_descriptor: &TableDescriptor,
-        batches: S,
-        trace_id: String,
+        batches: Vec<Vec<M>>,
+        trace_id: &str,
     ) -> Result<Vec<Streaming<AppendRowsResponse>>, BQError>
     where
-        M: Message + Send + 'static,
-        S: Stream<Item = Vec<M>> + Send + 'static,
+        M: Message,
+    {
+        let proto_schema = Self::create_proto_schema(table_descriptor);
+        let mut all_responses = Vec::with_capacity(batches.len());
+
+        for batch in batches {
+            let responses = self
+                .append_batch_messages(stream_name, &proto_schema, batch, trace_id)
+                .await?;
+            all_responses.extend(responses);
+        }
+
+        Ok(all_responses)
+    }
+
+    pub async fn append_rows_batched_concurrent<M>(
+        &mut self,
+        stream_name: &StreamName,
+        table_descriptor: &TableDescriptor,
+        batches: Vec<Vec<M>>,
+        trace_id: &str,
+    ) -> Result<Vec<Streaming<AppendRowsResponse>>, BQError>
+    where
+        M: Message + Send + Clone + 'static,
     {
         let proto_schema = Self::create_proto_schema(table_descriptor);
 
-        let stream_name = stream_name.clone_stream_name();
-        let auth = self.auth.clone();
-        let write_client = self.write_client.clone();
-
-        // We create a future unordered to handle concurrent tasks that send data to BigQuery.
-        let mut tasks: FuturesUnordered<BoxFuture<'static, Result<Vec<Streaming<AppendRowsResponse>>, BQError>>> =
-            FuturesUnordered::new();
-
-        tokio::pin!(batches);
-        while let Some(batch) = batches.next().await {
-            let auth = auth.clone();
-            let write_client = write_client.clone();
-            let stream_name = stream_name.clone_stream_name();
-            let trace_id = trace_id.clone();
+        let futures = batches.into_iter().map(|batch| {
             let proto_schema = proto_schema.clone();
+            let stream_name = stream_name.clone_stream_name();
+            let trace_id = trace_id.to_string();
 
-            // One concurrent task per inner stream.
-            let fut = async move {
-                async fn flush_batch(
-                    mut write_client: BigQueryWriteClient<Channel>,
-                    auth: Arc<dyn Authenticator>,
-                    stream_name: StreamName,
-                    trace_id: String,
-                    proto_schema: ProtoSchema,
-                    serialized_rows: Vec<Vec<u8>>,
-                ) -> Result<Option<Streaming<AppendRowsResponse>>, BQError> {
-                    if serialized_rows.is_empty() {
-                        return Ok(None);
-                    }
+            let mut this = self.clone();
+            async move {
+                this.append_batch_messages(&stream_name, &proto_schema, batch, &trace_id)
+                    .await
+            }
+        });
 
-                    let proto_rows = ProtoRows { serialized_rows };
-                    let proto_data = ProtoData {
-                        writer_schema: Some(proto_schema),
-                        rows: Some(proto_rows),
-                    };
+        let results = join_all(futures).await;
+        let mut all_responses = Vec::new();
 
-                    let append_rows_request = AppendRowsRequest {
-                        write_stream: stream_name.to_string(),
-                        offset: None,
+        for result in results {
+            match result {
+                Ok(responses) => all_responses.extend(responses),
+                Err(e) => return Err(e),
+            }
+        }
+
+        Ok(all_responses)
+    }
+
+    async fn append_batch_messages<M>(
+        &mut self,
+        stream_name: &StreamName,
+        proto_schema: &ProtoSchema,
+        batch: Vec<M>,
+        trace_id: &str,
+    ) -> Result<Vec<Streaming<AppendRowsResponse>>, BQError>
+    where
+        M: Message,
+    {
+        let mut responses = Vec::new();
+        let mut serialized_rows = Vec::new();
+        let mut total_size = 0;
+
+        for msg in batch {
+            let encoded = msg.encode_to_vec();
+            let size = encoded.len();
+
+            if total_size + size > MAX_BATCH_BYTES && !serialized_rows.is_empty() {
+                let response = self
+                    .flush_serialized_batch(
+                        stream_name,
+                        proto_schema,
+                        std::mem::take(&mut serialized_rows),
                         trace_id,
-                        missing_value_interpretations: HashMap::new(),
-                        default_missing_value_interpretation: MissingValueInterpretation::Unspecified.into(),
-                        rows: Some(append_rows_request::Rows::ProtoRows(proto_data)),
-                    };
-
-                    let req =
-                        StorageApi::new_authorized_request(auth.clone(), tokio_stream::iter(vec![append_rows_request]))
-                            .await?;
-                    let response = write_client.append_rows(req).await?;
-                    let streaming = response.into_inner();
-
-                    Ok(Some(streaming))
-                }
-
-                let mut serialized_rows: Vec<Vec<u8>> = Vec::new();
-                let mut total_size: usize = 0;
-                let mut responses = Vec::new();
-
-                for msg in batch {
-                    let encoded = msg.encode_to_vec();
-                    let size = encoded.len();
-
-                    if total_size + size > MAX_BATCH_BYTES {
-                        // Flush the current batch.
-                        let response = flush_batch(
-                            write_client.clone(),
-                            auth.clone(),
-                            stream_name.clone_stream_name(),
-                            trace_id.clone(),
-                            proto_schema.clone(),
-                            // We take the serialized rows and move them into the future.
-                            std::mem::take(&mut serialized_rows),
-                        )
-                        .await?;
-                        if let Some(response) = response {
-                            responses.push(response);
-                        }
-
-                        // Start a new batch with the current row.
-                        total_size = 0;
-                    }
-
-                    serialized_rows.push(encoded);
-                    total_size += size;
-                }
-
-                // Flush any remaining rows.
-                let response =
-                    flush_batch(write_client, auth, stream_name, trace_id, proto_schema, serialized_rows).await?;
+                    )
+                    .await?;
                 if let Some(response) = response {
                     responses.push(response);
                 }
-
-                Ok(responses)
+                total_size = 0;
             }
-            .boxed();
 
-            tasks.push(fut);
+            serialized_rows.push(encoded);
+            total_size += size;
         }
 
-        let mut final_responses = Vec::new();
-        while let Some(responses) = tasks.next().await {
-            if let Ok(responses) = responses {
-                final_responses.extend(responses);
+        if !serialized_rows.is_empty() {
+            let response = self
+                .flush_serialized_batch(stream_name, proto_schema, serialized_rows, trace_id)
+                .await?;
+
+            if let Some(response) = response {
+                responses.push(response);
             }
         }
 
-        Ok(final_responses)
+        Ok(responses)
+    }
+
+    async fn flush_serialized_batch(
+        &mut self,
+        stream_name: &StreamName,
+        proto_schema: &ProtoSchema,
+        serialized_rows: Vec<Vec<u8>>,
+        trace_id: &str,
+    ) -> Result<Option<Streaming<AppendRowsResponse>>, BQError> {
+        if serialized_rows.is_empty() {
+            return Ok(None);
+        }
+
+        let proto_rows = ProtoRows { serialized_rows };
+        let proto_data = ProtoData {
+            writer_schema: Some(proto_schema.clone()),
+            rows: Some(proto_rows),
+        };
+
+        let append_rows_request = AppendRowsRequest {
+            write_stream: stream_name.to_string(),
+            offset: None,
+            trace_id: trace_id.to_string(),
+            missing_value_interpretations: HashMap::new(),
+            default_missing_value_interpretation: MissingValueInterpretation::Unspecified.into(),
+            rows: Some(append_rows_request::Rows::ProtoRows(proto_data)),
+        };
+
+        let request =
+            Self::new_authorized_request(self.auth.clone(), tokio_stream::iter(vec![append_rows_request])).await?;
+        let response = self.write_client.append_rows(request).await?;
+
+        Ok(Some(response.into_inner()))
     }
 
     pub async fn get_write_stream(
@@ -687,11 +705,11 @@ pub mod test {
         let stream_name = StreamName::new_default(project_id.clone(), dataset_id.clone(), table_id.clone());
         let trace_id = "test_client".to_string();
 
-        let batches = tokio_stream::iter(vec![vec![actor1, actor2], vec![actor3]]);
+        let batches = vec![vec![actor1, actor2], vec![actor3]];
 
         let results = client
             .storage_mut()
-            .append_rows_batched(&stream_name, &table_descriptor, batches, trace_id)
+            .append_rows_batched(&stream_name, &table_descriptor, batches, &trace_id)
             .await
             .unwrap();
         assert_eq!(results.len(), 2);
@@ -699,6 +717,42 @@ pub mod test {
         for mut result in results {
             while let Some(result) = result.next().await {
                 println!("response: {result:#?}");
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_append_rows_batched_concurrent() {
+        let (ref project_id, ref dataset_id, ref table_id, ref sa_key) = env_vars();
+        let dataset_id = &format!("{dataset_id}_storage_concurrent");
+
+        let mut client = Client::from_service_account_key_file(sa_key).await.unwrap();
+
+        setup_test_table(&mut client, project_id, dataset_id, table_id)
+            .await
+            .unwrap();
+
+        let table_descriptor = create_test_table_descriptor();
+        let actor1 = create_test_actor(1, "John");
+        let actor2 = create_test_actor(2, "Alex");
+        let actor3 = create_test_actor(3, "Jane");
+        let actor4 = create_test_actor(4, "Bob");
+
+        let stream_name = StreamName::new_default(project_id.clone(), dataset_id.clone(), table_id.clone());
+        let trace_id = "test_client_concurrent";
+
+        let batches = vec![vec![actor1, actor2], vec![actor3], vec![actor4]];
+
+        let results = client
+            .storage_mut()
+            .append_rows_batched_concurrent(&stream_name, &table_descriptor, batches, trace_id)
+            .await
+            .unwrap();
+        assert_eq!(results.len(), 3);
+
+        for mut result in results {
+            while let Some(result) = result.next().await {
+                println!("concurrent response: {result:#?}");
             }
         }
     }
