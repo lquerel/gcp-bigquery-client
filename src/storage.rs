@@ -560,6 +560,7 @@ impl StorageApi {
                 // Build the request stream for this batch.
                 let request_stream = AppendRequestsStream::new(batch, proto_schema, stream_name, trace_id);
 
+                // We make the request for append rows and poll the response stream until it is exhausted.
                 let mut responses = Vec::new();
                 match Self::new_authorized_request(client.auth.clone(), request_stream).await {
                     Ok(request) => match client.write_client.append_rows(request).await {
@@ -585,7 +586,9 @@ impl StorageApi {
             });
         }
 
-        // Collect all task results in the order of completion, we do not care about the order of the batches.
+        // Collect all task results in the order of completion. For performance reasons, we do not return
+        // data in order, but we just return the index of the batch and the responses so that the caller
+        // can sort the results if needed.
         let mut responses = Vec::with_capacity(batches_num);
         while let Some(response) = join_set.join_next().await {
             let (idx, response) = response?;
