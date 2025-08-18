@@ -63,6 +63,7 @@ dyn-clone = "1.0.19"
 prost = "0.13.4"
 prost-types = "0.13.4"
 tonic = { version = "0.12.3", default-features = false, features = ["channel", "codegen", "prost", "tls", "tls-roots"] }
+futures = "0.3.31"
 
 [dev-dependencies]
 tokio-test = "0.4.4"

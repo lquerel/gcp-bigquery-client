@@ -1,17 +1,20 @@
 //! Manage BigQuery dataset.
-use std::{collections::HashMap, convert::TryInto, fmt::Display, sync::Arc};
-
+use futures::future::BoxFuture;
+use futures::stream::FuturesUnordered;
 use prost::Message;
 use prost_types::{
     field_descriptor_proto::{Label, Type},
     DescriptorProto, FieldDescriptorProto,
 };
+use std::{collections::HashMap, convert::TryInto, fmt::Display, sync::Arc};
+use futures::FutureExt;
+use tokio_stream::{Stream, StreamExt};
 use tonic::{
     transport::{Channel, ClientTlsConfig},
     Request, Streaming,
 };
 
-use crate::google::cloud::bigquery::storage::v1::{GetWriteStreamRequest, WriteStream, WriteStreamView};
+use crate::google::cloud::bigquery::storage::v1::{GetWriteStreamRequest, ProtoRows, WriteStream, WriteStreamView};
 use crate::{
     auth::Authenticator,
     error::BQError,
@@ -26,6 +29,8 @@ use crate::{
 static BIG_QUERY_STORAGE_API_URL: &str = "https://bigquerystorage.googleapis.com";
 // Service Name
 static BIGQUERY_STORAGE_API_DOMAIN: &str = "bigquerystorage.googleapis.com";
+// Safety margin under 10MB to account for request metadata overhead.
+const MAX_BATCH_BYTES: usize = 9 * 1024 * 1024;
 
 /// Protobuf column type
 #[derive(Clone, Copy)]
@@ -91,13 +96,10 @@ impl From<ColumnMode> for Label {
 pub struct FieldDescriptor {
     /// Field numbers starting from 1. Each subsequence field should be incremented by 1.
     pub number: u32,
-
     /// Field name
     pub name: String,
-
     /// Field type
     pub typ: ColumnType,
-
     /// Field mode
     pub mode: ColumnMode,
 }
@@ -112,13 +114,10 @@ pub struct TableDescriptor {
 pub struct StreamName {
     /// Name of the project
     project: String,
-
     /// Name of the dataset
     dataset: String,
-
     /// Name of the table
     table: String,
-
     /// Name of the stream
     stream: String,
 }
@@ -195,6 +194,18 @@ impl StorageApi {
         self
     }
 
+    async fn new_authorized_request<D>(auth: Arc<dyn Authenticator>, t: D) -> Result<Request<D>, BQError> {
+        let access_token = auth.access_token().await?;
+        let bearer_token = format!("Bearer {access_token}");
+        let bearer_value = bearer_token.as_str().try_into()?;
+
+        let mut req = Request::new(t);
+        let meta = req.metadata_mut();
+        meta.insert("authorization", bearer_value);
+
+        Ok(req)
+    }
+
     /// Append rows to a table via the BigQuery Storage Write API.
     pub async fn append_rows(
         &mut self,
@@ -202,10 +213,8 @@ impl StorageApi {
         rows: append_rows_request::Rows,
         trace_id: String,
     ) -> Result<Streaming<AppendRowsResponse>, BQError> {
-        let write_stream = stream_name.to_string();
-
         let append_rows_request = AppendRowsRequest {
-            write_stream,
+            write_stream: stream_name.to_string(),
             offset: None,
             trace_id,
             missing_value_interpretations: HashMap::new(),
@@ -213,15 +222,193 @@ impl StorageApi {
             rows: Some(rows),
         };
 
-        let req = self
-            .new_authorized_request(tokio_stream::iter(vec![append_rows_request]))
-            .await?;
+        let req =
+            Self::new_authorized_request(self.auth.clone(), tokio_stream::iter(vec![append_rows_request])).await?;
 
         let response = self.write_client.append_rows(req).await?;
 
         let streaming = response.into_inner();
 
         Ok(streaming)
+    }
+
+    pub async fn append_rows_batched<M, SO, SI>(
+        &mut self,
+        stream_name: &StreamName,
+        table_descriptor: &TableDescriptor,
+        mut streams: SO,
+        trace_id: String,
+    ) -> Result<Vec<Streaming<AppendRowsResponse>>, BQError>
+    where
+        M: Message + Send + 'static,
+        SI: Stream<Item = M> + Send + 'static,
+        SO: Stream<Item = SI> + Send + 'static,
+    {
+        // Precompute the proto schema once per batched call to avoid repeated allocations.
+        let field_descriptors = table_descriptor
+            .field_descriptors
+            .iter()
+            .map(|fd| {
+                let typ: Type = fd.typ.into();
+                let label: Label = fd.mode.into();
+
+                FieldDescriptorProto {
+                    name: Some(fd.name.clone()),
+                    number: Some(fd.number as i32),
+                    label: Some(label.into()),
+                    r#type: Some(typ.into()),
+                    type_name: None,
+                    extendee: None,
+                    default_value: None,
+                    oneof_index: None,
+                    json_name: None,
+                    options: None,
+                    proto3_optional: None,
+                }
+            })
+            .collect();
+
+        let proto_descriptor = DescriptorProto {
+            name: Some("table_schema".to_string()),
+            field: field_descriptors,
+            extension: vec![],
+            nested_type: vec![],
+            enum_type: vec![],
+            extension_range: vec![],
+            oneof_decl: vec![],
+            options: None,
+            reserved_range: vec![],
+            reserved_name: vec![],
+        };
+
+        let proto_schema = ProtoSchema {
+            proto_descriptor: Some(proto_descriptor),
+        };
+
+        // Clone what we need inside the task.
+        let stream_name = StreamName::new(
+            stream_name.project.clone(),
+            stream_name.dataset.clone(),
+            stream_name.table.clone(),
+            stream_name.stream.clone(),
+        );
+        let auth = self.auth.clone();
+        let write_client = self.write_client.clone();
+
+        // We create a future unordered to handle concurrent tasks that send data to BigQuery.
+        let mut tasks: FuturesUnordered<BoxFuture<'static, Result<Vec<Streaming<AppendRowsResponse>>, BQError>>> =
+            FuturesUnordered::new();
+
+        tokio::pin!(streams);
+        while let Some(inner) = streams.next().await {
+            let auth = auth.clone();
+            let write_client = write_client.clone();
+            let stream_name = StreamName::new(
+                stream_name.project.clone(),
+                stream_name.dataset.clone(),
+                stream_name.table.clone(),
+                stream_name.stream.clone(),
+            );
+            let trace_id = trace_id.clone();
+            let proto_schema = proto_schema.clone();
+
+            // One concurrent task per inner stream.
+            let fut = async move {
+                async fn flush_batch(
+                    mut write_client: BigQueryWriteClient<Channel>,
+                    auth: Arc<dyn Authenticator>,
+                    stream_name: StreamName,
+                    trace_id: String,
+                    proto_schema: ProtoSchema,
+                    serialized_rows: Vec<Vec<u8>>,
+                ) -> Result<Option<Streaming<AppendRowsResponse>>, BQError> {
+                    if serialized_rows.is_empty() {
+                        return Ok(None);
+                    }
+
+                    let proto_rows = ProtoRows { serialized_rows };
+                    let proto_data = ProtoData {
+                        writer_schema: Some(proto_schema),
+                        rows: Some(proto_rows),
+                    };
+
+                    let append_rows_request = AppendRowsRequest {
+                        write_stream: stream_name.to_string(),
+                        offset: None,
+                        trace_id,
+                        missing_value_interpretations: HashMap::new(),
+                        default_missing_value_interpretation: MissingValueInterpretation::Unspecified.into(),
+                        rows: Some(append_rows_request::Rows::ProtoRows(proto_data)),
+                    };
+
+                    let req =
+                        StorageApi::new_authorized_request(auth.clone(), tokio_stream::iter(vec![append_rows_request]))
+                            .await?;
+                    let response = write_client.append_rows(req).await?;
+                    let streaming = response.into_inner();
+
+                    Ok(Some(streaming))
+                }
+
+                let mut serialized_rows: Vec<Vec<u8>> = Vec::new();
+                let mut total_size: usize = 0;
+
+                let mut responses = Vec::new();
+
+                tokio::pin!(inner);
+                while let Some(msg) = inner.next().await {
+                    let encoded = msg.encode_to_vec();
+                    let size = encoded.len();
+
+                    if total_size + size > MAX_BATCH_BYTES {
+                        // Flush the current batch.
+                        let response = flush_batch(
+                            write_client.clone(),
+                            auth.clone(),
+                            StreamName::new(
+                                stream_name.project.clone(),
+                                stream_name.dataset.clone(),
+                                stream_name.table.clone(),
+                                stream_name.stream.clone(),
+                            ),
+                            trace_id.clone(),
+                            proto_schema.clone(),
+                            std::mem::take(&mut serialized_rows),
+                        )
+                        .await?;
+                        if let Some(response) = response {
+                            responses.push(response);
+                        }
+
+                        // Start a new batch with the current row.
+                        total_size = 0;
+                    }
+
+                    serialized_rows.push(encoded);
+                    total_size += size;
+                }
+
+                // Flush any remaining rows.
+                let response =
+                    flush_batch(write_client, auth, stream_name, trace_id, proto_schema, serialized_rows).await?;
+                if let Some(response) = response {
+                    responses.push(response);
+                }
+
+                Ok(responses)
+            }.boxed();
+
+            tasks.push(fut);
+        }
+
+        let mut final_responses = Vec::new();
+        while let Some(responses) = tasks.next().await {
+            if let Ok(responses) = responses {
+                final_responses.extend(responses);
+            }
+        }
+
+        Ok(final_responses)
     }
 
     /// This function encodes the `rows` slice into a protobuf message
@@ -252,6 +439,7 @@ impl StorageApi {
             .map(|fd| {
                 let typ: Type = fd.typ.into();
                 let label: Label = fd.mode.into();
+
                 FieldDescriptorProto {
                     name: Some(fd.name.clone()),
                     number: Some(fd.number as i32),
@@ -267,6 +455,7 @@ impl StorageApi {
                 }
             })
             .collect();
+
         let proto_descriptor = DescriptorProto {
             name: Some("table_schema".to_string()),
             field: field_descriptors,
@@ -279,6 +468,7 @@ impl StorageApi {
             reserved_range: vec![],
             reserved_name: vec![],
         };
+
         let proto_schema = ProtoSchema {
             proto_descriptor: Some(proto_descriptor),
         };
@@ -300,23 +490,14 @@ impl StorageApi {
 
         let num_rows_processed = serialized_rows.len();
 
-        let proto_rows = crate::google::cloud::bigquery::storage::v1::ProtoRows { serialized_rows };
+        let proto_rows = ProtoRows { serialized_rows };
 
         let proto_data = ProtoData {
             writer_schema: Some(proto_schema),
             rows: Some(proto_rows),
         };
-        (append_rows_request::Rows::ProtoRows(proto_data), num_rows_processed)
-    }
 
-    async fn new_authorized_request<D>(&self, t: D) -> Result<Request<D>, BQError> {
-        let access_token = self.auth.access_token().await?;
-        let bearer_token = format!("Bearer {access_token}");
-        let bearer_value = bearer_token.as_str().try_into()?;
-        let mut req = Request::new(t);
-        let meta = req.metadata_mut();
-        meta.insert("authorization", bearer_value);
-        Ok(req)
+        (append_rows_request::Rows::ProtoRows(proto_data), num_rows_processed)
     }
 
     pub async fn get_write_stream(
@@ -329,7 +510,7 @@ impl StorageApi {
             view: view.into(),
         };
 
-        let req = self.new_authorized_request(get_write_stream_request).await?;
+        let req = Self::new_authorized_request(self.auth.clone(), get_write_stream_request).await?;
 
         let response = self.write_client.get_write_stream(req).await?;
         let write_stream = response.into_inner();
@@ -364,6 +545,45 @@ pub mod test {
 
         #[prost(string, tag = "4")]
         last_update: String,
+    }
+
+    async fn call_append_rows(
+        client: &mut Client,
+        table_descriptor: &TableDescriptor,
+        stream_name: &StreamName,
+        trace_id: String,
+        mut rows: &[Actor],
+        max_size: usize,
+    ) -> Result<u8, Box<dyn std::error::Error>> {
+        // This loop is needed because the AppendRows API has a payload size limit of 10MB and the create_rows
+        // function may not process all the rows in the rows slice due to the 10MB limit. Even though in this
+        // example we are only sending two rows (which won't breach the 10MB limit), in a real-world scenario,
+        // we may have to send more rows and the loop will be needed to process all the rows.
+        let mut num_append_rows_calls = 0;
+        loop {
+            let (encoded_rows, num_processed) = StorageApi::create_rows(table_descriptor, rows, max_size);
+            let mut streaming = client
+                .storage_mut()
+                .append_rows(stream_name, encoded_rows, trace_id.clone())
+                .await?;
+
+            num_append_rows_calls += 1;
+
+            while let Some(resp) = streaming.next().await {
+                let resp = resp?;
+                println!("response: {resp:#?}");
+            }
+
+            // All the rows have been processed
+            if num_processed == rows.len() {
+                break;
+            }
+
+            // Process the remaining rows
+            rows = &rows[num_processed..];
+        }
+
+        Ok(num_append_rows_calls)
     }
 
     #[tokio::test]
@@ -475,44 +695,5 @@ pub mod test {
         assert_eq!(num_append_rows_calls, 2);
 
         Ok(())
-    }
-
-    async fn call_append_rows(
-        client: &mut Client,
-        table_descriptor: &TableDescriptor,
-        stream_name: &StreamName,
-        trace_id: String,
-        mut rows: &[Actor],
-        max_size: usize,
-    ) -> Result<u8, Box<dyn std::error::Error>> {
-        // This loop is needed because the AppendRows API has a payload size limit of 10MB and the create_rows
-        // function may not process all the rows in the rows slice due to the 10MB limit. Even though in this
-        // example we are only sending two rows (which won't breach the 10MB limit), in a real-world scenario,
-        // we may have to send more rows and the loop will be needed to process all the rows.
-        let mut num_append_rows_calls = 0;
-        loop {
-            let (encoded_rows, num_processed) = StorageApi::create_rows(table_descriptor, rows, max_size);
-            let mut streaming = client
-                .storage_mut()
-                .append_rows(stream_name, encoded_rows, trace_id.clone())
-                .await?;
-
-            num_append_rows_calls += 1;
-
-            while let Some(resp) = streaming.next().await {
-                let resp = resp?;
-                println!("response: {resp:#?}");
-            }
-
-            // All the rows have been processed
-            if num_processed == rows.len() {
-                break;
-            }
-
-            // Process the remaining rows
-            rows = &rows[num_processed..];
-        }
-
-        Ok(num_append_rows_calls)
     }
 }
