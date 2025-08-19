@@ -1,8 +1,30 @@
-//! BigQuery Storage Write API client and utilities.
+//! BigQuery Storage Write API client for high-throughput data streaming.
 //!
-//! Provides functionality for appending rows to BigQuery tables using the
-//! Storage Write API, which offers higher throughput than the traditional
-//! BigQuery API for streaming inserts.
+//! This module provides a complete implementation of the BigQuery Storage Write API,
+//! enabling efficient streaming of structured data to BigQuery tables. The Storage
+//! Write API offers significantly higher throughput compared to the traditional
+//! BigQuery streaming API, with support for batching, concurrent processing, and
+//! automatic request size management.
+//!
+//! The primary entry point is [`StorageApi`], which provides methods for appending
+//! rows to BigQuery tables. Data is organized using [`TableBatch`] structures that
+//! contain rows targeting specific tables, with schema definitions provided by
+//! [`TableDescriptor`] and [`FieldDescriptor`].
+//!
+//! # Key Features
+//!
+//! - High-throughput streaming with automatic batching
+//! - Concurrent processing with configurable parallelism limits
+//! - Automatic request size management (respects 10MB BigQuery limits)
+//! - Schema validation using protobuf descriptors
+//! - Support for all BigQuery column types and cardinality modes
+//! - Comprehensive error handling and retry logic
+//!
+//! # Usage
+//!
+//! The typical workflow involves creating table descriptors, organizing data into
+//! batches, and using [`StorageApi::append_table_batches_concurrent`] for optimal
+//! performance with large datasets.
 
 use futures::stream::Stream;
 use futures::StreamExt;
@@ -12,7 +34,6 @@ use prost_types::{
     field_descriptor_proto::{Label, Type},
     DescriptorProto, FieldDescriptorProto,
 };
-use std::char::MAX;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::{collections::HashMap, convert::TryInto, fmt::Display, sync::Arc};
@@ -46,6 +67,10 @@ static BIGQUERY_STORAGE_API_DOMAIN: &str = "bigquerystorage.googleapis.com";
 /// Set to 9MB to provide safety margin under the 10MB BigQuery API limit,
 /// accounting for request metadata overhead.
 const MAX_BATCH_BYTES: usize = 9 * 1024 * 1024;
+/// Maximum message size for tonic gRPC client configuration.
+///
+/// Set to 20MB to accommodate large response messages and provide headroom
+/// for metadata while staying within reasonable memory bounds.
 const MAX_TONIC_BYTES: usize = 20 * 1024 * 1024;
 
 /// Supported protobuf column types for BigQuery schema mapping.
@@ -83,9 +108,11 @@ pub enum ColumnType {
     Sint64,
 }
 
-/// Converts [`ColumnType`] to protobuf [`Type`] enum.
 impl From<ColumnType> for Type {
-    /// Maps column type to corresponding protobuf type identifier.
+    /// Converts [`ColumnType`] to protobuf [`Type`] enum value.
+    ///
+    /// Maps each column type variant to its corresponding protobuf type
+    /// identifier used in BigQuery Storage Write API schema definitions.
     fn from(value: ColumnType) -> Self {
         match value {
             ColumnType::Double => Type::Double,
@@ -102,7 +129,7 @@ impl From<ColumnType> for Type {
             ColumnType::Sfixed32 => Type::Sfixed32,
             ColumnType::Sfixed64 => Type::Sfixed64,
             ColumnType::Sint32 => Type::Sint32,
-            ColumnType::Sint64 => Type::Sfixed64,
+            ColumnType::Sint64 => Type::Sint64,
         }
     }
 }
@@ -118,9 +145,11 @@ pub enum ColumnMode {
     Repeated,
 }
 
-/// Converts [`ColumnMode`] to protobuf [`Label`] enum.
 impl From<ColumnMode> for Label {
-    /// Maps column mode to corresponding protobuf label.
+    /// Converts [`ColumnMode`] to protobuf [`Label`] enum value.
+    ///
+    /// Maps field cardinality modes to their corresponding protobuf labels
+    /// used in BigQuery Storage Write API schema definitions.
     fn from(value: ColumnMode) -> Self {
         match value {
             ColumnMode::Nullable => Label::Optional,
@@ -130,10 +159,12 @@ impl From<ColumnMode> for Label {
     }
 }
 
-/// Schema descriptor for a single field in a BigQuery table.
+/// Metadata descriptor for a single field in a BigQuery table schema.
 ///
-/// Contains all metadata needed to define a field in the protobuf schema
-/// used by the BigQuery Storage Write API.
+/// Contains the complete field definition including data type, cardinality mode,
+/// and protobuf field number required for BigQuery Storage Write API operations.
+/// Each field descriptor maps directly to a protobuf field descriptor in the
+/// generated schema.
 #[derive(Debug, Clone)]
 pub struct FieldDescriptor {
     /// Unique field number starting from 1, incrementing for each field.
@@ -146,19 +177,22 @@ pub struct FieldDescriptor {
     pub mode: ColumnMode,
 }
 
-/// Complete schema descriptor for a BigQuery table.
+/// Complete schema definition for a BigQuery table.
 ///
-/// Contains field descriptors for all columns in the table.
+/// Aggregates all field descriptors that define the table's structure.
+/// Used to generate protobuf schemas for BigQuery Storage Write API operations
+/// and validate row data before transmission.
 #[derive(Debug, Clone)]
 pub struct TableDescriptor {
     /// Collection of field descriptors defining the table schema.
     pub field_descriptors: Vec<FieldDescriptor>,
 }
 
-/// A batch of rows to be appended to a specific table.
+/// Collection of rows targeting a specific BigQuery table for batch processing.
 ///
-/// Contains the table metadata and rows, allowing for batching operations
-/// across multiple tables with optimal parallelism distribution.
+/// Encapsulates rows with their destination stream and schema metadata,
+/// enabling efficient batch operations and optimal parallelism distribution
+/// across multiple tables in concurrent append operations.
 #[derive(Debug)]
 pub struct TableBatch<M> {
     /// Target stream identifier for the append operations.
@@ -170,7 +204,10 @@ pub struct TableBatch<M> {
 }
 
 impl<M> TableBatch<M> {
-    /// Creates a new table batch with the specified components.
+    /// Creates a new table batch targeting the specified stream.
+    ///
+    /// Combines rows with their destination metadata to form a complete
+    /// batch ready for processing by append operations.
     pub fn new(stream_name: StreamName, table_descriptor: Arc<TableDescriptor>, rows: Vec<M>) -> Self {
         Self {
             stream_name,
@@ -190,10 +227,11 @@ impl<M> TableBatch<M> {
     }
 }
 
-/// Fully qualified identifier for a BigQuery write stream.
+/// Hierarchical identifier for BigQuery write streams.
 ///
-/// Encapsulates the hierarchical naming structure used by BigQuery
-/// to identify tables and their associated write streams.
+/// Represents the complete resource path structure used by BigQuery to
+/// uniquely identify tables and their associated write streams within
+/// the Google Cloud resource hierarchy.
 #[derive(Debug, Clone)]
 pub struct StreamName {
     /// Google Cloud project identifier.
@@ -207,7 +245,10 @@ pub struct StreamName {
 }
 
 impl StreamName {
-    /// Creates a new stream name with custom stream identifier.
+    /// Creates a stream name with all components specified.
+    ///
+    /// Constructs a fully qualified stream identifier using custom
+    /// project, dataset, table, and stream components.
     pub fn new(project: String, dataset: String, table: String, stream: String) -> StreamName {
         StreamName {
             project,
@@ -217,10 +258,10 @@ impl StreamName {
         }
     }
 
-    /// Creates a new stream name using the default stream identifier.
+    /// Creates a stream name using the default stream identifier.
     ///
-    /// Uses "_default" as the stream name, which is the standard
-    /// stream for most BigQuery write operations.
+    /// Uses "_default" as the stream component, which is the standard
+    /// stream identifier for most BigQuery write operations.
     pub fn new_default(project: String, dataset: String, table: String) -> StreamName {
         StreamName {
             project,
@@ -231,11 +272,11 @@ impl StreamName {
     }
 }
 
-/// Formats [`StreamName`] as a BigQuery-compatible resource path.
 impl Display for StreamName {
-    /// Formats the stream name as a fully qualified resource path.
+    /// Formats the stream name as a BigQuery resource path.
     ///
-    /// Returns a string in the format:
+    /// Produces the fully qualified resource identifier expected by
+    /// BigQuery Storage Write API in the format:
     /// `projects/{project}/datasets/{dataset}/tables/{table}/streams/{stream}`
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let StreamName {
@@ -250,11 +291,11 @@ impl Display for StreamName {
     }
 }
 
-/// Stream that converts batched messages into [`AppendRowsRequest`] objects.
+/// Streaming adapter that converts message batches into [`AppendRowsRequest`] objects.
 ///
-/// Automatically splits large batches into multiple requests, each staying
-/// under the 10MB BigQuery API limit. Implements [`Stream`] for use with
-/// async streaming APIs.
+/// Automatically chunks large batches into multiple requests while respecting
+/// the 10MB BigQuery API size limit. Implements [`Stream`] trait for seamless
+/// integration with async streaming workflows and gRPC client operations.
 #[pin_project]
 #[derive(Debug)]
 pub struct AppendRequestsStream<M> {
@@ -274,7 +315,11 @@ pub struct AppendRequestsStream<M> {
 }
 
 impl<M> AppendRequestsStream<M> {
-    /// Creates a new append requests stream from a batch of messages.
+    /// Creates a new streaming adapter from message batch components.
+    ///
+    /// Initializes the stream with all necessary metadata for generating
+    /// properly formatted append requests. The schema is included only
+    /// in the first request of the stream.
     fn new(batch: Vec<M>, proto_schema: ProtoSchema, stream_name: StreamName, trace_id: String) -> Self {
         Self {
             batch,
@@ -287,21 +332,18 @@ impl<M> AppendRequestsStream<M> {
     }
 }
 
-/// Implements streaming functionality for message batches.
-///
-/// Yields [`AppendRowsRequest`] objects that respect the BigQuery API
-/// size limits while preserving message ordering.
 impl<M> Stream for AppendRequestsStream<M>
 where
     M: Message,
 {
     type Item = AppendRowsRequest;
 
-    /// Polls for the next append request from the batch.
+    /// Produces the next append request from the message batch.
     ///
-    /// Returns [`Poll::Ready(None)`] when all messages have been processed.
-    /// Each returned request contains as many messages as possible while
-    /// staying under the size limit.
+    /// Processes messages sequentially, accumulating them into requests
+    /// until the size limit is reached. Returns [`Poll::Ready(None)`]
+    /// when all messages have been consumed. Each request contains the
+    /// maximum number of messages that fit within size constraints.
     fn poll_next(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let this = self.project();
 
@@ -360,11 +402,12 @@ where
     }
 }
 
-/// Client for BigQuery Storage Write API operations.
+/// High-level client for BigQuery Storage Write API operations.
 ///
-/// Provides methods for appending rows to BigQuery tables using the
-/// high-throughput Storage Write API. Handles authentication, request
-/// batching, and concurrent processing.
+/// Provides comprehensive functionality for streaming data to BigQuery tables
+/// with optimal performance characteristics. Manages authentication, automatic
+/// request batching, concurrent processing, and error handling for large-scale
+/// data ingestion workflows.
 #[derive(Clone)]
 pub struct StorageApi {
     /// gRPC client for BigQuery Storage Write API.
@@ -376,7 +419,11 @@ pub struct StorageApi {
 }
 
 impl StorageApi {
-    /// Creates a new storage API client with the provided components.
+    /// Creates a new storage API client instance.
+    ///
+    /// Combines a configured gRPC client with an authenticator to create
+    /// a fully functional storage API client. Used internally by the
+    /// main client builder.
     pub(crate) fn new(write_client: BigQueryWriteClient<Channel>, auth: Arc<dyn Authenticator>) -> Self {
         Self {
             write_client,
@@ -385,10 +432,11 @@ impl StorageApi {
         }
     }
 
-    /// Creates a new gRPC client for the BigQuery Storage Write API.
+    /// Creates a new gRPC client for BigQuery Storage Write API.
     ///
-    /// Establishes a TLS connection to the BigQuery Storage API endpoint
-    /// with proper certificate validation.
+    /// Establishes a secure TLS connection to the BigQuery Storage API
+    /// endpoint with native root certificate validation. Configures
+    /// message size limits and compression for optimal performance.
     pub(crate) async fn new_write_client() -> Result<BigQueryWriteClient<Channel>, BQError> {
         // Since Tonic 0.12.0, TLS root certificates are no longer implicit.
         // We need to specify them explicitly.
@@ -411,23 +459,24 @@ impl StorageApi {
         Ok(write_client)
     }
 
-    /// Sets a custom base URL for BigQuery API endpoints.
+    /// Configures a custom base URL for BigQuery API endpoints.
     ///
-    /// Used primarily for testing with mock endpoints.
+    /// Primarily used for testing scenarios with mock or alternative
+    /// BigQuery API endpoints. Returns a mutable reference for chaining.
     pub(crate) fn with_base_url(&mut self, base_url: String) -> &mut Self {
         self.base_url = base_url;
         self
     }
 
-    /// Encodes message rows into protobuf format with size constraints.
+    /// Encodes message rows into protobuf format with size management.
     ///
-    /// Processes as many rows as possible while staying under the specified
-    /// size limit. Returns the encoded data and the number of rows processed.
-    /// Callers should check the returned count to determine if additional
-    /// calls are needed for remaining rows.
+    /// Processes as many rows as possible while respecting the specified
+    /// size limit. Returns the encoded protobuf data and the count of
+    /// rows successfully processed. When the returned count is less than
+    /// the input slice length, additional calls are required for remaining rows.
     ///
-    /// The `max_size_bytes` should be less than 10MB to account for request
-    /// metadata overhead. 9MB is recommended.
+    /// The size limit should be below 10MB to accommodate request metadata
+    /// overhead; 9MB provides a safe margin.
     pub fn create_rows<M: Message>(
         table_descriptor: &TableDescriptor,
         rows: &[M],
@@ -462,7 +511,11 @@ impl StorageApi {
         (append_rows_request::Rows::ProtoRows(proto_data), num_rows_processed)
     }
 
-    /// Creates an authorized gRPC request with Bearer token authentication.
+    /// Creates an authenticated gRPC request with Bearer token authorization.
+    ///
+    /// Retrieves an access token from the authenticator and attaches it
+    /// as a Bearer token in the request authorization header. Used by
+    /// all Storage Write API operations requiring authentication.
     async fn new_authorized_request<T>(auth: Arc<dyn Authenticator>, message: T) -> Result<Request<T>, BQError> {
         let access_token = auth.access_token().await?;
         let bearer_token = format!("Bearer {access_token}");
@@ -475,7 +528,11 @@ impl StorageApi {
         Ok(request)
     }
 
-    /// Converts table field descriptors to protobuf field descriptor format.
+    /// Converts table field descriptors to protobuf field descriptors.
+    ///
+    /// Transforms the high-level field descriptors into the protobuf
+    /// format required by BigQuery Storage Write API schema definitions.
+    /// Maps column types and modes to their protobuf equivalents.
     fn create_field_descriptors(table_descriptor: &TableDescriptor) -> Vec<FieldDescriptorProto> {
         table_descriptor
             .field_descriptors
@@ -501,7 +558,11 @@ impl StorageApi {
             .collect()
     }
 
-    /// Creates a protobuf descriptor proto from field descriptors.
+    /// Creates a protobuf descriptor from field descriptors.
+    ///
+    /// Wraps field descriptors in a [`DescriptorProto`] structure with
+    /// the standard table schema name. Used as an intermediate step
+    /// in protobuf schema generation.
     fn create_proto_descriptor(field_descriptors: Vec<FieldDescriptorProto>) -> DescriptorProto {
         DescriptorProto {
             name: Some("table_schema".to_string()),
@@ -518,6 +579,10 @@ impl StorageApi {
     }
 
     /// Generates a complete protobuf schema from table descriptor.
+    ///
+    /// Creates the final [`ProtoSchema`] structure containing all
+    /// field definitions required for BigQuery Storage Write API
+    /// operations. This schema is included in append requests.
     fn create_proto_schema(table_descriptor: &TableDescriptor) -> ProtoSchema {
         let field_descriptors = Self::create_field_descriptors(table_descriptor);
         let proto_descriptor = Self::create_proto_descriptor(field_descriptors);
@@ -529,8 +594,9 @@ impl StorageApi {
 
     /// Retrieves metadata for a BigQuery write stream.
     ///
-    /// Returns stream information including schema and state details
-    /// based on the requested view level.
+    /// Fetches stream information including schema definition and state
+    /// details according to the specified view level. Higher view levels
+    /// provide more comprehensive information but may have higher latency.
     pub async fn get_write_stream(
         &mut self,
         stream_name: &StreamName,
@@ -550,8 +616,9 @@ impl StorageApi {
 
     /// Appends rows to a BigQuery table using the Storage Write API.
     ///
-    /// Sends the provided rows to the specified stream and returns a
-    /// streaming response containing the results.
+    /// Transmits the provided rows to the specified stream and returns
+    /// a streaming response for processing results. The trace ID enables
+    /// request tracking across distributed systems for debugging.
     pub async fn append_rows(
         &mut self,
         stream_name: &StreamName,
@@ -578,8 +645,9 @@ impl StorageApi {
     /// Splits table batches into optimal sub-batches for parallel execution.
     ///
     /// Calculates the optimal distribution of rows across batches to maximize
-    /// parallelism while keeping batches belonging to the same table together.
-    /// The algorithm aims to create approximately equal-sized batches.
+    /// utilization of available concurrent streams while maintaining table
+    /// grouping integrity. Creates approximately equal-sized sub-batches when
+    /// splitting is beneficial for parallelism.
     fn split_table_batches<M>(table_batches: Vec<TableBatch<M>>, max_concurrent_streams: usize) -> Vec<TableBatch<M>>
     where
         M: Clone,
@@ -660,15 +728,16 @@ impl StorageApi {
         result
     }
 
-    /// Appends rows from multiple table batches concurrently with optimal parallelism.
+    /// Appends rows from multiple table batches with optimal concurrent processing.
     ///
-    /// Automatically splits large table batches into smaller sub-batches to maximize
-    /// the use of available concurrent streams. Each table batch is processed
-    /// independently, but sub-batches from the same table maintain proper ordering.
+    /// Automatically splits large table batches into optimally-sized sub-batches
+    /// to maximize utilization of available concurrent streams. Each table batch
+    /// is processed independently while maintaining proper ordering within
+    /// sub-batches from the same table.
     ///
-    /// The algorithm calculates an optimal distribution of rows across batches
-    /// to saturate the available parallelism while ensuring batches belong to
-    /// a single table (since streams are per-table).
+    /// Returns responses grouped by original batch index with their associated
+    /// append results. The splitting algorithm ensures efficient parallelism
+    /// distribution while respecting per-table stream constraints.
     pub async fn append_table_batches_concurrent<M>(
         &mut self,
         table_batches: Vec<TableBatch<M>>,
@@ -765,6 +834,11 @@ pub mod test {
     };
     use crate::{env_vars, Client};
 
+    /// Test message structure representing an actor record.
+    ///
+    /// Used in unit tests to validate Storage Write API functionality
+    /// with a realistic protobuf message structure containing multiple
+    /// field types.
     #[derive(Clone, PartialEq, Message)]
     struct Actor {
         #[prost(int32, tag = "1")]
@@ -777,6 +851,11 @@ pub mod test {
         last_update: String,
     }
 
+    /// Creates a test table descriptor for actor records.
+    ///
+    /// Generates a [`TableDescriptor`] with field definitions matching
+    /// the [`Actor`] message structure. Used consistently across tests
+    /// to ensure schema compatibility.
     fn create_test_table_descriptor() -> Arc<TableDescriptor> {
         let field_descriptors = vec![
             FieldDescriptor {
@@ -808,6 +887,11 @@ pub mod test {
         Arc::new(TableDescriptor { field_descriptors })
     }
 
+    /// Sets up a test BigQuery table with actor schema.
+    ///
+    /// Creates a new dataset and table with appropriate schema for testing
+    /// Storage Write API operations. Deletes any existing dataset to ensure
+    /// clean test state. The table is configured with a 1-hour expiration.
     async fn setup_test_table(
         client: &mut Client,
         project_id: &str,
@@ -845,6 +929,11 @@ pub mod test {
         Ok(())
     }
 
+    /// Creates a test actor record with specified ID and first name.
+    ///
+    /// Generates an [`Actor`] instance with consistent test data for
+    /// last name and timestamp fields. Used to create predictable
+    /// test datasets.
     fn create_test_actor(id: i32, first_name: &str) -> Actor {
         Actor {
             actor_id: id,
@@ -854,6 +943,11 @@ pub mod test {
         }
     }
 
+    /// Helper function to append rows with size limiting and retry logic.
+    ///
+    /// Demonstrates the typical pattern for handling Storage Write API
+    /// size limits by processing rows in chunks. Returns the number of
+    /// append operations required to process all rows.
     async fn call_append_rows(
         client: &mut Client,
         table_descriptor: &TableDescriptor,
