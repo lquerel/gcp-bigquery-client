@@ -647,7 +647,7 @@ impl StorageApi {
     /// Returns responses grouped by original batch index with their associated
     /// append results.
     pub async fn append_table_batches_concurrent<M>(
-        &mut self,
+        &self,
         table_batches: Vec<TableBatch<M>>,
         max_concurrent_streams: usize,
         trace_id: &str,
