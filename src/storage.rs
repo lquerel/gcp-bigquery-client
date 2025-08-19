@@ -642,102 +642,10 @@ impl StorageApi {
         Ok(streaming)
     }
 
-    /// Splits table batches into optimal sub-batches for parallel execution.
-    ///
-    /// Calculates the optimal distribution of rows across batches to maximize
-    /// utilization of available concurrent streams while maintaining table
-    /// grouping integrity. Creates approximately equal-sized sub-batches when
-    /// splitting is beneficial for parallelism.
-    fn split_table_batches<M>(table_batches: Vec<TableBatch<M>>, max_concurrent_streams: usize) -> Vec<TableBatch<M>>
-    where
-        M: Clone,
-    {
-        if table_batches.is_empty() || max_concurrent_streams == 0 {
-            return table_batches;
-        }
-
-        let total_rows: usize = table_batches.iter().map(|batch| batch.len()).sum();
-
-        if total_rows == 0 {
-            return table_batches;
-        }
-
-        // If we already have enough batches to utilize available parallelism, don't split.
-        if table_batches.len() >= max_concurrent_streams {
-            return table_batches;
-        }
-
-        // Calculate optimal rows per batch to maximize parallelism.
-        let optimal_rows_per_batch = (total_rows + max_concurrent_streams - 1) / max_concurrent_streams;
-
-        if optimal_rows_per_batch == 0 {
-            return table_batches;
-        }
-
-        // Pre-calculate the approximate number of result batches for better allocation.
-        let estimated_splits: usize = table_batches
-            .iter()
-            .map(|batch| {
-                let rows_len = batch.rows.len();
-                if rows_len <= 1 || rows_len <= optimal_rows_per_batch {
-                    1
-                } else {
-                    (rows_len + optimal_rows_per_batch - 1) / optimal_rows_per_batch
-                }
-            })
-            .sum();
-
-        let mut result = Vec::with_capacity(estimated_splits);
-        for table_batch in table_batches {
-            let rows_len = table_batch.rows.len();
-
-            // Don't split if:
-            // 1. We only have one row or fewer
-            // 2. The batch is already smaller than or equal to optimal size
-            if rows_len <= 1 || rows_len <= optimal_rows_per_batch {
-                result.push(table_batch);
-                continue;
-            }
-
-            // Split this batch into smaller sub-batches
-            let num_sub_batches = (rows_len + optimal_rows_per_batch - 1) / optimal_rows_per_batch;
-            let rows_per_sub_batch = rows_len / num_sub_batches;
-            let extra_rows = rows_len % num_sub_batches;
-
-            let mut start_idx = 0;
-            for i in 0..num_sub_batches {
-                let mut end_idx = start_idx + rows_per_sub_batch;
-
-                // Distribute extra rows evenly across the first few batches
-                if i < extra_rows {
-                    end_idx += 1;
-                }
-
-                let sub_batch_rows = table_batch.rows[start_idx..end_idx].to_vec();
-                let sub_batch = TableBatch::new(
-                    table_batch.stream_name.clone(),
-                    table_batch.table_descriptor.clone(),
-                    sub_batch_rows,
-                );
-
-                result.push(sub_batch);
-                start_idx = end_idx;
-            }
-        }
-
-        result
-    }
-
-    /// Appends rows from multiple table batches with optimal concurrent processing.
-    ///
-    /// Automatically splits large table batches into optimally-sized sub-batches
-    /// to maximize utilization of available concurrent streams. Each table batch
-    /// is processed independently while maintaining proper ordering within
-    /// sub-batches from the same table.
+    /// Appends rows from multiple table batches with concurrent processing.
     ///
     /// Returns responses grouped by original batch index with their associated
-    /// append results. The splitting algorithm ensures efficient parallelism
-    /// distribution while respecting per-table stream constraints.
+    /// append results.
     pub async fn append_table_batches_concurrent<M>(
         &mut self,
         table_batches: Vec<TableBatch<M>>,
@@ -751,18 +659,11 @@ impl StorageApi {
             return Ok(Vec::new());
         }
 
-        // Split table batches into optimal sub-batches for parallelism
-        let split_batches = Self::split_table_batches(table_batches, max_concurrent_streams);
-
-        if split_batches.is_empty() {
-            return Ok(Vec::new());
-        }
-
-        let batches_num = split_batches.len();
+        let batches_num = table_batches.len();
         let semaphore = Arc::new(Semaphore::new(max_concurrent_streams));
 
         let mut join_set = JoinSet::new();
-        for (idx, table_batch) in split_batches.into_iter().enumerate() {
+        for (idx, table_batch) in table_batches.into_iter().enumerate() {
             // Acquire a concurrency slot and hold it until responses are fully drained
             let permit = semaphore.clone().acquire_owned().await?;
 
@@ -770,6 +671,8 @@ impl StorageApi {
             let table_descriptor = table_batch.table_descriptor;
             let rows = table_batch.rows;
             let trace_id = trace_id.to_string();
+            // We clone the client so that we can cheaply send multiple requests over the same connection
+            // since multiplexing is handled by the library.
             let mut client = self.clone();
 
             join_set.spawn(async move {
@@ -1029,166 +932,6 @@ pub mod test {
         assert_eq!(num_append_rows_calls, 2);
     }
 
-    #[test]
-    fn test_split_table_batches_basic() {
-        let table_descriptor = create_test_table_descriptor();
-        let stream_name1 = StreamName::new_default("project".to_string(), "dataset".to_string(), "table1".to_string());
-        let stream_name2 = StreamName::new_default("project".to_string(), "dataset".to_string(), "table2".to_string());
-
-        // Create table batches with different row counts
-        let batch1 = TableBatch::new(
-            stream_name1,
-            table_descriptor.clone(),
-            vec![
-                create_test_actor(1, "John"),
-                create_test_actor(2, "Jane"),
-                create_test_actor(3, "Bob"),
-                create_test_actor(4, "Alice"),
-                create_test_actor(5, "Charlie"),
-                create_test_actor(6, "Dave"),
-            ],
-        );
-
-        let batch2 = TableBatch::new(
-            stream_name2,
-            table_descriptor,
-            vec![create_test_actor(7, "Eve"), create_test_actor(8, "Frank")],
-        );
-
-        let table_batches = vec![batch1, batch2];
-
-        // Test with max_concurrent_streams = 4
-        // Total rows = 8, optimal_rows_per_batch = 8/4 = 2
-        // batch1 (6 rows) should be split into 3 sub-batches (2,2,2)
-        // batch2 (2 rows) should remain as is
-        let split_batches = StorageApi::split_table_batches(table_batches, 4);
-
-        assert_eq!(split_batches.len(), 4); // 3 sub-batches from batch1 + 1 from batch2
-        assert_eq!(split_batches[0].len(), 2); // First sub-batch from batch1
-        assert_eq!(split_batches[1].len(), 2); // Second sub-batch from batch1
-        assert_eq!(split_batches[2].len(), 2); // Third sub-batch from batch1
-        assert_eq!(split_batches[3].len(), 2); // batch2 unchanged
-    }
-
-    #[test]
-    fn test_split_table_batches_even_distribution() {
-        let table_descriptor = create_test_table_descriptor();
-        let stream_name = StreamName::new_default("project".to_string(), "dataset".to_string(), "table".to_string());
-
-        // Create a batch with 10 rows
-        let mut actors = Vec::new();
-        for i in 1..=10 {
-            actors.push(create_test_actor(i, &format!("Actor{}", i)));
-        }
-
-        let batch = TableBatch::new(stream_name, table_descriptor, actors);
-        let table_batches = vec![batch];
-
-        // Test with max_concurrent_streams = 3
-        // Total rows = 10, optimal_rows_per_batch = 10/3 = 3.33 -> 4
-        // The batch should be split into 3 sub-batches with 3,3,4 rows
-        let split_batches = StorageApi::split_table_batches(table_batches, 3);
-
-        assert_eq!(split_batches.len(), 3);
-
-        // Check that rows are distributed as evenly as possible
-        let mut row_counts: Vec<usize> = split_batches.iter().map(|b| b.len()).collect();
-        row_counts.sort();
-
-        // Should be [3, 3, 4] when sorted
-        assert_eq!(row_counts, vec![3, 3, 4]);
-
-        // Verify total rows remain the same
-        let total_split_rows: usize = split_batches.iter().map(|b| b.len()).sum();
-        assert_eq!(total_split_rows, 10);
-    }
-
-    #[test]
-    fn test_split_table_batches_no_split_needed() {
-        let table_descriptor = create_test_table_descriptor();
-        let stream_name = StreamName::new_default("project".to_string(), "dataset".to_string(), "table".to_string());
-
-        // Create enough batches to saturate concurrency - should not be split further
-        let batch1 = TableBatch::new(
-            stream_name.clone(),
-            table_descriptor.clone(),
-            vec![create_test_actor(1, "John")],
-        );
-        let batch2 = TableBatch::new(stream_name, table_descriptor, vec![create_test_actor(2, "Jane")]);
-
-        let table_batches = vec![batch1, batch2];
-
-        // Test with limited concurrency equal to number of batches - no splitting should occur
-        let split_batches = StorageApi::split_table_batches(table_batches, 2);
-
-        assert_eq!(split_batches.len(), 2);
-        assert_eq!(split_batches[0].len(), 1);
-        assert_eq!(split_batches[1].len(), 1);
-    }
-
-    #[test]
-    fn test_split_table_batches_with_high_concurrency() {
-        let table_descriptor = create_test_table_descriptor();
-        let stream_name = StreamName::new_default("project".to_string(), "dataset".to_string(), "table".to_string());
-
-        // Create a batch that should be split with high concurrency
-        let batch = TableBatch::new(
-            stream_name,
-            table_descriptor,
-            vec![create_test_actor(1, "John"), create_test_actor(2, "Jane")],
-        );
-
-        let table_batches = vec![batch];
-
-        // Test with high concurrency - batch should be split to maximize parallelism
-        let split_batches = StorageApi::split_table_batches(table_batches, 10);
-
-        assert_eq!(split_batches.len(), 2); // Should split into 2 batches of 1 row each
-        assert_eq!(split_batches[0].len(), 1);
-        assert_eq!(split_batches[1].len(), 1);
-    }
-
-    #[test]
-    fn test_split_table_batches_edge_cases() {
-        let table_descriptor = create_test_table_descriptor();
-
-        // Test empty table batches
-        let empty_batches: Vec<TableBatch<Actor>> = vec![];
-        let split_empty = StorageApi::split_table_batches(empty_batches, 5);
-        assert_eq!(split_empty.len(), 0);
-
-        // Test with zero max_concurrent_streams
-        let stream_name = StreamName::new_default("project".to_string(), "dataset".to_string(), "table".to_string());
-        let batch = TableBatch::new(stream_name, table_descriptor, vec![create_test_actor(1, "John")]);
-        let split_zero = StorageApi::split_table_batches(vec![batch], 0);
-        assert_eq!(split_zero.len(), 1); // Should return original batch unchanged
-
-        // Test with batch containing no rows
-        let stream_name = StreamName::new_default("project".to_string(), "dataset".to_string(), "table".to_string());
-        let table_descriptor = create_test_table_descriptor();
-        let empty_batch: TableBatch<Actor> = TableBatch::new(stream_name, table_descriptor, vec![]);
-        let split_empty_batch = StorageApi::split_table_batches(vec![empty_batch], 5);
-        assert_eq!(split_empty_batch.len(), 1);
-        assert_eq!(split_empty_batch[0].len(), 0);
-    }
-
-    #[test]
-    fn test_table_batch_creation_and_methods() {
-        let table_descriptor = create_test_table_descriptor();
-        let stream_name = StreamName::new_default("project".to_string(), "dataset".to_string(), "table".to_string());
-
-        // Test empty batch
-        let empty_batch: TableBatch<Actor> = TableBatch::new(stream_name.clone(), table_descriptor.clone(), vec![]);
-        assert!(empty_batch.is_empty());
-        assert_eq!(empty_batch.len(), 0);
-
-        // Test batch with data
-        let actors = vec![create_test_actor(1, "John"), create_test_actor(2, "Jane")];
-        let batch = TableBatch::new(stream_name, table_descriptor, actors);
-        assert!(!batch.is_empty());
-        assert_eq!(batch.len(), 2);
-    }
-
     #[tokio::test]
     async fn test_append_table_batches_concurrent() {
         let (ref project_id, ref dataset_id, ref table_id, ref sa_key) = env_vars();
@@ -1233,8 +976,8 @@ pub mod test {
             .await
             .unwrap();
 
-        // We expect more than 3 responses because batches should be split
-        assert!(batch_responses.len() >= 3);
+        // We expect 3 responses per batch (one for each batch)
+        assert_eq!(batch_responses.len(), 3);
 
         // Verify all responses are successful
         for (_, responses) in batch_responses {
