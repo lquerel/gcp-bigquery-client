@@ -12,6 +12,7 @@ use prost_types::{
     field_descriptor_proto::{Label, Type},
     DescriptorProto, FieldDescriptorProto,
 };
+use std::char::MAX;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::{collections::HashMap, convert::TryInto, fmt::Display, sync::Arc};
@@ -19,6 +20,7 @@ use tokio::pin;
 use tokio::sync::Semaphore;
 use tokio::task::JoinSet;
 use tonic::{
+    codec::CompressionEncoding,
     transport::{Channel, ClientTlsConfig},
     Request, Status, Streaming,
 };
@@ -44,6 +46,7 @@ static BIGQUERY_STORAGE_API_DOMAIN: &str = "bigquerystorage.googleapis.com";
 /// Set to 9MB to provide safety margin under the 10MB BigQuery API limit,
 /// accounting for request metadata overhead.
 const MAX_BATCH_BYTES: usize = 9 * 1024 * 1024;
+const MAX_TONIC_BYTES: usize = 20 * 1024 * 1024;
 
 /// Supported protobuf column types for BigQuery schema mapping.
 #[derive(Debug, Copy, Clone)]
@@ -266,6 +269,8 @@ pub struct AppendRequestsStream<M> {
     trace_id: String,
     /// Current position in the batch being processed.
     current_index: usize,
+    /// Whether to include writer schema in the next request (first only).
+    include_schema_next: bool,
 }
 
 impl<M> AppendRequestsStream<M> {
@@ -277,6 +282,7 @@ impl<M> AppendRequestsStream<M> {
             stream_name,
             trace_id,
             current_index: 0,
+            include_schema_next: true,
         }
     }
 }
@@ -327,7 +333,11 @@ where
 
         let proto_rows = ProtoRows { serialized_rows };
         let proto_data = ProtoData {
-            writer_schema: Some(this.proto_schema.clone()),
+            writer_schema: if *this.include_schema_next {
+                Some(this.proto_schema.clone())
+            } else {
+                None
+            },
             rows: Some(proto_rows),
         };
 
@@ -341,6 +351,10 @@ where
         };
 
         *this.current_index += processed_count;
+        // After the first request, avoid sending schema again in this stream
+        if *this.include_schema_next {
+            *this.include_schema_next = false;
+        }
 
         Poll::Ready(Some(append_rows_request))
     }
@@ -386,7 +400,13 @@ impl StorageApi {
             .tls_config(tls_config)?
             .connect()
             .await?;
-        let write_client = BigQueryWriteClient::new(channel);
+        let write_client = BigQueryWriteClient::new(channel)
+            // Allow larger messages to fully utilize Write API limits
+            .max_encoding_message_size(MAX_TONIC_BYTES)
+            .max_decoding_message_size(MAX_TONIC_BYTES)
+            // Enable gzip to reduce bandwidth and improve throughput
+            .send_compressed(CompressionEncoding::Gzip)
+            .accept_compressed(CompressionEncoding::Gzip);
 
         Ok(write_client)
     }
@@ -606,7 +626,6 @@ impl StorageApi {
             // Don't split if:
             // 1. We only have one row or fewer
             // 2. The batch is already smaller than or equal to optimal size
-            // 3. Splitting would create single-row batches when we already have reasonable sizes
             if rows_len <= 1 || rows_len <= optimal_rows_per_batch {
                 result.push(table_batch);
                 continue;
@@ -693,39 +712,39 @@ impl StorageApi {
                 let request_stream = AppendRequestsStream::new(rows, proto_schema, stream_name, trace_id);
 
                 // Make the request for append rows and poll the response stream until exhausted
-                let mut responses = Vec::new();
+                let mut batch_responses = Vec::new();
                 match Self::new_authorized_request(client.auth.clone(), request_stream).await {
                     Ok(request) => match client.write_client.append_rows(request).await {
                         Ok(response) => {
                             let mut streaming_response = response.into_inner();
                             while let Some(response) = streaming_response.next().await {
-                                responses.push(response);
+                                batch_responses.push(response);
                             }
                         }
                         Err(status) => {
-                            responses.push(Err(status));
+                            batch_responses.push(Err(status));
                         }
                     },
                     Err(err) => {
-                        responses.push(Err(Status::unknown(err.to_string())));
+                        batch_responses.push(Err(Status::unknown(err.to_string())));
                     }
                 }
 
                 // Free the concurrency slot only after fully draining responses or after error
                 drop(permit);
 
-                (idx, responses)
+                (idx, batch_responses)
             });
         }
 
         // Collect all task results in the order of completion with pre-sized vector
-        let mut responses = Vec::with_capacity(batches_num);
-        while let Some(response) = join_set.join_next().await {
-            let (idx, response) = response?;
-            responses.push((idx, response));
+        let mut batches_responses = Vec::with_capacity(batches_num);
+        while let Some(batch_responses) = join_set.join_next().await {
+            let (idx, batch_responses) = batch_responses?;
+            batches_responses.push((idx, batch_responses));
         }
 
-        Ok(responses)
+        Ok(batches_responses)
     }
 }
 
