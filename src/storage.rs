@@ -161,14 +161,14 @@ pub struct TableBatch<M> {
     /// Target stream identifier for the append operations.
     pub stream_name: StreamName,
     /// Schema descriptor for the target table.
-    pub table_descriptor: TableDescriptor,
+    pub table_descriptor: Arc<TableDescriptor>,
     /// Collection of rows to be appended to the table.
     pub rows: Vec<M>,
 }
 
 impl<M> TableBatch<M> {
     /// Creates a new table batch with the specified components.
-    pub fn new(stream_name: StreamName, table_descriptor: TableDescriptor, rows: Vec<M>) -> Self {
+    pub fn new(stream_name: StreamName, table_descriptor: Arc<TableDescriptor>, rows: Vec<M>) -> Self {
         Self {
             stream_name,
             table_descriptor,
@@ -638,10 +638,7 @@ impl StorageApi {
     /// Calculates the optimal distribution of rows across batches to maximize
     /// parallelism while keeping batches belonging to the same table together.
     /// The algorithm aims to create approximately equal-sized batches.
-    fn split_table_batches<M>(
-        table_batches: Vec<TableBatch<M>>,
-        max_concurrent_streams: usize,
-    ) -> Vec<TableBatch<M>>
+    fn split_table_batches<M>(table_batches: Vec<TableBatch<M>>, max_concurrent_streams: usize) -> Vec<TableBatch<M>>
     where
         M: Clone,
     {
@@ -650,28 +647,40 @@ impl StorageApi {
         }
 
         let total_rows: usize = table_batches.iter().map(|batch| batch.len()).sum();
-        
+
         if total_rows == 0 {
             return table_batches;
         }
 
-        // If we already have enough batches to utilize available parallelism, don't split
+        // If we already have enough batches to utilize available parallelism, don't split.
         if table_batches.len() >= max_concurrent_streams {
             return table_batches;
         }
 
-        // Calculate optimal rows per batch to maximize parallelism
+        // Calculate optimal rows per batch to maximize parallelism.
         let optimal_rows_per_batch = (total_rows + max_concurrent_streams - 1) / max_concurrent_streams;
 
         if optimal_rows_per_batch == 0 {
             return table_batches;
         }
 
-        let mut result = Vec::new();
+        // Pre-calculate the approximate number of result batches for better allocation.
+        let estimated_splits: usize = table_batches
+            .iter()
+            .map(|batch| {
+                let rows_len = batch.rows.len();
+                if rows_len <= 1 || rows_len <= optimal_rows_per_batch {
+                    1
+                } else {
+                    (rows_len + optimal_rows_per_batch - 1) / optimal_rows_per_batch
+                }
+            })
+            .sum();
 
+        let mut result = Vec::with_capacity(estimated_splits);
         for table_batch in table_batches {
             let rows_len = table_batch.rows.len();
-            
+
             // Don't split if:
             // 1. We only have one row or fewer
             // 2. The batch is already smaller than or equal to optimal size
@@ -689,7 +698,7 @@ impl StorageApi {
             let mut start_idx = 0;
             for i in 0..num_sub_batches {
                 let mut end_idx = start_idx + rows_per_sub_batch;
-                
+
                 // Distribute extra rows evenly across the first few batches
                 if i < extra_rows {
                     end_idx += 1;
@@ -698,12 +707,10 @@ impl StorageApi {
                 let sub_batch_rows = table_batch.rows[start_idx..end_idx].to_vec();
                 let sub_batch = TableBatch::new(
                     table_batch.stream_name.clone(),
-                    TableDescriptor {
-                        field_descriptors: table_batch.table_descriptor.field_descriptors.clone(),
-                    },
+                    table_batch.table_descriptor.clone(),
                     sub_batch_rows,
                 );
-                
+
                 result.push(sub_batch);
                 start_idx = end_idx;
             }
@@ -721,6 +728,10 @@ impl StorageApi {
     /// The algorithm calculates an optimal distribution of rows across batches
     /// to saturate the available parallelism while ensuring batches belong to
     /// a single table (since streams are per-table).
+    ///
+    /// Optimizations include:
+    /// - Using Arc for shared table descriptors to avoid cloning
+    /// - Pre-sizing result vectors for better memory allocation
     pub async fn append_table_batches_concurrent<M>(
         &mut self,
         table_batches: Vec<TableBatch<M>>,
@@ -736,7 +747,7 @@ impl StorageApi {
 
         // Split table batches into optimal sub-batches for parallelism
         let split_batches = Self::split_table_batches(table_batches, max_concurrent_streams);
-        
+
         if split_batches.is_empty() {
             return Ok(Vec::new());
         }
@@ -756,8 +767,10 @@ impl StorageApi {
             let mut client = self.clone();
 
             join_set.spawn(async move {
+                // We compute the proto schema once for the entire batch. We might want to compute it
+                // once per stream but for now this is fine.
                 let proto_schema = Self::create_proto_schema(&table_descriptor);
-                
+
                 // Build the request stream for this batch
                 let request_stream = AppendRequestsStream::new(rows, proto_schema, stream_name, trace_id);
 
@@ -787,7 +800,7 @@ impl StorageApi {
             });
         }
 
-        // Collect all task results in the order of completion
+        // Collect all task results in the order of completion with pre-sized vector
         let mut responses = Vec::with_capacity(batches_num);
         while let Some(response) = join_set.join_next().await {
             let (idx, response) = response?;
@@ -801,6 +814,7 @@ impl StorageApi {
 #[cfg(test)]
 pub mod test {
     use prost::Message;
+    use std::sync::Arc;
     use std::time::{Duration, SystemTime};
     use tokio_stream::StreamExt;
 
@@ -809,7 +823,9 @@ pub mod test {
     use crate::model::table::Table;
     use crate::model::table_field_schema::TableFieldSchema;
     use crate::model::table_schema::TableSchema;
-    use crate::storage::{ColumnMode, ColumnType, FieldDescriptor, StorageApi, StreamName, TableBatch, TableDescriptor};
+    use crate::storage::{
+        ColumnMode, ColumnType, FieldDescriptor, StorageApi, StreamName, TableBatch, TableDescriptor,
+    };
     use crate::{env_vars, Client};
 
     #[derive(Clone, PartialEq, Message)]
@@ -824,7 +840,7 @@ pub mod test {
         last_update: String,
     }
 
-    fn create_test_table_descriptor() -> TableDescriptor {
+    fn create_test_table_descriptor() -> Arc<TableDescriptor> {
         let field_descriptors = vec![
             FieldDescriptor {
                 name: "actor_id".to_string(),
@@ -852,7 +868,7 @@ pub mod test {
             },
         ];
 
-        TableDescriptor { field_descriptors }
+        Arc::new(TableDescriptor { field_descriptors })
     }
 
     async fn setup_test_table(
@@ -1043,20 +1059,17 @@ pub mod test {
         let batch2 = TableBatch::new(
             stream_name2,
             table_descriptor,
-            vec![
-                create_test_actor(7, "Eve"),
-                create_test_actor(8, "Frank"),
-            ],
+            vec![create_test_actor(7, "Eve"), create_test_actor(8, "Frank")],
         );
 
         let table_batches = vec![batch1, batch2];
-        
+
         // Test with max_concurrent_streams = 4
         // Total rows = 8, optimal_rows_per_batch = 8/4 = 2
         // batch1 (6 rows) should be split into 3 sub-batches (2,2,2)
         // batch2 (2 rows) should remain as is
         let split_batches = StorageApi::split_table_batches(table_batches, 4);
-        
+
         assert_eq!(split_batches.len(), 4); // 3 sub-batches from batch1 + 1 from batch2
         assert_eq!(split_batches[0].len(), 2); // First sub-batch from batch1
         assert_eq!(split_batches[1].len(), 2); // Second sub-batch from batch1
@@ -1077,21 +1090,21 @@ pub mod test {
 
         let batch = TableBatch::new(stream_name, table_descriptor, actors);
         let table_batches = vec![batch];
-        
+
         // Test with max_concurrent_streams = 3
         // Total rows = 10, optimal_rows_per_batch = 10/3 = 3.33 -> 4
         // The batch should be split into 3 sub-batches with 3,3,4 rows
         let split_batches = StorageApi::split_table_batches(table_batches, 3);
-        
+
         assert_eq!(split_batches.len(), 3);
-        
+
         // Check that rows are distributed as evenly as possible
         let mut row_counts: Vec<usize> = split_batches.iter().map(|b| b.len()).collect();
         row_counts.sort();
-        
+
         // Should be [3, 3, 4] when sorted
         assert_eq!(row_counts, vec![3, 3, 4]);
-        
+
         // Verify total rows remain the same
         let total_split_rows: usize = split_batches.iter().map(|b| b.len()).sum();
         assert_eq!(total_split_rows, 10);
@@ -1108,17 +1121,13 @@ pub mod test {
             table_descriptor.clone(),
             vec![create_test_actor(1, "John")],
         );
-        let batch2 = TableBatch::new(
-            stream_name,
-            table_descriptor,
-            vec![create_test_actor(2, "Jane")],
-        );
-        
+        let batch2 = TableBatch::new(stream_name, table_descriptor, vec![create_test_actor(2, "Jane")]);
+
         let table_batches = vec![batch1, batch2];
-        
+
         // Test with limited concurrency equal to number of batches - no splitting should occur
         let split_batches = StorageApi::split_table_batches(table_batches, 2);
-        
+
         assert_eq!(split_batches.len(), 2);
         assert_eq!(split_batches[0].len(), 1);
         assert_eq!(split_batches[1].len(), 1);
@@ -1135,12 +1144,12 @@ pub mod test {
             table_descriptor,
             vec![create_test_actor(1, "John"), create_test_actor(2, "Jane")],
         );
-        
+
         let table_batches = vec![batch];
-        
+
         // Test with high concurrency - batch should be split to maximize parallelism
         let split_batches = StorageApi::split_table_batches(table_batches, 10);
-        
+
         assert_eq!(split_batches.len(), 2); // Should split into 2 batches of 1 row each
         assert_eq!(split_batches[0].len(), 1);
         assert_eq!(split_batches[1].len(), 1);
@@ -1149,18 +1158,18 @@ pub mod test {
     #[test]
     fn test_split_table_batches_edge_cases() {
         let table_descriptor = create_test_table_descriptor();
-        
+
         // Test empty table batches
         let empty_batches: Vec<TableBatch<Actor>> = vec![];
         let split_empty = StorageApi::split_table_batches(empty_batches, 5);
         assert_eq!(split_empty.len(), 0);
-        
+
         // Test with zero max_concurrent_streams
         let stream_name = StreamName::new_default("project".to_string(), "dataset".to_string(), "table".to_string());
         let batch = TableBatch::new(stream_name, table_descriptor, vec![create_test_actor(1, "John")]);
         let split_zero = StorageApi::split_table_batches(vec![batch], 0);
         assert_eq!(split_zero.len(), 1); // Should return original batch unchanged
-        
+
         // Test with batch containing no rows
         let stream_name = StreamName::new_default("project".to_string(), "dataset".to_string(), "table".to_string());
         let table_descriptor = create_test_table_descriptor();
@@ -1174,12 +1183,12 @@ pub mod test {
     fn test_table_batch_creation_and_methods() {
         let table_descriptor = create_test_table_descriptor();
         let stream_name = StreamName::new_default("project".to_string(), "dataset".to_string(), "table".to_string());
-        
+
         // Test empty batch
         let empty_batch: TableBatch<Actor> = TableBatch::new(stream_name.clone(), table_descriptor.clone(), vec![]);
         assert!(empty_batch.is_empty());
         assert_eq!(empty_batch.len(), 0);
-        
+
         // Test batch with data
         let actors = vec![create_test_actor(1, "John"), create_test_actor(2, "Jane")];
         let batch = TableBatch::new(stream_name, table_descriptor, actors);
@@ -1217,17 +1226,10 @@ pub mod test {
         let batch2 = TableBatch::new(
             stream_name.clone(),
             table_descriptor.clone(),
-            vec![
-                create_test_actor(5, "Charlie"),
-                create_test_actor(6, "Dave"),
-            ],
+            vec![create_test_actor(5, "Charlie"), create_test_actor(6, "Dave")],
         );
 
-        let batch3 = TableBatch::new(
-            stream_name,
-            table_descriptor,
-            vec![create_test_actor(7, "Eve")],
-        );
+        let batch3 = TableBatch::new(stream_name, table_descriptor, vec![create_test_actor(7, "Eve")]);
 
         let table_batches = vec![batch1, batch2, batch3];
 
@@ -1240,7 +1242,7 @@ pub mod test {
 
         // We expect more than 3 responses because batches should be split
         assert!(batch_responses.len() >= 3);
-        
+
         // Verify all responses are successful
         for (_, responses) in batch_responses {
             for response in responses {
