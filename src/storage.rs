@@ -555,84 +555,6 @@ impl StorageApi {
         Ok(streaming)
     }
 
-    /// Appends multiple batches of rows concurrently with controlled parallelism.
-    ///
-    /// Processes batches in parallel up to the specified concurrency limit.
-    /// Each batch is converted into appropriately sized requests and responses
-    /// are collected and returned in the same order as input batches.
-    /// Concurrency slots are held until each batch's response stream is
-    /// fully consumed.
-    pub async fn append_rows_concurrent<M>(
-        &mut self,
-        stream_name: &StreamName,
-        table_descriptor: &TableDescriptor,
-        batches: Vec<Vec<M>>,
-        max_concurrent_batches: usize,
-        trace_id: &str,
-    ) -> Result<Vec<(usize, Vec<Result<AppendRowsResponse, Status>>)>, BQError>
-    where
-        M: Message + Send + 'static,
-    {
-        if batches.is_empty() {
-            return Ok(Vec::new());
-        }
-
-        let batches_num = batches.len();
-        let proto_schema = Self::create_proto_schema(table_descriptor);
-        let semaphore = Arc::new(Semaphore::new(max_concurrent_batches));
-
-        let mut join_set = JoinSet::new();
-        for (idx, batch) in batches.into_iter().enumerate() {
-            // Acquire a concurrency slot and hold it until responses are fully drained.
-            let permit = semaphore.clone().acquire_owned().await?;
-
-            let stream_name = stream_name.clone();
-            let trace_id = trace_id.to_string();
-            let proto_schema = proto_schema.clone();
-            let mut client = self.clone();
-
-            join_set.spawn(async move {
-                // Build the request stream for this batch.
-                let request_stream = AppendRequestsStream::new(batch, proto_schema, stream_name, trace_id);
-
-                // We make the request for append rows and poll the response stream until it is exhausted.
-                let mut responses = Vec::new();
-                match Self::new_authorized_request(client.auth.clone(), request_stream).await {
-                    Ok(request) => match client.write_client.append_rows(request).await {
-                        Ok(response) => {
-                            let mut streaming_response = response.into_inner();
-                            while let Some(response) = streaming_response.next().await {
-                                responses.push(response);
-                            }
-                        }
-                        Err(status) => {
-                            responses.push(Err(status));
-                        }
-                    },
-                    Err(err) => {
-                        responses.push(Err(Status::unknown(err.to_string())));
-                    }
-                }
-
-                // Free the concurrency slot only after fully draining the responses or after an error.
-                drop(permit);
-
-                (idx, responses)
-            });
-        }
-
-        // Collect all task results in the order of completion. For performance reasons, we do not return
-        // data in order, but we just return the index of the batch and the responses so that the caller
-        // can sort the results if needed.
-        let mut responses = Vec::with_capacity(batches_num);
-        while let Some(response) = join_set.join_next().await {
-            let (idx, response) = response?;
-            responses.push((idx, response));
-        }
-
-        Ok(responses)
-    }
-
     /// Splits table batches into optimal sub-batches for parallel execution.
     ///
     /// Calculates the optimal distribution of rows across batches to maximize
@@ -728,10 +650,6 @@ impl StorageApi {
     /// The algorithm calculates an optimal distribution of rows across batches
     /// to saturate the available parallelism while ensuring batches belong to
     /// a single table (since streams are per-table).
-    ///
-    /// Optimizations include:
-    /// - Using Arc for shared table descriptors to avoid cloning
-    /// - Pre-sizing result vectors for better memory allocation
     pub async fn append_table_batches_concurrent<M>(
         &mut self,
         table_batches: Vec<TableBatch<M>>,
@@ -996,44 +914,6 @@ pub mod test {
                 .await
                 .unwrap();
         assert_eq!(num_append_rows_calls, 2);
-    }
-
-    #[tokio::test]
-    async fn test_append_rows_concurrent() {
-        let (ref project_id, ref dataset_id, ref table_id, ref sa_key) = env_vars();
-        let dataset_id = &format!("{dataset_id}_storage_limited");
-
-        let mut client = Client::from_service_account_key_file(sa_key).await.unwrap();
-
-        setup_test_table(&mut client, project_id, dataset_id, table_id)
-            .await
-            .unwrap();
-
-        let table_descriptor = create_test_table_descriptor();
-        let actor1 = create_test_actor(1, "John");
-        let actor2 = create_test_actor(2, "Alex");
-        let actor3 = create_test_actor(3, "Jane");
-        let actor4 = create_test_actor(4, "Bob");
-        let actor5 = create_test_actor(5, "Charlie");
-
-        let stream_name = StreamName::new_default(project_id.clone(), dataset_id.clone(), table_id.clone());
-        let trace_id = "test_client_limited";
-
-        let batches = vec![
-            vec![actor1.clone(), actor2.clone()],
-            vec![actor3.clone()],
-            vec![actor4.clone()],
-            vec![actor5.clone()],
-        ];
-
-        // Test with concurrency limit of 2
-        let batch_responses = client
-            .storage_mut()
-            .append_rows_concurrent(&stream_name, &table_descriptor, batches, 2, trace_id)
-            .await
-            .unwrap();
-
-        assert_eq!(batch_responses.len(), 4);
     }
 
     #[test]
