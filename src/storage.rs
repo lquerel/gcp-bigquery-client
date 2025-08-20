@@ -17,8 +17,8 @@
 //! - Concurrent processing with configurable parallelism limits
 //! - Automatic request size management (respects 10MB BigQuery limits)
 //! - Schema validation using protobuf descriptors
-//! - Support for all BigQuery column types and cardinality modes
-//! - Comprehensive error handling and retry logic
+//! - Supports protobuf scalar types and cardinality modes
+//! - Structured error handling; caller controls retries
 //!
 //! # Usage
 //!
@@ -45,7 +45,6 @@ use std::{
         Arc,
     },
 };
-use tokio::pin;
 use tokio::sync::Semaphore;
 use tokio::task::JoinSet;
 use tonic::{
@@ -335,7 +334,8 @@ impl Display for StreamName {
 /// Streaming adapter that converts message batches into [`AppendRowsRequest`] objects.
 ///
 /// Automatically chunks large batches into multiple requests while respecting
-/// the 10MB BigQuery API size limit. Implements [`Stream`] trait for seamless
+/// the 10MB BigQuery API size limit. If a single row exceeds the configured
+/// limit, it is sent alone and may be rejected by the server. Implements [`Stream`] for seamless
 /// integration with async streaming workflows and gRPC client operations.
 #[pin_project]
 #[derive(Debug)]
@@ -408,12 +408,20 @@ where
         // Process messages from `current_index` onwards. We do not change the vector while processing
         // to avoid reallocations which are unnecessary.
         for msg in this.batch.iter().skip(*this.current_index) {
-            let encoded = msg.encode_to_vec();
-            let size = encoded.len();
-
+            // First, check the encoded length to avoid performing a full encode
+            // on the first message that would exceed the limit and be dropped.
+            let size = msg.encoded_len();
             if total_size + size > MAX_BATCH_BYTES && !serialized_rows.is_empty() {
                 break;
             }
+
+            // Safe to encode now and include the row in this request chunk.
+            let encoded = msg.encode_to_vec();
+            debug_assert_eq!(
+                encoded.len(),
+                size,
+                "prost::encoded_len disagrees with encode_to_vec length"
+            );
 
             serialized_rows.push(encoded);
             total_size += size;
@@ -543,15 +551,21 @@ impl StorageApi {
         let mut total_size = 0;
 
         for row in rows {
-            let encoded_row = row.encode_to_vec();
-            let current_size = encoded_row.len();
-
-            if total_size + current_size > max_size_bytes {
+            // Use encoded_len to avoid encoding a row that won't fit.
+            let row_size = row.encoded_len();
+            if total_size + row_size > max_size_bytes {
                 break;
             }
 
+            let encoded_row = row.encode_to_vec();
+            debug_assert_eq!(
+                encoded_row.len(),
+                row_size,
+                "prost::encoded_len disagrees with encode_to_vec length"
+            );
+
             serialized_rows.push(encoded_row);
-            total_size += current_size;
+            total_size += row_size;
         }
 
         let num_rows_processed = serialized_rows.len();
@@ -700,7 +714,9 @@ impl StorageApi {
     /// Appends rows from multiple table batches with concurrent processing.
     ///
     /// Returns a collection of batch results containing responses, metadata,
-    /// and bytes sent for each batch processed.
+    /// and bytes sent for each batch processed. Results are ordered by
+    /// completion, not by submission; use `BatchAppendResult::batch_index`
+    /// to correlate with the original input order.
     pub async fn append_table_batches_concurrent<M>(
         &self,
         table_batches: Vec<TableBatch<M>>,
