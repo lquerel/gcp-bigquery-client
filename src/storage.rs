@@ -273,24 +273,6 @@ impl BatchAppendResult {
     pub fn is_success(&self) -> bool {
         self.responses.iter().all(|result| result.is_ok())
     }
-
-    /// Returns the number of successful responses in this batch.
-    pub fn success_count(&self) -> usize {
-        self.responses.iter().filter(|result| result.is_ok()).count()
-    }
-
-    /// Returns the number of failed responses in this batch.
-    pub fn error_count(&self) -> usize {
-        self.responses.iter().filter(|result| result.is_err()).count()
-    }
-
-    /// Returns the first error encountered, if any.
-    ///
-    /// Useful for error reporting when you need to surface the first
-    /// failure without processing all responses.
-    pub fn first_error(&self) -> Option<&Status> {
-        self.responses.iter().find_map(|result| result.as_ref().err())
-    }
 }
 
 /// Hierarchical identifier for BigQuery write streams.
@@ -1072,12 +1054,11 @@ pub mod test {
         // Verify all responses are successful and track total bytes sent
         let mut total_bytes_across_all_batches = 0;
         for batch_result in batch_responses {
-            // Verify the batch was processed successfully using convenience method
+            // Verify the batch was processed successfully
             assert!(
                 batch_result.is_success(),
-                "Batch {} should be successful. First error: {:?}",
+                "Batch {} should be successful.",
                 batch_result.batch_index,
-                batch_result.first_error()
             );
 
             // Verify each individual response for detailed error reporting
