@@ -227,6 +227,76 @@ impl<M> TableBatch<M> {
     }
 }
 
+/// Result of processing a single table batch in concurrent append operations.
+///
+/// Contains the batch processing results along with metadata about the operation,
+/// including the original batch index for result ordering and total bytes sent
+/// for monitoring and debugging purposes.
+#[derive(Debug)]
+pub struct BatchAppendResult {
+    /// Original index of the batch in the input vector.
+    ///
+    /// Allows callers to correlate results with their original batch ordering
+    /// even when results are returned in completion order rather than submission order.
+    pub batch_index: usize,
+    /// Collection of append operation responses for this batch.
+    ///
+    /// Each batch may generate multiple append requests due to size limits,
+    /// resulting in multiple responses. All responses must be checked for
+    /// errors to ensure complete batch success.
+    pub responses: Vec<Result<AppendRowsResponse, Status>>,
+    /// Total bytes sent for this batch across all requests.
+    ///
+    /// Calculated using the `encoded_len()` method on each `AppendRowsRequest`
+    /// generated for this batch. Useful for monitoring data transfer volume
+    /// and debugging performance issues.
+    pub bytes_sent: usize,
+}
+
+impl BatchAppendResult {
+    /// Creates a new batch append result.
+    ///
+    /// Combines all result metadata into a single cohesive structure
+    /// for easier handling by calling code.
+    pub fn new(
+        batch_index: usize,
+        responses: Vec<Result<AppendRowsResponse, Status>>,
+        bytes_sent: usize,
+    ) -> Self {
+        Self {
+            batch_index,
+            responses,
+            bytes_sent,
+        }
+    }
+
+    /// Returns true if all responses in this batch are successful.
+    ///
+    /// Convenience method to quickly check batch success without
+    /// iterating through individual responses.
+    pub fn is_success(&self) -> bool {
+        self.responses.iter().all(|result| result.is_ok())
+    }
+
+    /// Returns the number of successful responses in this batch.
+    pub fn success_count(&self) -> usize {
+        self.responses.iter().filter(|result| result.is_ok()).count()
+    }
+
+    /// Returns the number of failed responses in this batch.
+    pub fn error_count(&self) -> usize {
+        self.responses.iter().filter(|result| result.is_err()).count()
+    }
+
+    /// Returns the first error encountered, if any.
+    ///
+    /// Useful for error reporting when you need to surface the first
+    /// failure without processing all responses.
+    pub fn first_error(&self) -> Option<&Status> {
+        self.responses.iter().find_map(|result| result.as_ref().err())
+    }
+}
+
 /// Hierarchical identifier for BigQuery write streams.
 ///
 /// Represents the complete resource path structure used by BigQuery to
@@ -312,6 +382,8 @@ pub struct AppendRequestsStream<M> {
     current_index: usize,
     /// Whether to include writer schema in the next request (first only).
     include_schema_next: bool,
+    /// Total bytes sent across all requests in this stream.
+    total_bytes_sent: usize,
 }
 
 impl<M> AppendRequestsStream<M> {
@@ -328,7 +400,13 @@ impl<M> AppendRequestsStream<M> {
             trace_id,
             current_index: 0,
             include_schema_next: true,
+            total_bytes_sent: 0,
         }
+    }
+
+    /// Returns the total number of bytes sent across all requests in this stream.
+    pub fn total_bytes_sent(&self) -> usize {
+        self.total_bytes_sent
     }
 }
 
@@ -355,7 +433,8 @@ where
         let mut total_size = 0;
         let mut processed_count = 0;
 
-        // Process messages from current_index onwards
+        // Process messages from `current_index` onwards. We do not change the vector while processing
+        // to avoid reallocations which are unnecessary.
         for msg in this.batch.iter().skip(*this.current_index) {
             let encoded = msg.encode_to_vec();
             let size = encoded.len();
@@ -391,6 +470,10 @@ where
             default_missing_value_interpretation: MissingValueInterpretation::Unspecified.into(),
             rows: Some(append_rows_request::Rows::ProtoRows(proto_data)),
         };
+
+        // Track the total bytes being sent using encoded_len
+        let request_bytes = append_rows_request.encoded_len();
+        *this.total_bytes_sent += request_bytes;
 
         *this.current_index += processed_count;
         // After the first request, avoid sending schema again in this stream
@@ -644,14 +727,14 @@ impl StorageApi {
 
     /// Appends rows from multiple table batches with concurrent processing.
     ///
-    /// Returns responses grouped by original batch index with their associated
-    /// append results.
+    /// Returns a collection of batch results containing responses, metadata,
+    /// and bytes sent for each batch processed.
     pub async fn append_table_batches_concurrent<M>(
         &self,
         table_batches: Vec<TableBatch<M>>,
         max_concurrent_streams: usize,
         trace_id: &str,
-    ) -> Result<Vec<(usize, Vec<Result<AppendRowsResponse, Status>>)>, BQError>
+    ) -> Result<Vec<BatchAppendResult>, BQError>
     where
         M: Message + Send + Clone + 'static,
     {
@@ -685,7 +768,18 @@ impl StorageApi {
 
                 // Make the request for append rows and poll the response stream until exhausted
                 let mut batch_responses = Vec::new();
-                match Self::new_authorized_request(client.auth.clone(), request_stream).await {
+                let mut total_bytes_sent = 0;
+
+                // We need to collect all the requests first to get the total bytes sent
+                let mut all_requests = Vec::new();
+                pin!(request_stream);
+                
+                while let Some(request) = request_stream.next().await {
+                    total_bytes_sent += request.encoded_len();
+                    all_requests.push(request);
+                }
+
+                match Self::new_authorized_request(client.auth.clone(), tokio_stream::iter(all_requests)).await {
                     Ok(request) => match client.write_client.append_rows(request).await {
                         Ok(response) => {
                             let mut streaming_response = response.into_inner();
@@ -705,15 +799,15 @@ impl StorageApi {
                 // Free the concurrency slot only after fully draining responses or after error
                 drop(permit);
 
-                (idx, batch_responses)
+                BatchAppendResult::new(idx, batch_responses, total_bytes_sent)
             });
         }
 
         // Collect all task results in the order of completion with pre-sized vector
         let mut batches_responses = Vec::with_capacity(batches_num);
-        while let Some(batch_responses) = join_set.join_next().await {
-            let (idx, batch_responses) = batch_responses?;
-            batches_responses.push((idx, batch_responses));
+        while let Some(batch_result) = join_set.join_next().await {
+            let batch_result = batch_result?;
+            batches_responses.push(batch_result);
         }
 
         Ok(batches_responses)
@@ -979,11 +1073,27 @@ pub mod test {
         // We expect 3 responses per batch (one for each batch)
         assert_eq!(batch_responses.len(), 3);
 
-        // Verify all responses are successful
-        for (_, responses) in batch_responses {
-            for response in responses {
+        // Verify all responses are successful and track total bytes sent
+        let mut total_bytes_across_all_batches = 0;
+        for batch_result in batch_responses {
+            // Verify the batch was processed successfully using convenience method
+            assert!(batch_result.is_success(), "Batch {} should be successful. First error: {:?}", 
+                    batch_result.batch_index, batch_result.first_error());
+            
+            // Verify each individual response for detailed error reporting
+            for response in &batch_result.responses {
                 assert!(response.is_ok(), "Response should be successful: {:?}", response);
             }
+            
+            // Verify that some bytes were sent (should be greater than 0)
+            assert!(batch_result.bytes_sent > 0, 
+                    "Bytes sent should be greater than 0 for batch {}, got: {}", 
+                    batch_result.batch_index, batch_result.bytes_sent);
+            
+            total_bytes_across_all_batches += batch_result.bytes_sent;
         }
+
+        // Verify that we sent bytes across all batches
+        assert!(total_bytes_across_all_batches > 0, "Total bytes sent across all batches should be greater than 0");
     }
 }
