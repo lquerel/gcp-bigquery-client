@@ -36,7 +36,15 @@ use prost_types::{
 };
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use std::{collections::HashMap, convert::TryInto, fmt::Display, sync::Arc};
+use std::{
+    collections::HashMap,
+    convert::TryInto,
+    fmt::Display,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    },
+};
 use tokio::pin;
 use tokio::sync::Semaphore;
 use tokio::task::JoinSet;
@@ -76,35 +84,20 @@ const MAX_TONIC_BYTES: usize = 20 * 1024 * 1024;
 /// Supported protobuf column types for BigQuery schema mapping.
 #[derive(Debug, Copy, Clone)]
 pub enum ColumnType {
-    /// 64-bit floating point number.
     Double,
-    /// 32-bit floating point number.
     Float,
-    /// 64-bit signed integer.
     Int64,
-    /// 64-bit unsigned integer.
     Uint64,
-    /// 32-bit signed integer.
     Int32,
-    /// 64-bit fixed-width unsigned integer.
     Fixed64,
-    /// 32-bit fixed-width unsigned integer.
     Fixed32,
-    /// Boolean value.
     Bool,
-    /// UTF-8 encoded string.
     String,
-    /// Arbitrary byte sequence.
     Bytes,
-    /// 32-bit unsigned integer.
     Uint32,
-    /// 32-bit signed fixed-width integer.
     Sfixed32,
-    /// 64-bit signed fixed-width integer.
     Sfixed64,
-    /// 32-bit signed integer with zigzag encoding.
     Sint32,
-    /// 64-bit signed integer with zigzag encoding.
     Sint64,
 }
 
@@ -247,9 +240,9 @@ pub struct BatchAppendResult {
     pub responses: Vec<Result<AppendRowsResponse, Status>>,
     /// Total bytes sent for this batch across all requests.
     ///
-    /// Calculated using the `encoded_len()` method on each `AppendRowsRequest`
-    /// generated for this batch. Useful for monitoring data transfer volume
-    /// and debugging performance issues.
+    /// Shared atomic counter that tracks bytes sent using the `encoded_len()` method
+    /// on each `AppendRowsRequest` generated for this batch. Useful for monitoring
+    /// data transfer volume and debugging performance issues.
     pub bytes_sent: usize,
 }
 
@@ -360,8 +353,8 @@ pub struct AppendRequestsStream<M> {
     current_index: usize,
     /// Whether to include writer schema in the next request (first only).
     include_schema_next: bool,
-    /// Total bytes sent across all requests in this stream.
-    total_bytes_sent: usize,
+    /// Shared atomic counter for tracking total bytes sent across all requests in this stream.
+    bytes_sent_counter: Arc<AtomicUsize>,
 }
 
 impl<M> AppendRequestsStream<M> {
@@ -370,7 +363,13 @@ impl<M> AppendRequestsStream<M> {
     /// Initializes the stream with all necessary metadata for generating
     /// properly formatted append requests. The schema is included only
     /// in the first request of the stream.
-    fn new(batch: Vec<M>, proto_schema: ProtoSchema, stream_name: StreamName, trace_id: String) -> Self {
+    fn new(
+        batch: Vec<M>,
+        proto_schema: ProtoSchema,
+        stream_name: StreamName,
+        trace_id: String,
+        bytes_sent_counter: Arc<AtomicUsize>,
+    ) -> Self {
         Self {
             batch,
             proto_schema,
@@ -378,13 +377,8 @@ impl<M> AppendRequestsStream<M> {
             trace_id,
             current_index: 0,
             include_schema_next: true,
-            total_bytes_sent: 0,
+            bytes_sent_counter,
         }
-    }
-
-    /// Returns the total number of bytes sent across all requests in this stream.
-    pub fn total_bytes_sent(&self) -> usize {
-        self.total_bytes_sent
     }
 }
 
@@ -451,7 +445,7 @@ where
 
         // Track the total bytes being sent using encoded_len
         let request_bytes = append_rows_request.encoded_len();
-        *this.total_bytes_sent += request_bytes;
+        this.bytes_sent_counter.fetch_add(request_bytes, Ordering::Relaxed);
 
         *this.current_index += processed_count;
         // After the first request, avoid sending schema again in this stream
@@ -741,23 +735,17 @@ impl StorageApi {
                 // once per stream but for now this is fine.
                 let proto_schema = Self::create_proto_schema(&table_descriptor);
 
-                // Build the request stream for this batch
-                let request_stream = AppendRequestsStream::new(rows, proto_schema, stream_name, trace_id);
+                // Create atomic counter for tracking bytes sent for this batch
+                let bytes_sent_counter = Arc::new(AtomicUsize::new(0));
+
+                // Build the request stream for this batch with the atomic counter
+                let request_stream =
+                    AppendRequestsStream::new(rows, proto_schema, stream_name, trace_id, bytes_sent_counter.clone());
 
                 // Make the request for append rows and poll the response stream until exhausted
                 let mut batch_responses = Vec::new();
-                let mut total_bytes_sent = 0;
 
-                // We need to collect all the requests first to get the total bytes sent
-                let mut all_requests = Vec::new();
-                pin!(request_stream);
-
-                while let Some(request) = request_stream.next().await {
-                    total_bytes_sent += request.encoded_len();
-                    all_requests.push(request);
-                }
-
-                match Self::new_authorized_request(client.auth.clone(), tokio_stream::iter(all_requests)).await {
+                match Self::new_authorized_request(client.auth.clone(), request_stream).await {
                     Ok(request) => match client.write_client.append_rows(request).await {
                         Ok(response) => {
                             let mut streaming_response = response.into_inner();
@@ -777,18 +765,20 @@ impl StorageApi {
                 // Free the concurrency slot only after fully draining responses or after error
                 drop(permit);
 
-                BatchAppendResult::new(idx, batch_responses, total_bytes_sent)
+                // We load the atomic directly in the result to avoid exposing atomics. By doing this
+                // we assume that when this code path is reached, the stream has been fully drained.
+                BatchAppendResult::new(idx, batch_responses, bytes_sent_counter.load(Ordering::Relaxed))
             });
         }
 
         // Collect all task results in the order of completion with pre-sized vector
-        let mut batches_responses = Vec::with_capacity(batches_num);
+        let mut batch_results = Vec::with_capacity(batches_num);
         while let Some(batch_result) = join_set.join_next().await {
             let batch_result = batch_result?;
-            batches_responses.push(batch_result);
+            batch_results.push(batch_result);
         }
 
-        Ok(batches_responses)
+        Ok(batch_results)
     }
 }
 
@@ -1067,14 +1057,15 @@ pub mod test {
             }
 
             // Verify that some bytes were sent (should be greater than 0)
+            let bytes_sent = batch_result.bytes_sent;
             assert!(
-                batch_result.bytes_sent > 0,
+                bytes_sent > 0,
                 "Bytes sent should be greater than 0 for batch {}, got: {}",
                 batch_result.batch_index,
-                batch_result.bytes_sent
+                bytes_sent
             );
 
-            total_bytes_across_all_batches += batch_result.bytes_sent;
+            total_bytes_across_all_batches += bytes_sent;
         }
 
         // Verify that we sent bytes across all batches
