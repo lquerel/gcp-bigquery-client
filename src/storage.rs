@@ -209,10 +209,6 @@ pub struct BatchAppendResult {
     /// errors to ensure complete batch success.
     pub responses: Vec<Result<AppendRowsResponse, Status>>,
     /// Total bytes sent for this batch across all requests.
-    ///
-    /// Shared atomic counter that tracks bytes sent using the `encoded_len()` method
-    /// on each `AppendRowsRequest` generated for this batch. Useful for monitoring
-    /// data transfer volume and debugging performance issues.
     pub bytes_sent: usize,
 }
 
