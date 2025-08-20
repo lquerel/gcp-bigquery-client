@@ -1,30 +1,7 @@
 //! BigQuery Storage Write API client for high-throughput data streaming.
 //!
-//! This module provides a complete implementation of the BigQuery Storage Write API,
-//! enabling efficient streaming of structured data to BigQuery tables. The Storage
-//! Write API offers significantly higher throughput compared to the traditional
-//! BigQuery streaming API, with support for batching, concurrent processing, and
-//! automatic request size management.
-//!
-//! The primary entry point is [`StorageApi`], which provides methods for appending
-//! rows to BigQuery tables. Data is organized using [`TableBatch`] structures that
-//! contain rows targeting specific tables, with schema definitions provided by
-//! [`TableDescriptor`] and [`FieldDescriptor`].
-//!
-//! # Key Features
-//!
-//! - High-throughput streaming with automatic batching
-//! - Concurrent processing with configurable parallelism limits
-//! - Automatic request size management (respects 10MB BigQuery limits)
-//! - Schema validation using protobuf descriptors
-//! - Supports protobuf scalar types and cardinality modes
-//! - Structured error handling; caller controls retries
-//!
-//! # Usage
-//!
-//! The typical workflow involves creating table descriptors, organizing data into
-//! batches, and using [`StorageApi::append_table_batches_concurrent`] for optimal
-//! performance with large datasets.
+//! This module provides an implementation of the BigQuery Storage Write API,
+//! enabling efficient streaming of structured data to BigQuery tables.
 
 use futures::stream::Stream;
 use futures::StreamExt;
@@ -79,6 +56,10 @@ const MAX_BATCH_BYTES: usize = 9 * 1024 * 1024;
 /// Set to 20MB to accommodate large response messages and provide headroom
 /// for metadata while staying within reasonable memory bounds.
 const MAX_TONIC_BYTES: usize = 20 * 1024 * 1024;
+/// The name of the default stream in BigQuery.
+///
+/// This stream is a special built-in stream that always exists for a table.
+const DEFAULT_STREAM_NAME: &str = "_default";
 
 /// Supported protobuf column types for BigQuery schema mapping.
 #[derive(Debug, Copy, Clone)]
@@ -207,16 +188,6 @@ impl<M> TableBatch<M> {
             rows,
         }
     }
-
-    /// Returns the number of rows in this batch.
-    pub fn len(&self) -> usize {
-        self.rows.len()
-    }
-
-    /// Returns true if the batch contains no rows.
-    pub fn is_empty(&self) -> bool {
-        self.rows.is_empty()
-    }
 }
 
 /// Result of processing a single table batch in concurrent append operations.
@@ -307,7 +278,7 @@ impl StreamName {
             project,
             dataset,
             table,
-            stream: "_default".to_string(),
+            stream: DEFAULT_STREAM_NAME.to_string(),
         }
     }
 }
@@ -466,11 +437,6 @@ where
 }
 
 /// High-level client for BigQuery Storage Write API operations.
-///
-/// Provides comprehensive functionality for streaming data to BigQuery tables
-/// with optimal performance characteristics. Manages authentication, automatic
-/// request batching, concurrent processing, and error handling for large-scale
-/// data ingestion workflows.
 #[derive(Clone)]
 pub struct StorageApi {
     /// gRPC client for BigQuery Storage Write API.
@@ -754,13 +720,16 @@ impl StorageApi {
                 // Create an atomic counter for tracking bytes sent for this batch.
                 let bytes_sent_counter = Arc::new(AtomicUsize::new(0));
 
-                // Build the request stream which will split the request into multiple requests if necessary.
+                // Build the request stream which will split the request into multiple requests if
+                // necessary.
                 let request_stream =
                     AppendRequestsStream::new(rows, proto_schema, stream_name, trace_id, bytes_sent_counter.clone());
 
                 let mut batch_responses = Vec::new();
 
-                // Make the request for append rows and poll the response stream until exhausted.
+                // Make the request for append rows and poll the response stream until exhausted. Since
+                // we might send multiple requests over the same stream, we will also receive multiple
+                // responses.
                 match Self::new_authorized_request(client.auth.clone(), request_stream).await {
                     Ok(request) => match client.write_client.append_rows(request).await {
                         Ok(response) => {
@@ -815,11 +784,6 @@ pub mod test {
     };
     use crate::{env_vars, Client};
 
-    /// Test message structure representing an actor record.
-    ///
-    /// Used in unit tests to validate Storage Write API functionality
-    /// with a realistic protobuf message structure containing multiple
-    /// field types.
     #[derive(Clone, PartialEq, Message)]
     struct Actor {
         #[prost(int32, tag = "1")]
@@ -832,11 +796,6 @@ pub mod test {
         last_update: String,
     }
 
-    /// Creates a test table descriptor for actor records.
-    ///
-    /// Generates a [`TableDescriptor`] with field definitions matching
-    /// the [`Actor`] message structure. Used consistently across tests
-    /// to ensure schema compatibility.
     fn create_test_table_descriptor() -> Arc<TableDescriptor> {
         let field_descriptors = vec![
             FieldDescriptor {
@@ -868,11 +827,6 @@ pub mod test {
         Arc::new(TableDescriptor { field_descriptors })
     }
 
-    /// Sets up a test BigQuery table with actor schema.
-    ///
-    /// Creates a new dataset and table with appropriate schema for testing
-    /// Storage Write API operations. Deletes any existing dataset to ensure
-    /// clean test state. The table is configured with a 1-hour expiration.
     async fn setup_test_table(
         client: &mut Client,
         project_id: &str,
@@ -910,11 +864,6 @@ pub mod test {
         Ok(())
     }
 
-    /// Creates a test actor record with specified ID and first name.
-    ///
-    /// Generates an [`Actor`] instance with consistent test data for
-    /// last name and timestamp fields. Used to create predictable
-    /// test datasets.
     fn create_test_actor(id: i32, first_name: &str) -> Actor {
         Actor {
             actor_id: id,
@@ -924,11 +873,6 @@ pub mod test {
         }
     }
 
-    /// Helper function to append rows with size limiting and retry logic.
-    ///
-    /// Demonstrates the typical pattern for handling Storage Write API
-    /// size limits by processing rows in chunks. Returns the number of
-    /// append operations required to process all rows.
     async fn call_append_rows(
         client: &mut Client,
         table_descriptor: &TableDescriptor,
@@ -1047,32 +991,33 @@ pub mod test {
 
         let table_batches = vec![batch1, batch2, batch3];
 
-        // Test with concurrency limit of 5 (should split batches to utilize parallelism)
+        // Test with a concurrency limit of 2 to assert that all batches are processed even though
+        // the supplied batches are more than the limit.
         let batch_responses = client
             .storage_mut()
-            .append_table_batches_concurrent(table_batches, 5, trace_id)
+            .append_table_batches_concurrent(table_batches, 2, trace_id)
             .await
             .unwrap();
 
         // We expect 3 responses per batch (one for each batch)
         assert_eq!(batch_responses.len(), 3);
 
-        // Verify all responses are successful and track total bytes sent
+        // Verify all responses are successful and track total bytes sent.
         let mut total_bytes_across_all_batches = 0;
         for batch_result in batch_responses {
-            // Verify the batch was processed successfully
+            // Verify the batch was processed successfully.
             assert!(
                 batch_result.is_success(),
                 "Batch {} should be successful.",
                 batch_result.batch_index,
             );
 
-            // Verify each individual response for detailed error reporting
+            // Verify each individual response for detailed error reporting.
             for response in &batch_result.responses {
                 assert!(response.is_ok(), "Response should be successful: {:?}", response);
             }
 
-            // Verify that some bytes were sent (should be greater than 0)
+            // Verify that some bytes were sent (should be greater than 0).
             let bytes_sent = batch_result.bytes_sent;
             assert!(
                 bytes_sent > 0,
