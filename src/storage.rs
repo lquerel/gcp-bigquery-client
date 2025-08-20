@@ -258,11 +258,7 @@ impl BatchAppendResult {
     ///
     /// Combines all result metadata into a single cohesive structure
     /// for easier handling by calling code.
-    pub fn new(
-        batch_index: usize,
-        responses: Vec<Result<AppendRowsResponse, Status>>,
-        bytes_sent: usize,
-    ) -> Self {
+    pub fn new(batch_index: usize, responses: Vec<Result<AppendRowsResponse, Status>>, bytes_sent: usize) -> Self {
         Self {
             batch_index,
             responses,
@@ -773,7 +769,7 @@ impl StorageApi {
                 // We need to collect all the requests first to get the total bytes sent
                 let mut all_requests = Vec::new();
                 pin!(request_stream);
-                
+
                 while let Some(request) = request_stream.next().await {
                     total_bytes_sent += request.encoded_len();
                     all_requests.push(request);
@@ -1077,23 +1073,33 @@ pub mod test {
         let mut total_bytes_across_all_batches = 0;
         for batch_result in batch_responses {
             // Verify the batch was processed successfully using convenience method
-            assert!(batch_result.is_success(), "Batch {} should be successful. First error: {:?}", 
-                    batch_result.batch_index, batch_result.first_error());
-            
+            assert!(
+                batch_result.is_success(),
+                "Batch {} should be successful. First error: {:?}",
+                batch_result.batch_index,
+                batch_result.first_error()
+            );
+
             // Verify each individual response for detailed error reporting
             for response in &batch_result.responses {
                 assert!(response.is_ok(), "Response should be successful: {:?}", response);
             }
-            
+
             // Verify that some bytes were sent (should be greater than 0)
-            assert!(batch_result.bytes_sent > 0, 
-                    "Bytes sent should be greater than 0 for batch {}, got: {}", 
-                    batch_result.batch_index, batch_result.bytes_sent);
-            
+            assert!(
+                batch_result.bytes_sent > 0,
+                "Bytes sent should be greater than 0 for batch {}, got: {}",
+                batch_result.batch_index,
+                batch_result.bytes_sent
+            );
+
             total_bytes_across_all_batches += batch_result.bytes_sent;
         }
 
         // Verify that we sent bytes across all batches
-        assert!(total_bytes_across_all_batches > 0, "Total bytes sent across all batches should be greater than 0");
+        assert!(
+            total_bytes_across_all_batches > 0,
+            "Total bytes sent across all batches should be greater than 0"
+        );
     }
 }
