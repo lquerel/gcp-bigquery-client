@@ -3,7 +3,7 @@
 //! This module provides an implementation of the BigQuery Storage Write API,
 //! enabling efficient streaming of structured data to BigQuery tables.
 
-use deadpool::managed::{Manager, Object, Pool};
+use deadpool::managed::{Manager, Object, Pool, QueueMode};
 use futures::stream::Stream;
 use futures::StreamExt;
 use pin_project::pin_project;
@@ -12,6 +12,7 @@ use prost_types::{
     field_descriptor_proto::{Label, Type},
     DescriptorProto, FieldDescriptorProto,
 };
+use std::ops::Deref;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::{
@@ -133,6 +134,9 @@ impl ConnectionPool {
         let manager = BigQueryWriteClientManager;
         let pool = Pool::builder(manager)
             .max_size(MAX_POOL_SIZE)
+            // We must use Fifo since we want to always get the least recently used connection to cycle
+            // through connections in the pool.
+            .queue_mode(QueueMode::Fifo)
             .build()
             .map_err(|e| BQError::ConnectionPoolError(format!("Failed to create connection pool: {}", e)))?;
 
@@ -791,17 +795,26 @@ impl StorageApi {
                 // responses.
                 match Self::new_authorized_request(client.auth.clone(), request_stream).await {
                     Ok(request) => match client.connection_pool.get_client().await {
-                        Ok(mut write_client) => match write_client.append_rows(request).await {
-                            Ok(response) => {
-                                let mut streaming_response = response.into_inner();
-                                while let Some(response) = streaming_response.next().await {
-                                    batch_responses.push(response);
+                        Ok(write_client) => {
+                            // We clone the client so that we can cheaply send multiple requests over
+                            // the same connection without having to hold the connection object. This
+                            // works under the assumption that the next returned connection is different, which
+                            // is the case when using the pool with Fifo queuing.
+                            let mut client = write_client.deref().clone();
+                            drop(write_client);
+
+                            match client.append_rows(request).await {
+                                Ok(response) => {
+                                    let mut streaming_response = response.into_inner();
+                                    while let Some(response) = streaming_response.next().await {
+                                        batch_responses.push(response);
+                                    }
+                                }
+                                Err(status) => {
+                                    batch_responses.push(Err(status));
                                 }
                             }
-                            Err(status) => {
-                                batch_responses.push(Err(status));
-                            }
-                        },
+                        }
                         Err(pool_err) => {
                             batch_responses.push(Err(Status::unknown(format!("Pool error: {}", pool_err))));
                         }
