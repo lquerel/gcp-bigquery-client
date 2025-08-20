@@ -62,7 +62,7 @@ async-trait = "0.1.88"
 dyn-clone = "1.0.19"
 prost = "0.13.4"
 prost-types = "0.13.4"
-tonic = { version = "0.12.3", default-features = false, features = ["channel", "codegen", "prost", "tls", "tls-roots", "gzip"] }
+tonic = { version = "0.13.1", default-features = false, features = ["channel", "codegen", "prost", "tls-native-roots", "gzip"] }
 futures = "0.3.31"
 pin-project = "1.1.10"
 
@@ -74,4 +74,4 @@ tempfile = "3.20.0"
 fake = "3.1.0"
 
 [build-dependencies]
-tonic-build = { version = "0.12.3", features = ["cleanup-markdown"] }
+tonic-build = { version = "0.13.1", features = ["cleanup-markdown"] }
