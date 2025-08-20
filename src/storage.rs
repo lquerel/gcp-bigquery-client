@@ -719,7 +719,7 @@ impl StorageApi {
 
         let mut join_set = JoinSet::new();
         for (idx, table_batch) in table_batches.into_iter().enumerate() {
-            // Acquire a concurrency slot and hold it until responses are fully drained
+            // Acquire a concurrency slot and hold it until responses are fully drained.
             let permit = semaphore.clone().acquire_owned().await?;
 
             let stream_name = table_batch.stream_name.clone();
@@ -735,16 +735,16 @@ impl StorageApi {
                 // once per stream but for now this is fine.
                 let proto_schema = Self::create_proto_schema(&table_descriptor);
 
-                // Create atomic counter for tracking bytes sent for this batch
+                // Create an atomic counter for tracking bytes sent for this batch.
                 let bytes_sent_counter = Arc::new(AtomicUsize::new(0));
 
-                // Build the request stream for this batch with the atomic counter
+                // Build the request stream which will split the request into multiple requests if necessary.
                 let request_stream =
                     AppendRequestsStream::new(rows, proto_schema, stream_name, trace_id, bytes_sent_counter.clone());
 
-                // Make the request for append rows and poll the response stream until exhausted
                 let mut batch_responses = Vec::new();
 
+                // Make the request for append rows and poll the response stream until exhausted.
                 match Self::new_authorized_request(client.auth.clone(), request_stream).await {
                     Ok(request) => match client.write_client.append_rows(request).await {
                         Ok(response) => {
@@ -762,7 +762,7 @@ impl StorageApi {
                     }
                 }
 
-                // Free the concurrency slot only after fully draining responses or after error
+                // Free the concurrency slot only after fully draining responses or after error.
                 drop(permit);
 
                 // We load the atomic directly in the result to avoid exposing atomics. By doing this
@@ -771,7 +771,7 @@ impl StorageApi {
             });
         }
 
-        // Collect all task results in the order of completion with pre-sized vector
+        // Collect all task results in the order of completion.
         let mut batch_results = Vec::with_capacity(batches_num);
         while let Some(batch_result) = join_set.join_next().await {
             let batch_result = batch_result?;
