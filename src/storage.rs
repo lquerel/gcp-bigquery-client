@@ -3,6 +3,7 @@
 //! This module provides an implementation of the BigQuery Storage Write API,
 //! enabling efficient streaming of structured data to BigQuery tables.
 
+use deadpool::managed::{Manager, Object, Pool};
 use futures::stream::Stream;
 use futures::StreamExt;
 use pin_project::pin_project;
@@ -60,6 +61,95 @@ const MAX_MESSAGE_SIZE_BYTES: usize = 20 * 1024 * 1024;
 ///
 /// This stream is a special built-in stream that always exists for a table.
 const DEFAULT_STREAM_NAME: &str = "_default";
+/// Max number of connections in the pool.
+const MAX_POOL_SIZE: usize = 32;
+
+/// Connection pool for managing multiple gRPC clients to BigQuery Storage Write API.
+///
+/// Uses deadpool to maintain a pool of persistent connections with proper
+/// resource management, automatic cleanup, and efficient connection reuse.
+#[derive(Clone)]
+pub(crate) struct ConnectionPool {
+    /// Deadpool pool of BigQuery Storage Write API clients.
+    pool: Pool<BigQueryWriteClientManager>,
+}
+
+/// Manager for creating and managing BigQuery Storage Write API gRPC clients.
+///
+/// Implements the deadpool Manager trait to handle connection lifecycle
+/// including creation, health checks, and cleanup of gRPC clients.
+struct BigQueryWriteClientManager;
+
+impl Manager for BigQueryWriteClientManager {
+    type Type = BigQueryWriteClient<Channel>;
+    type Error = BQError;
+
+    /// Creates a new gRPC client for BigQuery Storage Write API.
+    ///
+    /// Establishes a secure TLS connection with compression and size limits
+    /// configured for optimal performance.
+    async fn create(&self) -> Result<Self::Type, Self::Error> {
+        // Since Tonic 0.12.0, TLS root certificates are no longer included by default.
+        // They must now be specified explicitly.
+        // See: https://github.com/hyperium/tonic/pull/1731
+        let tls_config = ClientTlsConfig::new()
+            .domain_name(BIGQUERY_STORAGE_API_DOMAIN)
+            .with_enabled_roots();
+
+        let channel = Channel::from_static(BIG_QUERY_STORAGE_API_URL)
+            .tls_config(tls_config)?
+            .connect()
+            .await?;
+
+        let client = BigQueryWriteClient::new(channel)
+            .max_encoding_message_size(MAX_MESSAGE_SIZE_BYTES)
+            .max_decoding_message_size(MAX_MESSAGE_SIZE_BYTES)
+            .send_compressed(CompressionEncoding::Gzip)
+            .accept_compressed(CompressionEncoding::Gzip);
+
+        Ok(client)
+    }
+
+    /// Recycles a gRPC client connection.
+    ///
+    /// Currently always returns Ok(()) as gRPC clients don't require
+    /// special recycling. In the future, this could perform health checks
+    /// or connection validation.
+    async fn recycle(
+        &self,
+        _conn: &mut Self::Type,
+        _metrics: &deadpool::managed::Metrics,
+    ) -> deadpool::managed::RecycleResult<Self::Error> {
+        Ok(())
+    }
+}
+
+impl ConnectionPool {
+    /// Creates a new connection pool with the specified number of clients.
+    ///
+    /// Establishes a managed pool that creates connections on-demand and
+    /// recycles them efficiently for optimal performance.
+    async fn new() -> Result<Self, BQError> {
+        let manager = BigQueryWriteClientManager;
+        let pool = Pool::builder(manager)
+            .max_size(MAX_POOL_SIZE)
+            .build()
+            .map_err(|e| BQError::ConnectionPoolError(format!("Failed to create connection pool: {}", e)))?;
+
+        Ok(Self { pool })
+    }
+
+    /// Retrieves a client from the pool.
+    ///
+    /// Returns a managed connection object that automatically returns
+    /// the connection to the pool when dropped.
+    async fn get_client(&self) -> Result<Object<BigQueryWriteClientManager>, BQError> {
+        self.pool
+            .get()
+            .await
+            .map_err(|e| BQError::ConnectionPoolError(format!("Failed to get connection from pool: {}", e)))
+    }
+}
 
 /// Supported protobuf column types for BigQuery schema mapping.
 #[derive(Debug, Copy, Clone)]
@@ -435,8 +525,8 @@ where
 /// High-level client for BigQuery Storage Write API operations.
 #[derive(Clone)]
 pub struct StorageApi {
-    /// gRPC client for BigQuery Storage Write API.
-    write_client: BigQueryWriteClient<Channel>,
+    /// Connection pool for gRPC clients to BigQuery Storage Write API.
+    connection_pool: ConnectionPool,
     /// Authentication provider for API requests.
     auth: Arc<dyn Authenticator>,
     /// Base URL for BigQuery API endpoints.
@@ -445,41 +535,14 @@ pub struct StorageApi {
 
 impl StorageApi {
     /// Creates a new storage API client instance.
-    ///
-    /// Combines a configured gRPC client with an authenticator to create
-    /// a fully functional storage API client. Used internally by the
-    /// main client builder.
-    pub(crate) fn new(write_client: BigQueryWriteClient<Channel>, auth: Arc<dyn Authenticator>) -> Self {
-        Self {
-            write_client,
+    pub(crate) async fn new(auth: Arc<dyn Authenticator>) -> Result<Self, BQError> {
+        let connection_pool = ConnectionPool::new().await?;
+
+        Ok(Self {
+            connection_pool,
             auth,
             base_url: BIG_QUERY_V2_URL.to_string(),
-        }
-    }
-
-    /// Creates a new gRPC client for BigQuery Storage Write API.
-    ///
-    /// Establishes a secure TLS connection to the BigQuery Storage API
-    /// endpoint with native root certificate validation. Configures
-    /// message size limits and compression for optimal performance.
-    pub(crate) async fn new_write_client() -> Result<BigQueryWriteClient<Channel>, BQError> {
-        // Since Tonic 0.12.0, TLS root certificates are no longer implicit.
-        // We need to specify them explicitly.
-        // See: https://github.com/hyperium/tonic/pull/1731
-        let tls_config = ClientTlsConfig::new()
-            .domain_name(BIGQUERY_STORAGE_API_DOMAIN)
-            .with_enabled_roots();
-        let channel = Channel::from_static(BIG_QUERY_STORAGE_API_URL)
-            .tls_config(tls_config)?
-            .connect()
-            .await?;
-        let write_client = BigQueryWriteClient::new(channel)
-            .max_encoding_message_size(MAX_MESSAGE_SIZE_BYTES)
-            .max_decoding_message_size(MAX_MESSAGE_SIZE_BYTES)
-            .send_compressed(CompressionEncoding::Gzip)
-            .accept_compressed(CompressionEncoding::Gzip);
-
-        Ok(write_client)
+        })
     }
 
     /// Configures a custom base URL for BigQuery API endpoints.
@@ -637,7 +700,8 @@ impl StorageApi {
         };
 
         let request = Self::new_authorized_request(self.auth.clone(), get_write_stream_request).await?;
-        let response = self.write_client.get_write_stream(request).await?;
+        let mut client = self.connection_pool.get_client().await?;
+        let response = client.get_write_stream(request).await?;
         let write_stream = response.into_inner();
 
         Ok(write_stream)
@@ -665,7 +729,8 @@ impl StorageApi {
 
         let request =
             Self::new_authorized_request(self.auth.clone(), tokio_stream::iter(vec![append_rows_request])).await?;
-        let response = self.write_client.append_rows(request).await?;
+        let mut client = self.connection_pool.get_client().await?;
+        let response = client.append_rows(request).await?;
         let streaming = response.into_inner();
 
         Ok(streaming)
@@ -704,7 +769,7 @@ impl StorageApi {
             let trace_id = trace_id.to_string();
             // We clone the client so that we can cheaply send multiple requests over the same connection
             // since multiplexing is handled by the library.
-            let mut client = self.clone();
+            let client = self.clone();
 
             join_set.spawn(async move {
                 // We compute the proto schema once for the entire batch. We might want to compute it
@@ -725,15 +790,20 @@ impl StorageApi {
                 // we might send multiple requests over the same stream, we will also receive multiple
                 // responses.
                 match Self::new_authorized_request(client.auth.clone(), request_stream).await {
-                    Ok(request) => match client.write_client.append_rows(request).await {
-                        Ok(response) => {
-                            let mut streaming_response = response.into_inner();
-                            while let Some(response) = streaming_response.next().await {
-                                batch_responses.push(response);
+                    Ok(request) => match client.connection_pool.get_client().await {
+                        Ok(mut write_client) => match write_client.append_rows(request).await {
+                            Ok(response) => {
+                                let mut streaming_response = response.into_inner();
+                                while let Some(response) = streaming_response.next().await {
+                                    batch_responses.push(response);
+                                }
                             }
-                        }
-                        Err(status) => {
-                            batch_responses.push(Err(status));
+                            Err(status) => {
+                                batch_responses.push(Err(status));
+                            }
+                        },
+                        Err(pool_err) => {
+                            batch_responses.push(Err(Status::unknown(format!("Pool error: {}", pool_err))));
                         }
                     },
                     Err(err) => {
@@ -774,7 +844,7 @@ pub mod test {
     use crate::model::table_field_schema::TableFieldSchema;
     use crate::model::table_schema::TableSchema;
     use crate::storage::{
-        ColumnMode, ColumnType, FieldDescriptor, StorageApi, StreamName, TableBatch, TableDescriptor,
+        ColumnMode, ColumnType, ConnectionPool, FieldDescriptor, StorageApi, StreamName, TableBatch, TableDescriptor,
     };
     use crate::{env_vars, Client};
 
@@ -903,6 +973,28 @@ pub mod test {
         }
 
         Ok(num_append_rows_calls)
+    }
+
+    #[tokio::test]
+    async fn test_connection_pool() {
+        let connection_pool = ConnectionPool::new().await.unwrap();
+
+        // Test that we can get multiple connections from the pool
+        let client1 = connection_pool.get_client().await.unwrap();
+        let client2 = connection_pool.get_client().await.unwrap();
+
+        // Connections should be different instances but both valid
+        // Just verify they exist and are usable (we can't easily test the same connection
+        // is reused without dropping and re-acquiring)
+        assert!(std::ptr::addr_of!(*client1) != std::ptr::addr_of!(*client2));
+
+        // Drop connections to return them to the pool
+        drop(client1);
+        drop(client2);
+
+        // Get another connection to verify pool recycling works
+        let client3 = connection_pool.get_client().await.unwrap();
+        drop(client3);
     }
 
     #[tokio::test]

@@ -70,6 +70,9 @@ pub enum BQError {
 
     #[error("Failed to join tokio task (error: {0})")]
     TokioTaskError(#[from] tokio::task::JoinError),
+
+    #[error("Connection pool error (error: {0})")]
+    ConnectionPoolError(String),
 }
 
 #[derive(Debug, Deserialize)]

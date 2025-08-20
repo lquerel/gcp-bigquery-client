@@ -78,8 +78,8 @@ pub struct Client {
 
 impl Client {
     pub async fn from_authenticator(auth: Arc<dyn Authenticator>) -> Result<Self, BQError> {
-        let write_client = StorageApi::new_write_client().await?;
         let client = reqwest::Client::new();
+
         Ok(Self {
             dataset_api: DatasetApi::new(client.clone(), Arc::clone(&auth)),
             table_api: TableApi::new(client.clone(), Arc::clone(&auth)),
@@ -88,7 +88,7 @@ impl Client {
             routine_api: RoutineApi::new(client.clone(), Arc::clone(&auth)),
             model_api: ModelApi::new(client.clone(), Arc::clone(&auth)),
             project_api: ProjectApi::new(client, Arc::clone(&auth)),
-            storage_api: StorageApi::new(write_client, auth),
+            storage_api: StorageApi::new(auth).await?,
         })
     }
 
