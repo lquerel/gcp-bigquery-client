@@ -50,12 +50,12 @@ static BIGQUERY_STORAGE_API_DOMAIN: &str = "bigquerystorage.googleapis.com";
 ///
 /// Set to 9MB to provide safety margin under the 10MB BigQuery API limit,
 /// accounting for request metadata overhead.
-const MAX_BATCH_BYTES: usize = 9 * 1024 * 1024;
+const MAX_BATCH_SIZE_BYTES: usize = 9 * 1024 * 1024;
 /// Maximum message size for tonic gRPC client configuration.
 ///
 /// Set to 20MB to accommodate large response messages and provide headroom
 /// for metadata while staying within reasonable memory bounds.
-const MAX_TONIC_BYTES: usize = 20 * 1024 * 1024;
+const MAX_MESSAGE_SIZE_BYTES: usize = 20 * 1024 * 1024;
 /// The name of the default stream in BigQuery.
 ///
 /// This stream is a special built-in stream that always exists for a table.
@@ -378,7 +378,7 @@ where
             // First, check the encoded length to avoid performing a full encode
             // on the first message that would exceed the limit and be dropped.
             let size = msg.encoded_len();
-            if total_size + size > MAX_BATCH_BYTES && !serialized_rows.is_empty() {
+            if total_size + size > MAX_BATCH_SIZE_BYTES && !serialized_rows.is_empty() {
                 break;
             }
 
@@ -474,10 +474,8 @@ impl StorageApi {
             .connect()
             .await?;
         let write_client = BigQueryWriteClient::new(channel)
-            // Allow larger messages to fully utilize Write API limits
-            .max_encoding_message_size(MAX_TONIC_BYTES)
-            .max_decoding_message_size(MAX_TONIC_BYTES)
-            // Enable gzip to reduce bandwidth and improve throughput
+            .max_encoding_message_size(MAX_MESSAGE_SIZE_BYTES)
+            .max_decoding_message_size(MAX_MESSAGE_SIZE_BYTES)
             .send_compressed(CompressionEncoding::Gzip)
             .accept_compressed(CompressionEncoding::Gzip);
 
