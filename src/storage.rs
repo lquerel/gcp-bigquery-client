@@ -675,7 +675,7 @@ impl StorageApi {
         trace_id: &str,
     ) -> Result<Vec<BatchAppendResult>, BQError>
     where
-        M: Message + Send + Clone + 'static,
+        M: Message + Send + 'static,
     {
         if table_batches.is_empty() {
             return Ok(Vec::new());
