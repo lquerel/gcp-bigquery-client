@@ -693,8 +693,6 @@ impl StorageApi {
             let table_descriptor = table_batch.table_descriptor;
             let rows = table_batch.rows;
             let trace_id = trace_id.to_string();
-            // We clone the client so that we can cheaply send multiple requests over the same connection
-            // since multiplexing is handled by the library.
             let client = self.clone();
 
             join_set.spawn(async move {
@@ -718,11 +716,15 @@ impl StorageApi {
                 match Self::new_authorized_request(client.auth.clone(), request_stream).await {
                     Ok(request) => match client.connection_pool.get_client().await {
                         Ok(write_client) => {
-                            // We clone the client so that we can cheaply send multiple requests over
-                            // the same connection without having to hold the connection object. This
-                            // works under the assumption that the next returned connection is different, which
-                            // is the case when using the pool with Fifo queuing.
+                            // We clone the client to cheaply issue multiple requests over the same connection
+                            // without holding onto the original connection object.
+                            //
+                            // This approach utilizes connections efficiently, assuming each call to the pool
+                            // returns a different connection — which holds true when using `Fifo` queuing.
                             let mut client = write_client.deref().clone();
+
+                            // We return the connection to the pool immediately so that it can be reused
+                            // by another task.
                             drop(write_client);
 
                             match client.append_rows(request).await {
