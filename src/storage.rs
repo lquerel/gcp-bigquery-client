@@ -413,6 +413,9 @@ pub struct AppendRequestsStream<M> {
     /// Current position in the batch being processed.
     current_index: usize,
     /// Whether to include writer schema in the next request (first only).
+    ///
+    /// This boolean is used under the assumption that a batch of append requests belongs to the same
+    /// table and has no schema differences between the rows.
     include_schema_next: bool,
     /// Shared atomic counter for tracking total bytes sent across all requests in this stream.
     bytes_sent_counter: Arc<AtomicUsize>,
@@ -607,87 +610,6 @@ impl StorageApi {
         (append_rows_request::Rows::ProtoRows(proto_data), num_rows_processed)
     }
 
-    /// Creates an authenticated gRPC request with Bearer token authorization.
-    ///
-    /// Retrieves an access token from the authenticator and attaches it
-    /// as a Bearer token in the request authorization header. Used by
-    /// all Storage Write API operations requiring authentication.
-    async fn new_authorized_request<T>(auth: Arc<dyn Authenticator>, message: T) -> Result<Request<T>, BQError> {
-        let access_token = auth.access_token().await?;
-        let bearer_token = format!("Bearer {access_token}");
-        let bearer_value = bearer_token.as_str().try_into()?;
-
-        let mut request = Request::new(message);
-        let meta = request.metadata_mut();
-        meta.insert("authorization", bearer_value);
-
-        Ok(request)
-    }
-
-    /// Converts table field descriptors to protobuf field descriptors.
-    ///
-    /// Transforms the high-level field descriptors into the protobuf
-    /// format required by BigQuery Storage Write API schema definitions.
-    /// Maps column types and modes to their protobuf equivalents.
-    fn create_field_descriptors(table_descriptor: &TableDescriptor) -> Vec<FieldDescriptorProto> {
-        table_descriptor
-            .field_descriptors
-            .iter()
-            .map(|fd| {
-                let typ: Type = fd.typ.into();
-                let label: Label = fd.mode.into();
-
-                FieldDescriptorProto {
-                    name: Some(fd.name.clone()),
-                    number: Some(fd.number as i32),
-                    label: Some(label.into()),
-                    r#type: Some(typ.into()),
-                    type_name: None,
-                    extendee: None,
-                    default_value: None,
-                    oneof_index: None,
-                    json_name: None,
-                    options: None,
-                    proto3_optional: None,
-                }
-            })
-            .collect()
-    }
-
-    /// Creates a protobuf descriptor from field descriptors.
-    ///
-    /// Wraps field descriptors in a [`DescriptorProto`] structure with
-    /// the standard table schema name. Used as an intermediate step
-    /// in protobuf schema generation.
-    fn create_proto_descriptor(field_descriptors: Vec<FieldDescriptorProto>) -> DescriptorProto {
-        DescriptorProto {
-            name: Some("table_schema".to_string()),
-            field: field_descriptors,
-            extension: vec![],
-            nested_type: vec![],
-            enum_type: vec![],
-            extension_range: vec![],
-            oneof_decl: vec![],
-            options: None,
-            reserved_range: vec![],
-            reserved_name: vec![],
-        }
-    }
-
-    /// Generates a complete protobuf schema from table descriptor.
-    ///
-    /// Creates the final [`ProtoSchema`] structure containing all
-    /// field definitions required for BigQuery Storage Write API
-    /// operations. This schema is included in append requests.
-    fn create_proto_schema(table_descriptor: &TableDescriptor) -> ProtoSchema {
-        let field_descriptors = Self::create_field_descriptors(table_descriptor);
-        let proto_descriptor = Self::create_proto_descriptor(field_descriptors);
-
-        ProtoSchema {
-            proto_descriptor: Some(proto_descriptor),
-        }
-    }
-
     /// Retrieves metadata for a BigQuery write stream.
     ///
     /// Fetches stream information including schema definition and state
@@ -841,6 +763,87 @@ impl StorageApi {
         }
 
         Ok(batch_results)
+    }
+
+    /// Creates an authenticated gRPC request with Bearer token authorization.
+    ///
+    /// Retrieves an access token from the authenticator and attaches it
+    /// as a Bearer token in the request authorization header. Used by
+    /// all Storage Write API operations requiring authentication.
+    async fn new_authorized_request<T>(auth: Arc<dyn Authenticator>, message: T) -> Result<Request<T>, BQError> {
+        let access_token = auth.access_token().await?;
+        let bearer_token = format!("Bearer {access_token}");
+        let bearer_value = bearer_token.as_str().try_into()?;
+
+        let mut request = Request::new(message);
+        let meta = request.metadata_mut();
+        meta.insert("authorization", bearer_value);
+
+        Ok(request)
+    }
+
+    /// Converts table field descriptors to protobuf field descriptors.
+    ///
+    /// Transforms the high-level field descriptors into the protobuf
+    /// format required by BigQuery Storage Write API schema definitions.
+    /// Maps column types and modes to their protobuf equivalents.
+    fn create_field_descriptors(table_descriptor: &TableDescriptor) -> Vec<FieldDescriptorProto> {
+        table_descriptor
+            .field_descriptors
+            .iter()
+            .map(|fd| {
+                let typ: Type = fd.typ.into();
+                let label: Label = fd.mode.into();
+
+                FieldDescriptorProto {
+                    name: Some(fd.name.clone()),
+                    number: Some(fd.number as i32),
+                    label: Some(label.into()),
+                    r#type: Some(typ.into()),
+                    type_name: None,
+                    extendee: None,
+                    default_value: None,
+                    oneof_index: None,
+                    json_name: None,
+                    options: None,
+                    proto3_optional: None,
+                }
+            })
+            .collect()
+    }
+
+    /// Creates a protobuf descriptor from field descriptors.
+    ///
+    /// Wraps field descriptors in a [`DescriptorProto`] structure with
+    /// the standard table schema name. Used as an intermediate step
+    /// in protobuf schema generation.
+    fn create_proto_descriptor(field_descriptors: Vec<FieldDescriptorProto>) -> DescriptorProto {
+        DescriptorProto {
+            name: Some("table_schema".to_string()),
+            field: field_descriptors,
+            extension: vec![],
+            nested_type: vec![],
+            enum_type: vec![],
+            extension_range: vec![],
+            oneof_decl: vec![],
+            options: None,
+            reserved_range: vec![],
+            reserved_name: vec![],
+        }
+    }
+
+    /// Generates a complete protobuf schema from table descriptor.
+    ///
+    /// Creates the final [`ProtoSchema`] structure containing all
+    /// field definitions required for BigQuery Storage Write API
+    /// operations. This schema is included in append requests.
+    fn create_proto_schema(table_descriptor: &TableDescriptor) -> ProtoSchema {
+        let field_descriptors = Self::create_field_descriptors(table_descriptor);
+        let proto_descriptor = Self::create_proto_descriptor(field_descriptors);
+
+        ProtoSchema {
+            proto_descriptor: Some(proto_descriptor),
+        }
     }
 }
 
