@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ## Added
 
-- Added method to concurrently append multiple batches of rows to the `StorageApi`. [PR #124](https://github.com/lquerel/gcp-bigquery-client/pull/124)
+- Added method to concurrently append multiple batches of rows via the `StorageApi`. [PR #124](https://github.com/lquerel/gcp-bigquery-client/pull/124)
 
 ## [0.26.0] - 2025-07-06
 
