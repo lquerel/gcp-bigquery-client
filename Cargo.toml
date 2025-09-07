@@ -15,6 +15,8 @@ exclude = ["/.github/*"]
 keywords = ["gcp", "bigquery", "google-cloud"]
 categories = ["database"]
 
+build = "build.rs"
+
 [features]
 default = ["rust-tls", "ring", "gzip"]
 native-tls = ["reqwest/native-tls"]
@@ -31,7 +33,9 @@ version = "1.1.2"
 optional = true
 
 [dependencies]
-yup-oauth2 = { version = "12.1.0", default-features = false, features = ["hyper-rustls", "service-account"] }
+yup-oauth2 = { version = "12.1.0", default-features = false, features = [
+    "hyper-rustls", "service-account"
+] }
 hyper-util = { version = "0.1.16", default-features = false, features = [
     "client-legacy",
 ] }
@@ -59,9 +63,16 @@ cloud-storage = { version = "0.11.1", features = [
 ], optional = true }
 async-trait = "0.1.89"
 dyn-clone = "1.0.20"
-prost = "0.13.4"
-prost-types = "0.13.4"
-tonic = { version = "0.13.1", default-features = false, features = ["channel", "codegen", "prost", "tls-native-roots", "gzip"] }
+prost = "0.14.1"
+prost-types = "0.14.1"
+tonic = { version = "0.14.1", default-features = false, features = [
+    "channel",
+    "codegen",
+    "tls-native-roots",
+    "gzip",
+    "zstd"
+] }
+tonic-prost = "0.14.1"
 futures = "0.3.31"
 pin-project = "1.1.10"
 deadpool = "0.12.3"
@@ -74,4 +85,6 @@ tempfile = "3.21.0"
 fake = "3.1.0"
 
 [build-dependencies]
-tonic-build = { version = "0.13.1", features = ["cleanup-markdown"] }
+prost-build = "0.14.1"
+tonic-prost-build = { version = "0.14.1", features = ["cleanup-markdown"] }
+tonic-build = { version = "0.14.1" }
