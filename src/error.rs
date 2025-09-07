@@ -1,7 +1,7 @@
 //! List of the BigQuery errors supported by this crate.
 
 use std::collections::HashMap;
-
+use tokio::sync::AcquireError;
 use tonic::{metadata::errors::InvalidMetadataValue, Status};
 
 #[allow(clippy::upper_case_acronyms)]
@@ -64,6 +64,15 @@ pub enum BQError {
 
     #[error("Tonic status error (error: {0}")]
     TonicStatusError(#[from] Status),
+
+    #[error("Failed to acquire semaphore permit (error: {0})")]
+    SemaphorePermitError(#[from] AcquireError),
+
+    #[error("Failed to join tokio task (error: {0})")]
+    TokioTaskError(#[from] tokio::task::JoinError),
+
+    #[error("Connection pool error (error: {0})")]
+    ConnectionPoolError(String),
 }
 
 #[derive(Debug, Deserialize)]

@@ -217,12 +217,12 @@ impl DatasetApi {
         match self.delete(project_id, dataset_id, delete_contents).await {
             Err(BQError::ResponseError { error }) => {
                 if error.error.code != 404 {
-                    warn!("dataset.delete_if_exists: unexpected error: {:?}", error);
+                    warn!("dataset.delete_if_exists: unexpected error: {error:?}");
                 }
                 false
             }
             Err(err) => {
-                warn!("dataset.delete_if_exists: unexpected error: {:?}", err);
+                warn!("dataset.delete_if_exists: unexpected error: {err:?}");
                 false
             }
             Ok(_) => true,

@@ -1,6 +1,6 @@
 [package]
 name = "gcp-bigquery-client"
-version = "0.24.1"
+version = "0.27.0"
 authors = ["Laurent Querel <laurent.querel@gmail.com>"]
 edition = "2021"
 license = "MIT OR Apache-2.0"
@@ -27,30 +27,29 @@ bq_load_job = ["cloud-storage"]
 gzip = ["flate2"]
 
 [dependencies.flate2]
-version = "1.0"
+version = "1.1.2"
 optional = true
 
 [dependencies]
-yup-oauth2 = { version = "11", default-features = false, features = ["hyper-rustls", "service-account"] }
-hyper = { version = "1.5.0", features = ["http1"] }
-hyper-util = { version = "0.1.10", default-features = false, features = [
+yup-oauth2 = { version = "12.1.0", default-features = false, features = ["hyper-rustls", "service-account"] }
+hyper-util = { version = "0.1.16", default-features = false, features = [
     "client-legacy",
 ] }
-thiserror = "1.0.67"
-tokio = { version = "1.41.0", default-features = false, features = [
+thiserror = "2.0.16"
+tokio = { version = "1.47.1", default-features = false, features = [
     "rt-multi-thread",
     "net",
     "sync",
     "macros",
 ] }
-tokio-stream = "0.1.16"
+tokio-stream = "0.1.17"
 async-stream = "0.3.6"
-reqwest = { version = "0.12.9", default-features = false, features = ["json"] }
-url = "2.5.3"
-serde = "1.0.214"
-serde_json = "1.0.132"
-log = "0.4.22"
-time = { version = "0.3.36", features = [
+reqwest = { version = "0.12.23", default-features = false, features = ["json"] }
+url = "2.5.7"
+serde = "1.0.219"
+serde_json = "1.0.143"
+log = "0.4.28"
+time = { version = "0.3.43", features = [
     "local-offset",
     "serde",
     "serde-well-known",
@@ -58,18 +57,21 @@ time = { version = "0.3.36", features = [
 cloud-storage = { version = "0.11.1", features = [
     "global-client",
 ], optional = true }
-async-trait = "0.1.83"
-dyn-clone = "1.0.17"
-prost = "0.13.3"
-prost-types = "0.13.3"
-tonic = { version = "0.12.3", features = ["transport", "tls", "tls-roots"] }
+async-trait = "0.1.89"
+dyn-clone = "1.0.20"
+prost = "0.13.4"
+prost-types = "0.13.4"
+tonic = { version = "0.13.1", default-features = false, features = ["channel", "codegen", "prost", "tls-native-roots", "gzip"] }
+futures = "0.3.31"
+pin-project = "1.1.10"
+deadpool = "0.12.3"
 
 [dev-dependencies]
 tokio-test = "0.4.4"
-rand = "0.8.5"
-wiremock = "0.6.2"
-tempfile = "3.13.0"
-fake = "2.9.2"
+rand = "0.9.2"
+wiremock = "0.6.5"
+tempfile = "3.21.0"
+fake = "3.1.0"
 
 [build-dependencies]
-tonic-build = { version = "0.12.3", features = ["cleanup-markdown"] }
+tonic-build = { version = "0.13.1", features = ["cleanup-markdown"] }

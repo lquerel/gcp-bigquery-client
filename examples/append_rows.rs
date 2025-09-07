@@ -1,6 +1,6 @@
 use gcp_bigquery_client::{
     env_vars,
-    storage::{ColumnType, ColumnMode, FieldDescriptor, StreamName, TableDescriptor},
+    storage::{ColumnMode, ColumnType, FieldDescriptor, StorageApi, StreamName, TableDescriptor},
 };
 use prost::Message;
 use tokio_stream::StreamExt;
@@ -16,25 +16,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             name: "actor_id".to_string(),
             number: 1,
             typ: ColumnType::Int64,
-            mode: ColumnMode::Nullable
+            mode: ColumnMode::Required,
         },
         FieldDescriptor {
             name: "first_name".to_string(),
             number: 2,
             typ: ColumnType::String,
-            mode: ColumnMode::Nullable
+            mode: ColumnMode::Required,
         },
         FieldDescriptor {
             name: "last_name".to_string(),
             number: 3,
             typ: ColumnType::String,
-            mode: ColumnMode::Nullable 
+            mode: ColumnMode::Required,
         },
         FieldDescriptor {
             name: "last_update".to_string(),
             number: 4,
             typ: ColumnType::String,
-            mode: ColumnMode::Nullable  
+            mode: ColumnMode::Required,
         },
     ];
     let table_descriptor = TableDescriptor { field_descriptors };
@@ -71,10 +71,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let stream_name = StreamName::new_default(project_id.clone(), dataset_id.clone(), table_id.clone());
     let trace_id = "test_client".to_string();
 
-    let mut streaming = client
-        .storage_mut()
-        .append_rows(&stream_name, &table_descriptor, &[actor1, actor2], trace_id)
-        .await?;
+    const MAX_SIZE: usize = 9 * 1024 * 1024; // 9 MB
+    let (rows, _) = StorageApi::create_rows(&table_descriptor, &[actor1, actor2], MAX_SIZE);
+    let mut streaming = client.storage_mut().append_rows(&stream_name, rows, trace_id).await?;
 
     while let Some(resp) = streaming.next().await {
         let resp = resp?;

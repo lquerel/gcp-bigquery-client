@@ -21,6 +21,7 @@ pub enum FieldType {
     Struct, // same as RECORD
     Geography,
     Json,
+    Interval,
 }
 
 pub fn serialize_json_as_string<S>(json: &serde_json::value::Value, s: S) -> Result<S::Ok, S::Error>

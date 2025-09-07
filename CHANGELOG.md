@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.27.0] - 2025-09-07
+
+## Added
+
+- Added method to concurrently append multiple batches of rows via the `StorageApi`. Thanks @iambriccardo [PR #124](https://github.com/lquerel/gcp-bigquery-client/pull/124)
+- Changed `StorageApi` constructor to be `async` and removed `new_write_client` method.
+
+## [0.26.0] - 2025-07-06
+
+### Fix
+
+- Fix BigQuery job_statistics.reservation_id serde to use snake_case. Thanks @benjaminran [PR #120](https://github.com/lquerel/gcp-bigquery-client/pull/120)
+
+## [0.25.1] - 2025-01-28
+
+### Added
+
+- Add interval to field type. Thanks @Groennbeck [PR #117](https://github.com/lquerel/gcp-bigquery-client/pull/117)
+
+## [0.25.0] - 2025-01-12
+
+### Added
+
+- Limit request size to under 10 MB for AppendRows API. Thanks @imor - [PR #514](https://github.com/lquerel/gcp-bigquery-client/pull/114).
+- Added f64 type and repeated field mode support in AppendRows API. Thanks @imor - [PR #512](https://github.com/lquerel/gcp-bigquery-client/pull/112).
+- Reduce dependency (axum). Thanks @hirofumi - [PR #115](https://github.com/lquerel/gcp-bigquery-client/pull/115).
+
 ## [0.24.1] - 2024-11-04
 
 ### Added
