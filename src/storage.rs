@@ -263,7 +263,7 @@ pub struct TableDescriptor {
 #[derive(Debug)]
 pub struct TableBatch<M> {
     /// Target stream identifier for the append operations.
-    pub stream_name: StreamName,
+    pub stream_name: Arc<StreamName>,
     /// Schema descriptor for the target table.
     pub table_descriptor: Arc<TableDescriptor>,
     /// Collection of rows to be appended to the table.
@@ -275,7 +275,7 @@ impl<M> TableBatch<M> {
     ///
     /// Combines rows with their destination metadata to form a complete
     /// batch ready for processing by append operations.
-    pub fn new(stream_name: StreamName, table_descriptor: Arc<TableDescriptor>, rows: Arc<[M]>) -> Self {
+    pub fn new(stream_name: Arc<StreamName>, table_descriptor: Arc<TableDescriptor>, rows: Arc<[M]>) -> Self {
         Self {
             stream_name,
             table_descriptor,
@@ -407,7 +407,7 @@ pub struct AppendRequestsStream<M> {
     /// Protobuf schema definition for the target table.
     proto_schema: ProtoSchema,
     /// Target stream identifier for the append operations.
-    stream_name: StreamName,
+    stream_name: Arc<StreamName>,
     /// Unique identifier for tracing and debugging requests.
     trace_id: String,
     /// Current position in the batch being processed.
@@ -430,7 +430,7 @@ impl<M> AppendRequestsStream<M> {
     fn new(
         batch: Arc<[M]>,
         proto_schema: ProtoSchema,
-        stream_name: StreamName,
+        stream_name: Arc<StreamName>,
         trace_id: String,
         bytes_sent_counter: Arc<AtomicUsize>,
     ) -> Self {
@@ -1075,7 +1075,7 @@ pub mod test {
             .unwrap();
 
         let table_descriptor = create_test_table_descriptor();
-        let stream_name = StreamName::new_default(project_id.clone(), dataset_id.clone(), table_id.clone());
+        let stream_name = Arc::new(StreamName::new_default(project_id.clone(), dataset_id.clone(), table_id.clone()));
         let trace_id = "test_table_batches";
 
         // Create multiple table batches (all targeting the same table in this test)
