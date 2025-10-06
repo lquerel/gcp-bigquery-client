@@ -267,7 +267,7 @@ pub struct TableBatch<M> {
     /// Schema descriptor for the target table.
     pub table_descriptor: Arc<TableDescriptor>,
     /// Collection of rows to be appended to the table.
-    pub rows: Vec<M>,
+    pub rows: Arc<[M]>,
 }
 
 impl<M> TableBatch<M> {
@@ -275,7 +275,7 @@ impl<M> TableBatch<M> {
     ///
     /// Combines rows with their destination metadata to form a complete
     /// batch ready for processing by append operations.
-    pub fn new(stream_name: StreamName, table_descriptor: Arc<TableDescriptor>, rows: Vec<M>) -> Self {
+    pub fn new(stream_name: StreamName, table_descriptor: Arc<TableDescriptor>, rows: Arc<[M]>) -> Self {
         Self {
             stream_name,
             table_descriptor,
@@ -403,7 +403,7 @@ impl Display for StreamName {
 pub struct AppendRequestsStream<M> {
     /// Collection of messages to be converted into append requests.
     #[pin]
-    batch: Vec<M>,
+    batch: Arc<[M]>,
     /// Protobuf schema definition for the target table.
     proto_schema: ProtoSchema,
     /// Target stream identifier for the append operations.
@@ -428,7 +428,7 @@ impl<M> AppendRequestsStream<M> {
     /// properly formatted append requests. The schema is included only
     /// in the first request of the stream.
     fn new(
-        batch: Vec<M>,
+        batch: Arc<[M]>,
         proto_schema: ProtoSchema,
         stream_name: StreamName,
         trace_id: String,
@@ -670,7 +670,7 @@ impl StorageApi {
     /// to correlate with the original input order.
     pub async fn append_table_batches_concurrent<M>(
         &self,
-        table_batches: Vec<TableBatch<M>>,
+        table_batches: Arc<[TableBatch<M>]>,
         max_concurrent_streams: usize,
         trace_id: &str,
     ) -> Result<Vec<BatchAppendResult>, BQError>
@@ -690,8 +690,8 @@ impl StorageApi {
             let permit = semaphore.clone().acquire_owned().await?;
 
             let stream_name = table_batch.stream_name.clone();
-            let table_descriptor = table_batch.table_descriptor;
-            let rows = table_batch.rows;
+            let table_descriptor = table_batch.table_descriptor.clone();
+            let table_rows = table_batch.rows.clone();
             let trace_id = trace_id.to_string();
             let client = self.clone();
 
@@ -705,8 +705,13 @@ impl StorageApi {
 
                 // Build the request stream which will split the request into multiple requests if
                 // necessary.
-                let request_stream =
-                    AppendRequestsStream::new(rows, proto_schema, stream_name, trace_id, bytes_sent_counter.clone());
+                let request_stream = AppendRequestsStream::new(
+                    table_rows,
+                    proto_schema,
+                    stream_name,
+                    trace_id,
+                    bytes_sent_counter.clone(),
+                );
 
                 let mut batch_responses = Vec::new();
 
@@ -1082,16 +1087,17 @@ pub mod test {
                 create_test_actor(2, "Jane"),
                 create_test_actor(3, "Bob"),
                 create_test_actor(4, "Alice"),
-            ],
+            ]
+            .into(),
         );
 
         let batch2 = TableBatch::new(
             stream_name.clone(),
             table_descriptor.clone(),
-            vec![create_test_actor(5, "Charlie"), create_test_actor(6, "Dave")],
+            vec![create_test_actor(5, "Charlie"), create_test_actor(6, "Dave")].into(),
         );
 
-        let batch3 = TableBatch::new(stream_name, table_descriptor, vec![create_test_actor(7, "Eve")]);
+        let batch3 = TableBatch::new(stream_name, table_descriptor, vec![create_test_actor(7, "Eve")].into());
 
         let table_batches = vec![batch1, batch2, batch3];
 
@@ -1099,7 +1105,7 @@ pub mod test {
         // the supplied batches are more than the limit.
         let batch_responses = client
             .storage_mut()
-            .append_table_batches_concurrent(table_batches, 2, trace_id)
+            .append_table_batches_concurrent(table_batches.into(), 2, trace_id)
             .await
             .unwrap();
 
