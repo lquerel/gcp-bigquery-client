@@ -263,9 +263,9 @@ pub struct TableDescriptor {
 #[derive(Debug)]
 pub struct TableBatch<M> {
     /// Target stream identifier for the append operations.
-    pub stream_name: Arc<StreamName>,
+    pub stream_name: StreamName,
     /// Schema descriptor for the target table.
-    pub table_descriptor: Arc<TableDescriptor>,
+    pub table_descriptor: TableDescriptor,
     /// Collection of rows to be appended to the table.
     pub rows: Vec<M>,
 }
@@ -275,7 +275,7 @@ impl<M> TableBatch<M> {
     ///
     /// Combines rows with their destination metadata to form a complete
     /// batch ready for processing by append operations.
-    pub fn new(stream_name: Arc<StreamName>, table_descriptor: Arc<TableDescriptor>, rows: Vec<M>) -> Self {
+    pub fn new(stream_name: StreamName, table_descriptor: TableDescriptor, rows: Vec<M>) -> Self {
         Self {
             stream_name,
             table_descriptor,
@@ -703,12 +703,8 @@ impl StorageApi {
 
                 // Build the request stream which will split the request into multiple requests if
                 // necessary.
-                let request_stream = AppendRequestsStream::new(
-                    table_batch,
-                    proto_schema,
-                    trace_id,
-                    bytes_sent_counter.clone(),
-                );
+                let request_stream =
+                    AppendRequestsStream::new(table_batch, proto_schema, trace_id, bytes_sent_counter.clone());
 
                 let mut batch_responses = Vec::new();
 
@@ -880,7 +876,7 @@ pub mod test {
         last_update: String,
     }
 
-    fn create_test_table_descriptor() -> Arc<TableDescriptor> {
+    fn create_test_table_descriptor() -> TableDescriptor {
         let field_descriptors = vec![
             FieldDescriptor {
                 name: "actor_id".to_string(),
@@ -908,7 +904,7 @@ pub mod test {
             },
         ];
 
-        Arc::new(TableDescriptor { field_descriptors })
+        TableDescriptor { field_descriptors }
     }
 
     async fn setup_test_table(
@@ -1072,7 +1068,7 @@ pub mod test {
             .unwrap();
 
         let table_descriptor = create_test_table_descriptor();
-        let stream_name = Arc::new(StreamName::new_default(project_id.clone(), dataset_id.clone(), table_id.clone()));
+        let stream_name = StreamName::new_default(project_id.clone(), dataset_id.clone(), table_id.clone());
         let trace_id = "test_table_batches";
 
         // Create multiple table batches (all targeting the same table in this test)
