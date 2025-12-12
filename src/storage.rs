@@ -267,7 +267,7 @@ pub struct TableBatch<M> {
     /// Schema descriptor for the target table.
     pub table_descriptor: Arc<TableDescriptor>,
     /// Collection of rows to be appended to the table.
-    pub rows: Arc<[M]>,
+    pub rows: Vec<M>,
 }
 
 impl<M> TableBatch<M> {
@@ -275,7 +275,7 @@ impl<M> TableBatch<M> {
     ///
     /// Combines rows with their destination metadata to form a complete
     /// batch ready for processing by append operations.
-    pub fn new(stream_name: Arc<StreamName>, table_descriptor: Arc<TableDescriptor>, rows: Arc<[M]>) -> Self {
+    pub fn new(stream_name: Arc<StreamName>, table_descriptor: Arc<TableDescriptor>, rows: Vec<M>) -> Self {
         Self {
             stream_name,
             table_descriptor,
@@ -401,13 +401,11 @@ impl Display for StreamName {
 #[pin_project]
 #[derive(Debug)]
 pub struct AppendRequestsStream<M> {
-    /// Collection of messages to be converted into append requests.
+    /// Table batch containing rows and metadata for append requests.
     #[pin]
-    batch: Arc<[M]>,
+    table_batch: Arc<TableBatch<M>>,
     /// Protobuf schema definition for the target table.
     proto_schema: ProtoSchema,
-    /// Target stream identifier for the append operations.
-    stream_name: Arc<StreamName>,
     /// Unique identifier for tracing and debugging requests.
     trace_id: String,
     /// Current position in the batch being processed.
@@ -422,22 +420,20 @@ pub struct AppendRequestsStream<M> {
 }
 
 impl<M> AppendRequestsStream<M> {
-    /// Creates a new streaming adapter from message batch components.
+    /// Creates a new streaming adapter from a table batch.
     ///
     /// Initializes the stream with all necessary metadata for generating
     /// properly formatted append requests. The schema is included only
     /// in the first request of the stream.
     fn new(
-        batch: Arc<[M]>,
+        table_batch: Arc<TableBatch<M>>,
         proto_schema: ProtoSchema,
-        stream_name: Arc<StreamName>,
         trace_id: String,
         bytes_sent_counter: Arc<AtomicUsize>,
     ) -> Self {
         Self {
-            batch,
+            table_batch,
             proto_schema,
-            stream_name,
             trace_id,
             current_index: 0,
             include_schema_next: true,
@@ -460,8 +456,9 @@ where
     /// maximum number of messages that fit within size constraints.
     fn poll_next(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let this = self.project();
+        let rows = &this.table_batch.rows;
 
-        if *this.current_index >= this.batch.len() {
+        if *this.current_index >= rows.len() {
             return Poll::Ready(None);
         }
 
@@ -471,7 +468,7 @@ where
 
         // Process messages from `current_index` onwards. We do not change the vector while processing
         // to avoid reallocations which are unnecessary.
-        for msg in this.batch.iter().skip(*this.current_index) {
+        for msg in rows.iter().skip(*this.current_index) {
             // First, check the encoded length to avoid performing a full encode
             // on the first message that would exceed the limit and be dropped.
             let size = msg.encoded_len();
@@ -507,7 +504,7 @@ where
         };
 
         let append_rows_request = AppendRowsRequest {
-            write_stream: this.stream_name.to_string(),
+            write_stream: this.table_batch.stream_name.to_string(),
             offset: None,
             trace_id: this.trace_id.clone(),
             missing_value_interpretations: HashMap::new(),
@@ -668,37 +665,38 @@ impl StorageApi {
     /// and bytes sent for each batch processed. Results are ordered by
     /// completion, not by submission; use `BatchAppendResult::batch_index`
     /// to correlate with the original input order.
-    pub async fn append_table_batches_concurrent<M>(
+    pub async fn append_table_batches_concurrent<M, I>(
         &self,
-        table_batches: Arc<[TableBatch<M>]>,
+        table_batches: I,
         max_concurrent_streams: usize,
         trace_id: &str,
     ) -> Result<Vec<BatchAppendResult>, BQError>
     where
         M: Message + Send + 'static,
+        I: IntoIterator<Item = Arc<TableBatch<M>>>,
+        I::IntoIter: ExactSizeIterator,
     {
-        if table_batches.is_empty() {
+        let table_batches = table_batches.into_iter();
+        let batches_num = table_batches.len();
+
+        if batches_num == 0 {
             return Ok(Vec::new());
         }
 
-        let batches_num = table_batches.len();
         let semaphore = Arc::new(Semaphore::new(max_concurrent_streams));
 
         let mut join_set = JoinSet::new();
-        for (idx, table_batch) in table_batches.into_iter().enumerate() {
+        for (idx, table_batch) in table_batches.enumerate() {
             // Acquire a concurrency slot and hold it until responses are fully drained.
             let permit = semaphore.clone().acquire_owned().await?;
 
-            let stream_name = table_batch.stream_name.clone();
-            let table_descriptor = table_batch.table_descriptor.clone();
-            let table_rows = table_batch.rows.clone();
             let trace_id = trace_id.to_string();
             let client = self.clone();
 
             join_set.spawn(async move {
                 // We compute the proto schema once for the entire batch. We might want to compute it
                 // once per stream but for now this is fine.
-                let proto_schema = Self::create_proto_schema(&table_descriptor);
+                let proto_schema = Self::create_proto_schema(&table_batch.table_descriptor);
 
                 // Create an atomic counter for tracking bytes sent for this batch.
                 let bytes_sent_counter = Arc::new(AtomicUsize::new(0));
@@ -706,9 +704,8 @@ impl StorageApi {
                 // Build the request stream which will split the request into multiple requests if
                 // necessary.
                 let request_stream = AppendRequestsStream::new(
-                    table_rows,
+                    table_batch,
                     proto_schema,
-                    stream_name,
                     trace_id,
                     bytes_sent_counter.clone(),
                 );
@@ -1079,7 +1076,7 @@ pub mod test {
         let trace_id = "test_table_batches";
 
         // Create multiple table batches (all targeting the same table in this test)
-        let batch1 = TableBatch::new(
+        let batch1 = Arc::new(TableBatch::new(
             stream_name.clone(),
             table_descriptor.clone(),
             vec![
@@ -1087,17 +1084,20 @@ pub mod test {
                 create_test_actor(2, "Jane"),
                 create_test_actor(3, "Bob"),
                 create_test_actor(4, "Alice"),
-            ]
-            .into(),
-        );
+            ],
+        ));
 
-        let batch2 = TableBatch::new(
+        let batch2 = Arc::new(TableBatch::new(
             stream_name.clone(),
             table_descriptor.clone(),
-            vec![create_test_actor(5, "Charlie"), create_test_actor(6, "Dave")].into(),
-        );
+            vec![create_test_actor(5, "Charlie"), create_test_actor(6, "Dave")],
+        ));
 
-        let batch3 = TableBatch::new(stream_name, table_descriptor, vec![create_test_actor(7, "Eve")].into());
+        let batch3 = Arc::new(TableBatch::new(
+            stream_name,
+            table_descriptor,
+            vec![create_test_actor(7, "Eve")],
+        ));
 
         let table_batches = vec![batch1, batch2, batch3];
 
@@ -1105,7 +1105,7 @@ pub mod test {
         // the supplied batches are more than the limit.
         let batch_responses = client
             .storage_mut()
-            .append_table_batches_concurrent(table_batches.into(), 2, trace_id)
+            .append_table_batches_concurrent(table_batches, 2, trace_id)
             .await
             .unwrap();
 
