@@ -77,9 +77,15 @@ pub struct Client {
 }
 
 impl Client {
-    pub async fn from_authenticator(auth: Arc<dyn Authenticator>) -> Result<Self, BQError> {
-        let client = reqwest::Client::new();
-
+    pub async fn from_authenticator(
+        auth: Arc<dyn Authenticator>,
+        client: Option<reqwest::Client>,
+    ) -> Result<Self, BQError> {
+        let client = if let Some(client) = client {
+            client
+        } else {
+            reqwest::Client::new()
+        };
         Ok(Self {
             dataset_api: DatasetApi::new(client.clone(), Arc::clone(&auth)),
             table_api: TableApi::new(client.clone(), Arc::clone(&auth)),
