@@ -70,10 +70,7 @@ const MAX_POOL_SIZE: usize = 32;
 /// Uses deadpool to maintain a pool of persistent connections with proper
 /// resource management, automatic cleanup, and efficient connection reuse.
 #[derive(Clone)]
-pub(crate) struct ConnectionPool {
-    /// Deadpool pool of BigQuery Storage Write API clients.
-    pool: Pool<BigQueryWriteClientManager>,
-}
+struct ConnectionPool(Pool<BigQueryWriteClientManager>);
 
 /// Manager for creating and managing BigQuery Storage Write API gRPC clients.
 ///
@@ -140,7 +137,7 @@ impl ConnectionPool {
             .build()
             .map_err(|e| BQError::ConnectionPoolError(format!("Failed to create connection pool: {e}")))?;
 
-        Ok(Self { pool })
+        Ok(Self(pool))
     }
 
     /// Retrieves a client from the pool.
@@ -148,10 +145,19 @@ impl ConnectionPool {
     /// Returns a managed connection object that automatically returns
     /// the connection to the pool when dropped.
     async fn get_client(&self) -> Result<Object<BigQueryWriteClientManager>, BQError> {
-        self.pool
+        self.0
             .get()
             .await
             .map_err(|e| BQError::ConnectionPoolError(format!("Failed to get connection from pool: {e}")))
+    }
+
+    /// Releases all connections currently held in the pool.
+    ///
+    /// Removes all idle connections, forcing new requests to create fresh
+    /// connections. Useful for recovering from network errors or refreshing
+    /// stale connections.
+    fn release_all(&self) {
+        self.0.retain(|_, _| false);
     }
 }
 
@@ -718,7 +724,7 @@ impl StorageApi {
                             // without holding onto the original connection object.
                             //
                             // This approach utilizes connections efficiently, assuming each call to the pool
-                            // returns a different connection — which holds true when using `Fifo` queuing.
+                            // returns a different connection, which holds true when using `Fifo` queuing.
                             let mut client = write_client.deref().clone();
 
                             // We return the connection to the pool immediately so that it can be reused
@@ -763,6 +769,15 @@ impl StorageApi {
         }
 
         Ok(batch_results)
+    }
+
+    /// Releases all connections currently held in the connection pool.
+    ///
+    /// Removes all idle connections, forcing new requests to create fresh
+    /// connections. Useful for recovering from network errors or refreshing
+    /// stale connections.
+    pub fn release_all_connections(&self) {
+        self.connection_pool.release_all();
     }
 
     /// Creates an authenticated gRPC request with Bearer token authorization.
