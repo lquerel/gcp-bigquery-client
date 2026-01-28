@@ -138,7 +138,7 @@ impl ConnectionPool {
             // through connections in the pool.
             .queue_mode(QueueMode::Fifo)
             .build()
-            .map_err(|e| BQError::ConnectionPoolError(format!("Failed to create connection pool: {}", e)))?;
+            .map_err(|e| BQError::ConnectionPoolError(format!("Failed to create connection pool: {e}")))?;
 
         Ok(Self { pool })
     }
@@ -151,7 +151,7 @@ impl ConnectionPool {
         self.pool
             .get()
             .await
-            .map_err(|e| BQError::ConnectionPoolError(format!("Failed to get connection from pool: {}", e)))
+            .map_err(|e| BQError::ConnectionPoolError(format!("Failed to get connection from pool: {e}")))
     }
 }
 
@@ -738,7 +738,7 @@ impl StorageApi {
                             }
                         }
                         Err(pool_err) => {
-                            batch_responses.push(Err(Status::unknown(format!("Pool error: {}", pool_err))));
+                            batch_responses.push(Err(Status::unknown(format!("Pool error: {pool_err}"))));
                         }
                     },
                     Err(err) => {
