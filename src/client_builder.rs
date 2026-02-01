@@ -41,7 +41,7 @@ impl ClientBuilder {
     }
 
     pub async fn build_from_authenticator(&self, auth: Arc<dyn Authenticator>) -> Result<Client, BQError> {
-        let mut client = Client::from_authenticator(auth, self.client.clone()).await?;
+        let mut client = Client::from_authenticator_and_client(auth, self.client.clone()).await?;
         client.v2_base_url(self.v2_base_url.clone());
         Ok(client)
     }
@@ -88,7 +88,7 @@ impl ClientBuilder {
         let scopes = vec![self.auth_base_url.as_str()];
         let auth = installed_flow_authenticator(secret, &scopes, persistant_file_path).await?;
 
-        let mut client = Client::from_authenticator(auth, self.client.clone()).await?;
+        let mut client = Client::from_authenticator_and_client(auth, self.client.clone()).await?;
         client.v2_base_url(self.v2_base_url.clone());
         Ok(client)
     }
@@ -111,7 +111,7 @@ impl ClientBuilder {
         let scopes = vec![self.auth_base_url.as_str()];
         let auth = application_default_credentials_authenticator(&scopes).await?;
 
-        let mut client = Client::from_authenticator(auth, self.client.clone()).await?;
+        let mut client = Client::from_authenticator_and_client(auth, self.client.clone()).await?;
         client.v2_base_url(self.v2_base_url.clone());
         Ok(client)
     }
@@ -123,7 +123,7 @@ impl ClientBuilder {
         let scopes = vec![self.auth_base_url.as_str()];
         let auth = authorized_user_authenticator(authorized_user_secret_path, &scopes).await?;
 
-        let mut client = Client::from_authenticator(auth, self.client.clone()).await?;
+        let mut client = Client::from_authenticator_and_client(auth, self.client.clone()).await?;
         client.v2_base_url(self.v2_base_url.clone());
         Ok(client)
     }

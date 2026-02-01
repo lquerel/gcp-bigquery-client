@@ -77,7 +77,11 @@ pub struct Client {
 }
 
 impl Client {
-    pub async fn from_authenticator(
+    pub async fn from_authenticator(auth: Arc<dyn Authenticator>) -> Result<Self, BQError> {
+        Self::from_authenticator_and_client(auth, Some(reqwest::Client::new())).await
+    }
+
+    pub async fn from_authenticator_and_client(
         auth: Arc<dyn Authenticator>,
         client: Option<reqwest::Client>,
     ) -> Result<Self, BQError> {
