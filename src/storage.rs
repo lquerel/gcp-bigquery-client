@@ -1120,11 +1120,7 @@ pub mod test {
             vec![create_test_actor(5, "Charlie"), create_test_actor(6, "Dave")],
         );
 
-        let batch3 = TableBatch::new(
-            stream_name,
-            table_descriptor,
-            vec![create_test_actor(7, "Eve")],
-        );
+        let batch3 = TableBatch::new(stream_name, table_descriptor, vec![create_test_actor(7, "Eve")]);
 
         let table_batches = vec![batch1, batch2, batch3];
 
