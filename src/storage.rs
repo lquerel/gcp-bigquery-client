@@ -14,7 +14,7 @@ use prost_types::{
 };
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use std::{
     collections::HashMap,
     convert::TryInto,
@@ -31,7 +31,7 @@ use tonic::{
     transport::{Channel, ClientTlsConfig},
     Request, Status, Streaming,
 };
-use tracing::{debug, info, warn};
+use tracing::{debug, warn};
 
 use crate::google::cloud::bigquery::storage::v1::{GetWriteStreamRequest, ProtoRows, WriteStream, WriteStreamView};
 use crate::{

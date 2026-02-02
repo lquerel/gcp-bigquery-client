@@ -172,8 +172,66 @@ pub struct ApplicationDefaultCredentialsAuthenticator {
     scopes: Vec<String>,
 }
 
+/// Helper struct to detect credential type from ADC file
+#[derive(Deserialize)]
+struct CredentialType {
+    #[serde(rename = "type")]
+    cred_type: String,
+}
+
+/// Returns the default ADC path based on the operating system.
+/// - Linux/macOS: ~/.config/gcloud/application_default_credentials.json
+/// - Windows: %APPDATA%\gcloud\application_default_credentials.json
+fn default_adc_path() -> Option<PathBuf> {
+    #[cfg(target_os = "windows")]
+    {
+        std::env::var("APPDATA")
+            .ok()
+            .map(|appdata| PathBuf::from(appdata).join("gcloud/application_default_credentials.json"))
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        std::env::var("HOME")
+            .ok()
+            .map(|home| PathBuf::from(home).join(".config/gcloud/application_default_credentials.json"))
+    }
+}
+
+/// Returns the ADC credential path, checking GOOGLE_APPLICATION_CREDENTIALS first,
+/// then falling back to the default path.
+fn adc_credential_path() -> Option<PathBuf> {
+    std::env::var("GOOGLE_APPLICATION_CREDENTIALS")
+        .ok()
+        .map(PathBuf::from)
+        .or_else(default_adc_path)
+}
+
+/// Attempts to load authorized_user credentials from ADC path.
+/// Returns None if path doesn't exist or credentials aren't authorized_user type.
+async fn try_load_authorized_user_credentials(scopes: &[&str]) -> Option<Result<Arc<dyn Authenticator>, BQError>> {
+    let cred_path = adc_credential_path()?;
+    let contents = tokio::fs::read_to_string(&cred_path).await.ok()?;
+    let cred_type: CredentialType = serde_json::from_str(&contents).ok()?;
+
+    if cred_type.cred_type != "authorized_user" {
+        return None;
+    }
+
+    let secret = match serde_json::from_str(&contents) {
+        Ok(s) => s,
+        Err(e) => return Some(Err(e.into())),
+    };
+    Some(AuthorizedUserAuthenticator::from_authorized_user_secret(secret, scopes).await)
+}
+
 impl ApplicationDefaultCredentialsAuthenticator {
     pub(crate) async fn from_scopes(scopes: &[&str]) -> Result<Arc<dyn Authenticator>, BQError> {
+        // First, check if GOOGLE_APPLICATION_CREDENTIALS contains authorized_user credentials
+        if let Some(result) = try_load_authorized_user_credentials(scopes).await {
+            return result;
+        }
+
+        // Fall back to standard ADC flow (service_account or instance metadata)
         let opts = ApplicationDefaultCredentialsFlowOpts::default();
         let auth = match YupApplicationDefaultCredentialsAuthenticator::builder(opts).await {
             ApplicationDefaultCredentialsTypes::InstanceMetadata(auth) => auth.build().await,
@@ -257,4 +315,28 @@ pub(crate) async fn authorized_user_authenticator<S: AsRef<Path>>(
 ) -> Result<Arc<dyn Authenticator>, BQError> {
     let authorized_user_secret = yup_oauth2::read_authorized_user_secret(secret).await?;
     AuthorizedUserAuthenticator::from_authorized_user_secret(authorized_user_secret, scopes).await
+}
+
+#[cfg(test)]
+mod test {
+    use crate::error::BQError;
+    use crate::Client;
+    use std::env;
+
+    /// Test ADC authentication with authorized_user (refresh_token) credentials.
+    /// Requires PROJECT_ID env var and valid ADC credentials at the default path
+    /// or GOOGLE_APPLICATION_CREDENTIALS.
+    #[tokio::test]
+    async fn test_adc_authentication() -> Result<(), BQError> {
+        let project_id = env::var("PROJECT_ID").expect("PROJECT_ID env var required");
+
+        // Create client using ADC - works with both service_account and authorized_user
+        let client = Client::from_application_default_credentials().await?;
+
+        // Simple API call to verify authentication works
+        let datasets = client.dataset().list(&project_id, Default::default()).await?;
+        println!("ADC auth successful - found {} datasets", datasets.datasets.len());
+
+        Ok(())
+    }
 }

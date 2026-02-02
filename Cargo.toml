@@ -1,6 +1,6 @@
 [package]
 name = "gcp-bigquery-client"
-version = "0.27.0"
+version = "0.28.0"
 authors = ["Laurent Querel <laurent.querel@gmail.com>"]
 edition = "2021"
 license = "MIT OR Apache-2.0"
@@ -33,7 +33,7 @@ version = "1.1.2"
 optional = true
 
 [dependencies]
-yup-oauth2 = { version = "12.1.0", default-features = false, features = [
+yup-oauth2 = { version = "12.1.2", default-features = false, features = [
     "hyper-rustls", "service-account"
 ] }
 hyper-util = { version = "0.1.16", default-features = false, features = [

@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.28.0] - 2026-01-31
+
+## Added
+
+- Add refresh_token support to ADC authentication. Thanks @JCart97 [PR #129](https://github.com/lquerel/gcp-bigquery-client/pull/129)
+- Update yup-oauth2 dependency to fix rustsec-2025-0134. Thanks @muXxer [PR #130](https://github.com/lquerel/gcp-bigquery-client/pull/130)
+- Add a constructor to build a client from an existing Authenticator and a reqwest::Client. Thanks @yuyang-ok [PR #132](https://github.com/lquerel/gcp-bigquery-client/pull/132)
+
 ## [0.27.0] - 2025-09-07
 
 ## Added
