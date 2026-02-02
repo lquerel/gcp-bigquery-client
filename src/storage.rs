@@ -12,9 +12,9 @@ use prost_types::{
     field_descriptor_proto::{Label, Type},
     DescriptorProto, FieldDescriptorProto,
 };
-use std::ops::Deref;
 use std::pin::Pin;
 use std::task::{Context, Poll};
+use std::time::{Duration, Instant};
 use std::{
     collections::HashMap,
     convert::TryInto,
@@ -64,6 +64,22 @@ const MAX_MESSAGE_SIZE_BYTES: usize = 20 * 1024 * 1024;
 const DEFAULT_STREAM_NAME: &str = "_default";
 /// Max number of connections in the pool.
 const MAX_POOL_SIZE: usize = 32;
+/// HTTP/2 keepalive interval in seconds.
+///
+/// Sends PING frames at this interval to keep connections alive and detect
+/// dead connections. Set to 30 seconds to stay well under typical proxy
+/// idle timeouts (GCP: 10 min, AWS ELB: 60 sec).
+const HTTP2_KEEPALIVE_INTERVAL_SECS: u64 = 30;
+/// HTTP/2 keepalive timeout in seconds.
+///
+/// If a PING is not acknowledged within this time, the connection is
+/// considered dead.
+const HTTP2_KEEPALIVE_TIMEOUT_SECS: u64 = 10;
+/// Maximum connection age in seconds before recycling.
+///
+/// Connections older than this are discarded during recycling to ensure
+/// fresh connections and avoid stale connection issues.
+const MAX_CONNECTION_AGE_SECS: u64 = 300;
 
 /// Connection pool for managing multiple gRPC clients to BigQuery Storage Write API.
 ///
@@ -72,6 +88,16 @@ const MAX_POOL_SIZE: usize = 32;
 #[derive(Clone)]
 struct ConnectionPool(Pool<BigQueryWriteClientManager>);
 
+/// Wrapper around BigQueryWriteClient that tracks connection creation time.
+///
+/// Used for age-based connection recycling to ensure connections don't become
+/// stale. The creation time is checked during recycling to discard connections
+/// that exceed the maximum age threshold.
+struct PooledClient {
+    client: BigQueryWriteClient<Channel>,
+    created_at: Instant,
+}
+
 /// Manager for creating and managing BigQuery Storage Write API gRPC clients.
 ///
 /// Implements the deadpool Manager trait to handle connection lifecycle
@@ -79,13 +105,13 @@ struct ConnectionPool(Pool<BigQueryWriteClientManager>);
 struct BigQueryWriteClientManager;
 
 impl Manager for BigQueryWriteClientManager {
-    type Type = BigQueryWriteClient<Channel>;
+    type Type = PooledClient;
     type Error = BQError;
 
     /// Creates a new gRPC client for BigQuery Storage Write API.
     ///
-    /// Establishes a secure TLS connection with compression and size limits
-    /// configured for optimal performance.
+    /// Establishes a secure TLS connection with HTTP/2 keepalive, compression,
+    /// and size limits configured for optimal performance and reliability.
     async fn create(&self) -> Result<Self::Type, Self::Error> {
         // Since Tonic 0.12.0, TLS root certificates are no longer included by default.
         // They must now be specified explicitly.
@@ -96,6 +122,11 @@ impl Manager for BigQueryWriteClientManager {
 
         let channel = Channel::from_static(BIG_QUERY_STORAGE_API_URL)
             .tls_config(tls_config)?
+            // Configure HTTP/2 keepalive to detect dead connections and prevent
+            // proxies from closing idle connections.
+            .http2_keep_alive_interval(Duration::from_secs(HTTP2_KEEPALIVE_INTERVAL_SECS))
+            .keep_alive_timeout(Duration::from_secs(HTTP2_KEEPALIVE_TIMEOUT_SECS))
+            .keep_alive_while_idle(true)
             .connect()
             .await?;
 
@@ -105,19 +136,31 @@ impl Manager for BigQueryWriteClientManager {
             .send_compressed(CompressionEncoding::Gzip)
             .accept_compressed(CompressionEncoding::Gzip);
 
-        Ok(client)
+        Ok(PooledClient {
+            client,
+            created_at: Instant::now(),
+        })
     }
 
     /// Recycles a gRPC client connection.
     ///
-    /// Currently always returns Ok(()) as gRPC clients don't require
-    /// special recycling. In the future, this could perform health checks
-    /// or connection validation.
+    /// Validates the connection by checking its age. Connections older than
+    /// [`MAX_CONNECTION_AGE_SECS`] are discarded to prevent stale connection
+    /// issues. This ensures that long-lived connections are periodically
+    /// refreshed, avoiding problems with connections that may have been
+    /// silently closed by proxies or load balancers.
     async fn recycle(
         &self,
-        _conn: &mut Self::Type,
+        conn: &mut Self::Type,
         _metrics: &deadpool::managed::Metrics,
     ) -> deadpool::managed::RecycleResult<Self::Error> {
+        let age = conn.created_at.elapsed();
+        if age > Duration::from_secs(MAX_CONNECTION_AGE_SECS) {
+            return Err(deadpool::managed::RecycleError::Message(
+                "Connection exceeded maximum age".into(),
+            ));
+        }
+
         Ok(())
     }
 }
@@ -646,8 +689,8 @@ impl StorageApi {
         };
 
         let request = Self::new_authorized_request(self.auth.clone(), get_write_stream_request).await?;
-        let mut client = self.connection_pool.get_client().await?;
-        let response = client.get_write_stream(request).await?;
+        let mut pooled_client = self.connection_pool.get_client().await?;
+        let response = pooled_client.client.get_write_stream(request).await?;
         let write_stream = response.into_inner();
 
         Ok(write_stream)
@@ -675,8 +718,8 @@ impl StorageApi {
 
         let request =
             Self::new_authorized_request(self.auth.clone(), tokio_stream::iter(vec![append_rows_request])).await?;
-        let mut client = self.connection_pool.get_client().await?;
-        let response = client.append_rows(request).await?;
+        let mut pooled_client = self.connection_pool.get_client().await?;
+        let response = pooled_client.client.append_rows(request).await?;
         let streaming = response.into_inner();
 
         Ok(streaming)
@@ -736,17 +779,13 @@ impl StorageApi {
                 // responses.
                 match Self::new_authorized_request(client.auth.clone(), request_stream).await {
                     Ok(request) => match client.connection_pool.get_client().await {
-                        Ok(write_client) => {
-                            // We clone the client to cheaply issue multiple requests over the same connection
-                            // without holding onto the original connection object.
-                            //
-                            // This approach utilizes connections efficiently, assuming each call to the pool
-                            // returns a different connection, which holds true when using `Fifo` queuing.
-                            let mut client = write_client.deref().clone();
-
-                            // We return the connection to the pool immediately so that it can be reused
-                            // by another task.
-                            drop(write_client);
+                        Ok(pooled_client) => {
+                            // Clone the client to get a cheap handle to the underlying HTTP/2 connection,
+                            // then return the Object to the pool immediately. This allows multiple tasks
+                            // to share the same connection via HTTP/2 multiplexing while the pool
+                            // distributes load across distinct connections using FIFO queuing.
+                            let mut client = pooled_client.client.clone();
+                            drop(pooled_client);
 
                             match client.append_rows(request).await {
                                 Ok(response) => {
