@@ -7,12 +7,21 @@ use crate::auth::{
     application_default_credentials_authenticator, authorized_user_authenticator, installed_flow_authenticator,
     service_account_authenticator, Authenticator, ServiceAccountAuthenticator,
 };
+use crate::dataset::DatasetApi;
 use crate::error::BQError;
+use crate::job::JobApi;
+use crate::model_api::ModelApi;
+use crate::project::ProjectApi;
+use crate::routine::RoutineApi;
+use crate::storage::{StorageApi, StorageApiConfig};
+use crate::table::TableApi;
+use crate::tabledata::TableDataApi;
 use crate::{Client, BIG_QUERY_AUTH_URL, BIG_QUERY_V2_URL};
 
 pub struct ClientBuilder {
     v2_base_url: String,
     auth_base_url: String,
+    storage_config: StorageApiConfig,
 }
 
 impl ClientBuilder {
@@ -20,6 +29,7 @@ impl ClientBuilder {
         Self {
             v2_base_url: BIG_QUERY_V2_URL.to_string(),
             auth_base_url: BIG_QUERY_AUTH_URL.to_string(),
+            storage_config: StorageApiConfig::default(),
         }
     }
 
@@ -33,10 +43,43 @@ impl ClientBuilder {
         self
     }
 
+    /// Sets the configuration for the BigQuery Storage Write API.
+    pub fn with_storage_config(&mut self, config: StorageApiConfig) -> &mut Self {
+        self.storage_config = config;
+        self
+    }
+
     pub async fn build_from_authenticator(&self, auth: Arc<dyn Authenticator>) -> Result<Client, BQError> {
-        let mut client = Client::from_authenticator(auth).await?;
-        client.v2_base_url(self.v2_base_url.clone());
-        Ok(client)
+        let http_client = reqwest::Client::new();
+
+        let mut dataset_api = DatasetApi::new(http_client.clone(), Arc::clone(&auth));
+        let mut table_api = TableApi::new(http_client.clone(), Arc::clone(&auth));
+        let mut job_api = JobApi::new(http_client.clone(), Arc::clone(&auth));
+        let mut tabledata_api = TableDataApi::new(http_client.clone(), Arc::clone(&auth));
+        let mut routine_api = RoutineApi::new(http_client.clone(), Arc::clone(&auth));
+        let mut model_api = ModelApi::new(http_client.clone(), Arc::clone(&auth));
+        let mut project_api = ProjectApi::new(http_client, Arc::clone(&auth));
+        let mut storage_api = StorageApi::with_config(auth, self.storage_config.clone()).await?;
+
+        dataset_api.with_base_url(self.v2_base_url.clone());
+        table_api.with_base_url(self.v2_base_url.clone());
+        job_api.with_base_url(self.v2_base_url.clone());
+        tabledata_api.with_base_url(self.v2_base_url.clone());
+        routine_api.with_base_url(self.v2_base_url.clone());
+        model_api.with_base_url(self.v2_base_url.clone());
+        project_api.with_base_url(self.v2_base_url.clone());
+        storage_api.with_base_url(self.v2_base_url.clone());
+
+        Ok(Client::new(
+            dataset_api,
+            table_api,
+            job_api,
+            tabledata_api,
+            routine_api,
+            model_api,
+            project_api,
+            storage_api,
+        ))
     }
 
     pub async fn build_from_service_account_key(
@@ -81,9 +124,7 @@ impl ClientBuilder {
         let scopes = vec![self.auth_base_url.as_str()];
         let auth = installed_flow_authenticator(secret, &scopes, persistant_file_path).await?;
 
-        let mut client = Client::from_authenticator(auth).await?;
-        client.v2_base_url(self.v2_base_url.clone());
-        Ok(client)
+        self.build_from_authenticator(auth).await
     }
 
     pub async fn build_from_installed_flow_authenticator_from_secret_file<P: Into<PathBuf>>(
@@ -104,9 +145,7 @@ impl ClientBuilder {
         let scopes = vec![self.auth_base_url.as_str()];
         let auth = application_default_credentials_authenticator(&scopes).await?;
 
-        let mut client = Client::from_authenticator(auth).await?;
-        client.v2_base_url(self.v2_base_url.clone());
-        Ok(client)
+        self.build_from_authenticator(auth).await
     }
 
     pub async fn build_from_authorized_user_authenticator<P: AsRef<Path>>(
@@ -116,9 +155,7 @@ impl ClientBuilder {
         let scopes = vec![self.auth_base_url.as_str()];
         let auth = authorized_user_authenticator(authorized_user_secret_path, &scopes).await?;
 
-        let mut client = Client::from_authenticator(auth).await?;
-        client.v2_base_url(self.v2_base_url.clone());
-        Ok(client)
+        self.build_from_authenticator(auth).await
     }
 }
 

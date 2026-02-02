@@ -76,6 +76,7 @@ tonic-prost = "0.14.1"
 futures = "0.3.31"
 pin-project = "1.1.10"
 deadpool = "0.12.3"
+tracing = "0.1"
 
 [dev-dependencies]
 tokio-test = "0.4.4"

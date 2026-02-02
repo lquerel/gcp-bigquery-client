@@ -31,6 +31,7 @@ use tonic::{
     transport::{Channel, ClientTlsConfig},
     Request, Status, Streaming,
 };
+use tracing::{debug, info, warn};
 
 use crate::google::cloud::bigquery::storage::v1::{GetWriteStreamRequest, ProtoRows, WriteStream, WriteStreamView};
 use crate::{
@@ -62,8 +63,22 @@ const MAX_MESSAGE_SIZE_BYTES: usize = 20 * 1024 * 1024;
 ///
 /// This stream is a special built-in stream that always exists for a table.
 const DEFAULT_STREAM_NAME: &str = "_default";
-/// Max number of connections in the pool.
-const MAX_POOL_SIZE: usize = 32;
+/// Default number of connections in the pool.
+///
+/// With HTTP/2 multiplexing, a small number of connections (2-4) is sufficient
+/// for high throughput since multiple gRPC streams share each connection.
+/// Google recommends reusing connections extensively—a single connection can
+/// support 1-10+ MBps throughput. Multiple connections provide fault isolation
+/// rather than increased parallelism.
+const DEFAULT_POOL_SIZE: usize = 4;
+
+/// Default maximum concurrent requests per connection.
+///
+/// HTTP/2 connections can handle many concurrent streams efficiently. This
+/// value represents a reasonable balance between throughput and not overwhelming
+/// the BigQuery service. Google recommends multiplexing when over 20 concurrent
+/// operations are needed.
+const DEFAULT_REQUESTS_PER_CONNECTION: usize = 10;
 /// HTTP/2 keepalive interval in seconds.
 ///
 /// Sends PING frames at this interval to keep connections alive and detect
@@ -75,11 +90,52 @@ const HTTP2_KEEPALIVE_INTERVAL_SECS: u64 = 30;
 /// If a PING is not acknowledged within this time, the connection is
 /// considered dead.
 const HTTP2_KEEPALIVE_TIMEOUT_SECS: u64 = 10;
-/// Maximum connection age in seconds before recycling.
+
+/// Configuration for the BigQuery Storage Write API client.
 ///
-/// Connections older than this are discarded during recycling to ensure
-/// fresh connections and avoid stale connection issues.
-const MAX_CONNECTION_AGE_SECS: u64 = 300;
+/// A single HTTP/2 connection can support 1-10+ MBps throughput with multiple
+/// concurrent gRPC streams. The pool provides fault isolation rather than
+/// increased parallelism.
+#[derive(Debug, Clone)]
+pub struct StorageApiConfig {
+    /// Number of connections in the pool.
+    ///
+    /// With HTTP/2 multiplexing, a small number of connections (2-4) is typically
+    /// sufficient for high throughput. Multiple gRPC streams share each connection,
+    /// so additional connections provide fault isolation rather than parallelism.
+    /// Default: 4.
+    pub pool_size: usize,
+    /// Maximum number of concurrent gRPC requests across all StorageApi operations.
+    ///
+    /// This is a global limit shared across all concurrent calls to the StorageApi.
+    /// Each request acquires a permit from a shared semaphore before making a gRPC
+    /// call. Google recommends multiplexing when over 20 concurrent operations are
+    /// needed. Default: 40 (pool_size × 10 requests per connection).
+    pub max_concurrent_requests: usize,
+}
+
+impl Default for StorageApiConfig {
+    fn default() -> Self {
+        Self {
+            pool_size: DEFAULT_POOL_SIZE,
+            max_concurrent_requests: DEFAULT_POOL_SIZE * DEFAULT_REQUESTS_PER_CONNECTION,
+        }
+    }
+}
+
+impl StorageApiConfig {
+    /// Creates a new configuration with the specified pool size.
+    pub fn with_pool_size(mut self, pool_size: usize) -> Self {
+        self.pool_size = pool_size;
+        self
+    }
+
+    /// Creates a new configuration with the specified max concurrent requests.
+    pub fn with_max_concurrent_requests(mut self, max_concurrent_requests: usize) -> Self {
+        self.max_concurrent_requests = max_concurrent_requests;
+        self
+    }
+}
 
 /// Connection pool for managing multiple gRPC clients to BigQuery Storage Write API.
 ///
@@ -88,14 +144,10 @@ const MAX_CONNECTION_AGE_SECS: u64 = 300;
 #[derive(Clone)]
 struct ConnectionPool(Pool<BigQueryWriteClientManager>);
 
-/// Wrapper around BigQueryWriteClient that tracks connection creation time.
-///
-/// Used for age-based connection recycling to ensure connections don't become
-/// stale. The creation time is checked during recycling to discard connections
-/// that exceed the maximum age threshold.
+/// Wrapper around BigQueryWriteClient.
 struct PooledClient {
+    /// The underlying gRPC client.
     client: BigQueryWriteClient<Channel>,
-    created_at: Instant,
 }
 
 /// Manager for creating and managing BigQuery Storage Write API gRPC clients.
@@ -136,50 +188,44 @@ impl Manager for BigQueryWriteClientManager {
             .send_compressed(CompressionEncoding::Gzip)
             .accept_compressed(CompressionEncoding::Gzip);
 
-        Ok(PooledClient {
-            client,
-            created_at: Instant::now(),
-        })
+        debug!("grpc connection created");
+
+        Ok(PooledClient { client })
     }
 
-    /// Recycles a gRPC client connection.
+    /// Recycles a gRPC client connection back into the pool.
     ///
-    /// Validates the connection by checking its age. Connections older than
-    /// [`MAX_CONNECTION_AGE_SECS`] are discarded to prevent stale connection
-    /// issues. This ensures that long-lived connections are periodically
-    /// refreshed, avoiding problems with connections that may have been
-    /// silently closed by proxies or load balancers.
+    /// With HTTP/2 keepalive enabled, dead connections are detected automatically
+    /// via PING frames. Age-based recycling is unnecessary and conflicts with
+    /// Google's recommendation to reuse connections for as many writes as possible.
     async fn recycle(
         &self,
-        conn: &mut Self::Type,
+        _conn: &mut Self::Type,
         _metrics: &deadpool::managed::Metrics,
     ) -> deadpool::managed::RecycleResult<Self::Error> {
-        let age = conn.created_at.elapsed();
-        if age > Duration::from_secs(MAX_CONNECTION_AGE_SECS) {
-            return Err(deadpool::managed::RecycleError::Message(
-                "Connection exceeded maximum age".into(),
-            ));
-        }
-
         Ok(())
     }
 }
 
 impl ConnectionPool {
-    /// Creates a new connection pool with the specified number of clients.
+    /// Creates a new connection pool with the specified maximum size.
     ///
     /// Establishes a managed pool that creates connections on-demand and
-    /// recycles them efficiently for optimal performance.
-    async fn new() -> Result<Self, BQError> {
+    /// recycles them efficiently for optimal performance. With HTTP/2
+    /// multiplexing, a small number of connections (2-4) is typically
+    /// sufficient for high throughput, as multiple gRPC streams can
+    /// share the same underlying connection.
+    async fn new(max_size: usize) -> Result<Self, BQError> {
         let manager = BigQueryWriteClientManager;
         let pool = Pool::builder(manager)
-            .max_size(MAX_POOL_SIZE)
+            .max_size(max_size)
             // We must use Fifo since we want to always get the least recently used connection to cycle
             // through connections in the pool.
             .queue_mode(QueueMode::Fifo)
             .build()
-            .map_err(|e| BQError::ConnectionPoolError(format!("Failed to create connection pool: {e}")))?;
+            .map_err(|e| BQError::ConnectionPoolError(format!("failed to create connection pool: {e}")))?;
 
+        debug!(max_size, "connection pool initialized");
         Ok(Self(pool))
     }
 
@@ -191,7 +237,7 @@ impl ConnectionPool {
         self.0
             .get()
             .await
-            .map_err(|e| BQError::ConnectionPoolError(format!("Failed to get connection from pool: {e}")))
+            .map_err(|e| BQError::ConnectionPoolError(format!("failed to get connection from pool: {e}")))
     }
 
     /// Releases all connections currently held in the pool.
@@ -201,6 +247,7 @@ impl ConnectionPool {
     /// stale connections.
     fn release_all(&self) {
         self.0.retain(|_, _| false);
+        debug!("all connections released from pool");
     }
 }
 
@@ -601,17 +648,21 @@ pub struct StorageApi {
     auth: Arc<dyn Authenticator>,
     /// Base URL for BigQuery API endpoints.
     base_url: String,
+    /// Semaphore for limiting concurrent gRPC requests across all operations.
+    request_semaphore: Arc<Semaphore>,
 }
 
 impl StorageApi {
-    /// Creates a new storage API client instance.
-    pub(crate) async fn new(auth: Arc<dyn Authenticator>) -> Result<Self, BQError> {
-        let connection_pool = ConnectionPool::new().await?;
+    /// Creates a new storage API client instance with a custom configuration.
+    pub(crate) async fn with_config(auth: Arc<dyn Authenticator>, config: StorageApiConfig) -> Result<Self, BQError> {
+        let connection_pool = ConnectionPool::new(config.pool_size).await?;
+        let request_semaphore = Arc::new(Semaphore::new(config.max_concurrent_requests));
 
         Ok(Self {
             connection_pool,
             auth,
             base_url: BIG_QUERY_V2_URL.to_string(),
+            request_semaphore,
         })
     }
 
@@ -683,17 +734,25 @@ impl StorageApi {
         stream_name: &StreamName,
         view: WriteStreamView,
     ) -> Result<WriteStream, BQError> {
+        let stream_name_str = stream_name.to_string();
+
         let get_write_stream_request = GetWriteStreamRequest {
-            name: stream_name.to_string(),
+            name: stream_name_str.clone(),
             view: view.into(),
         };
 
         let request = Self::new_authorized_request(self.auth.clone(), get_write_stream_request).await?;
         let mut pooled_client = self.connection_pool.get_client().await?;
-        let response = pooled_client.client.get_write_stream(request).await?;
-        let write_stream = response.into_inner();
 
-        Ok(write_stream)
+        pooled_client
+            .client
+            .get_write_stream(request)
+            .await
+            .map(|resp| resp.into_inner())
+            .map_err(|e| {
+                warn!(stream_name = %stream_name_str, error = %e, "failed to fetch write stream metadata");
+                e.into()
+            })
     }
 
     /// Appends rows to a BigQuery table using the Storage Write API.
@@ -707,10 +766,12 @@ impl StorageApi {
         rows: append_rows_request::Rows,
         trace_id: String,
     ) -> Result<Streaming<AppendRowsResponse>, BQError> {
+        let stream_name_str = stream_name.to_string();
+
         let append_rows_request = AppendRowsRequest {
-            write_stream: stream_name.to_string(),
+            write_stream: stream_name_str.clone(),
             offset: None,
-            trace_id,
+            trace_id: trace_id.clone(),
             missing_value_interpretations: HashMap::new(),
             default_missing_value_interpretation: MissingValueInterpretation::Unspecified.into(),
             rows: Some(rows),
@@ -719,22 +780,28 @@ impl StorageApi {
         let request =
             Self::new_authorized_request(self.auth.clone(), tokio_stream::iter(vec![append_rows_request])).await?;
         let mut pooled_client = self.connection_pool.get_client().await?;
-        let response = pooled_client.client.append_rows(request).await?;
-        let streaming = response.into_inner();
 
-        Ok(streaming)
+        pooled_client
+            .client
+            .append_rows(request)
+            .await
+            .map(|resp| resp.into_inner())
+            .map_err(|e| {
+                warn!(stream_name = %stream_name_str, trace_id = %trace_id, error = %e, "failed to append rows");
+                e.into()
+            })
     }
 
     /// Appends rows from multiple table batches with concurrent processing.
     ///
-    /// Returns a collection of batch results containing responses, metadata,
-    /// and bytes sent for each batch processed. Results are ordered by
-    /// completion, not by submission; use `BatchAppendResult::batch_index`
+    /// Uses the shared `request_semaphore` to control parallelism globally across
+    /// all StorageApi operations. Returns a collection of batch results containing
+    /// responses, metadata, and bytes sent for each batch processed. Results are
+    /// ordered by completion, not by submission; use `BatchAppendResult::batch_index`
     /// to correlate with the original input order.
     pub async fn append_table_batches_concurrent<M, I>(
         &self,
         table_batches: I,
-        max_concurrent_streams: usize,
         trace_id: &str,
     ) -> Result<Vec<BatchAppendResult>, BQError>
     where
@@ -749,79 +816,95 @@ impl StorageApi {
             return Ok(Vec::new());
         }
 
-        let semaphore = Arc::new(Semaphore::new(max_concurrent_streams));
+        let semaphore = self.request_semaphore.clone();
 
         let mut join_set = JoinSet::new();
         for (idx, table_batch) in table_batches.enumerate() {
             // Acquire a concurrency slot and hold it until responses are fully drained.
             let permit = semaphore.clone().acquire_owned().await?;
-
             let trace_id = trace_id.to_string();
             let client = self.clone();
 
             join_set.spawn(async move {
-                // We compute the proto schema once for the entire batch. We might want to compute it
-                // once per stream but for now this is fine.
-                let proto_schema = Self::create_proto_schema(table_batch.table_descriptor());
+                let stream_name = table_batch.stream_name().to_string();
+                let row_count = table_batch.rows().len();
 
-                // Create an atomic counter for tracking bytes sent for this batch.
+                // We compute the proto schema once for the entire batch.
+                let proto_schema = Self::create_proto_schema(table_batch.table_descriptor());
                 let bytes_sent_counter = Arc::new(AtomicUsize::new(0));
 
-                // Build the request stream which will split the request into multiple requests if
-                // necessary.
+                // Build the request stream which will split the request into multiple requests if necessary.
                 let request_stream =
-                    AppendRequestsStream::new(table_batch, proto_schema, trace_id, bytes_sent_counter.clone());
+                    AppendRequestsStream::new(table_batch, proto_schema, trace_id.clone(), bytes_sent_counter.clone());
 
                 let mut batch_responses = Vec::new();
 
-                // Make the request for append rows and poll the response stream until exhausted. Since
-                // we might send multiple requests over the same stream, we will also receive multiple
-                // responses.
                 match Self::new_authorized_request(client.auth.clone(), request_stream).await {
                     Ok(request) => match client.connection_pool.get_client().await {
                         Ok(pooled_client) => {
                             // Clone the client to get a cheap handle to the underlying HTTP/2 connection,
                             // then return the Object to the pool immediately. This allows multiple tasks
-                            // to share the same connection via HTTP/2 multiplexing while the pool
-                            // distributes load across distinct connections using FIFO queuing.
-                            let mut client = pooled_client.client.clone();
+                            // to share the same connection via HTTP/2 multiplexing.
+                            let mut grpc_client = pooled_client.client.clone();
                             drop(pooled_client);
 
-                            match client.append_rows(request).await {
+                            match grpc_client.append_rows(request).await {
                                 Ok(response) => {
                                     let mut streaming_response = response.into_inner();
                                     while let Some(response) = streaming_response.next().await {
+                                        if let Err(e) = &response {
+                                            warn!(
+                                                trace_id = %trace_id,
+                                                batch_index = idx,
+                                                error = %e,
+                                                "batch append error response"
+                                            );
+                                        }
                                         batch_responses.push(response);
                                     }
                                 }
                                 Err(status) => {
+                                    warn!(
+                                        trace_id = %trace_id,
+                                        batch_index = idx,
+                                        stream_name = %stream_name,
+                                        error = %status,
+                                        "failed to append batch"
+                                    );
                                     batch_responses.push(Err(status));
                                 }
                             }
                         }
                         Err(pool_err) => {
-                            batch_responses.push(Err(Status::unknown(format!("Pool error: {pool_err}"))));
+                            warn!(trace_id = %trace_id, batch_index = idx, error = %pool_err, "pool error");
+                            batch_responses.push(Err(Status::unknown(format!("pool error: {pool_err}"))));
                         }
                     },
                     Err(err) => {
+                        warn!(trace_id = %trace_id, batch_index = idx, error = %err, "auth error");
                         batch_responses.push(Err(Status::unknown(err.to_string())));
                     }
                 }
 
-                // Free the concurrency slot only after fully draining responses or after error.
                 drop(permit);
 
-                // We load the atomic directly in the result to avoid exposing atomics. By doing this
-                // we assume that when this code path is reached, the stream has been fully drained.
-                BatchAppendResult::new(idx, batch_responses, bytes_sent_counter.load(Ordering::Relaxed))
+                let bytes_sent = bytes_sent_counter.load(Ordering::Relaxed);
+                debug!(
+                    trace_id = %trace_id,
+                    batch_index = idx,
+                    stream_name = %stream_name,
+                    row_count,
+                    bytes_sent,
+                    "batch completed"
+                );
+
+                BatchAppendResult::new(idx, batch_responses, bytes_sent)
             });
         }
 
-        // Collect all task results in the order of completion.
         let mut batch_results = Vec::with_capacity(batches_num);
         while let Some(batch_result) = join_set.join_next().await {
-            let batch_result = batch_result?;
-            batch_results.push(batch_result);
+            batch_results.push(batch_result?);
         }
 
         Ok(batch_results)
@@ -1063,7 +1146,7 @@ pub mod test {
 
     #[tokio::test]
     async fn test_connection_pool() {
-        let connection_pool = ConnectionPool::new().await.unwrap();
+        let connection_pool = ConnectionPool::new(4).await.unwrap();
 
         // Test that we can get multiple connections from the pool
         let client1 = connection_pool.get_client().await.unwrap();
@@ -1163,11 +1246,10 @@ pub mod test {
 
         let table_batches = vec![batch1, batch2, batch3];
 
-        // Test with a concurrency limit of 2 to assert that all batches are processed even though
-        // the supplied batches are more than the limit.
+        // Test that all batches are processed using the default max_concurrent_requests from config.
         let batch_responses = client
             .storage_mut()
-            .append_table_batches_concurrent(table_batches, 2, trace_id)
+            .append_table_batches_concurrent(table_batches, trace_id)
             .await
             .unwrap();
 
