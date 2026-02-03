@@ -621,9 +621,9 @@ mod test {
             .insert_all(project_id, dataset_id, table_id, insert_request)
             .await;
 
-        assert!(result.is_ok(), "{:?}", result);
+        assert!(result.is_ok(), "{result:?}");
         let result = result.unwrap();
-        assert!(result.insert_errors.is_none(), "{:?}", result);
+        assert!(result.insert_errors.is_none(), "{result:?}");
 
         // Query
         let query_response = client

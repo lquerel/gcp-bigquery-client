@@ -57,7 +57,7 @@ impl ClientBuilder {
     }
 
     pub async fn build_from_authenticator(&self, auth: Arc<dyn Authenticator>) -> Result<Client, BQError> {
-        let http_client = self.client.clone().unwrap_or_else(reqwest::Client::new);
+        let http_client = self.client.clone().unwrap_or_default();
 
         let mut dataset_api = DatasetApi::new(http_client.clone(), Arc::clone(&auth));
         let mut table_api = TableApi::new(http_client.clone(), Arc::clone(&auth));

@@ -31,7 +31,7 @@ use tonic::{
     transport::{Channel, ClientTlsConfig},
     Request, Status, Streaming,
 };
-use tracing::{debug, info, warn};
+use tracing::{debug, warn};
 
 use crate::google::cloud::bigquery::storage::v1::{GetWriteStreamRequest, ProtoRows, WriteStream, WriteStreamView};
 use crate::{
@@ -112,15 +112,6 @@ pub struct StorageApiConfig {
     pub max_inflight_requests: usize,
 }
 
-impl Default for StorageApiConfig {
-    fn default() -> Self {
-        Self {
-            pool_size: DEFAULT_POOL_SIZE,
-            max_inflight_requests: DEFAULT_POOL_SIZE * DEFAULT_REQUESTS_PER_CONNECTION,
-        }
-    }
-}
-
 impl StorageApiConfig {
     /// Creates a new configuration with the specified pool size.
     pub fn with_pool_size(mut self, pool_size: usize) -> Self {
@@ -132,6 +123,15 @@ impl StorageApiConfig {
     pub fn with_max_inflight_requests(mut self, max_inflight_requests: usize) -> Self {
         self.max_inflight_requests = max_inflight_requests;
         self
+    }
+}
+
+impl Default for StorageApiConfig {
+    fn default() -> Self {
+        Self {
+            pool_size: DEFAULT_POOL_SIZE,
+            max_inflight_requests: DEFAULT_POOL_SIZE * DEFAULT_REQUESTS_PER_CONNECTION,
+        }
     }
 }
 
@@ -1271,7 +1271,7 @@ pub mod test {
 
             // Verify each individual response for detailed error reporting.
             for response in &batch_result.responses {
-                assert!(response.is_ok(), "Response should be successful: {:?}", response);
+                assert!(response.is_ok(), "Response should be successful: {response:?}");
             }
 
             // Verify that some bytes were sent (should be greater than 0).

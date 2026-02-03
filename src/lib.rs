@@ -77,6 +77,7 @@ pub struct Client {
 }
 
 impl Client {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         dataset_api: DatasetApi,
         table_api: TableApi,
