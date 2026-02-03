@@ -70,7 +70,7 @@ const DEFAULT_STREAM_NAME: &str = "_default";
 /// Google recommends reusing connections extensively—a single connection can
 /// support 1-10+ MBps throughput. Multiple connections provide fault isolation
 /// rather than increased parallelism.
-const DEFAULT_POOL_SIZE: usize = 4;
+const DEFAULT_CONNECTION_POOL_SIZE: usize = 4;
 
 /// Default maximum inflight requests per connection.
 ///
@@ -102,20 +102,20 @@ pub struct StorageApiConfig {
     /// sufficient for high throughput. Multiple gRPC streams share each connection,
     /// so additional connections provide fault isolation rather than parallelism.
     /// Default: 4.
-    pub pool_size: usize,
+    pub connection_pool_size: usize,
     /// Maximum number of inflight gRPC requests across all StorageApi operations.
     ///
     /// This is a global limit shared across all concurrent calls to the StorageApi.
     /// Each request acquires a permit from a shared semaphore before making a gRPC
     /// call. Google recommends up to 100 concurrent streams per connection.
-    /// Default: 400 (pool_size × 100 requests per connection).
+    /// Default: 400 (connection_pool_size × 100 requests per connection).
     pub max_inflight_requests: usize,
 }
 
 impl StorageApiConfig {
-    /// Creates a new configuration with the specified pool size.
-    pub fn with_pool_size(mut self, pool_size: usize) -> Self {
-        self.pool_size = pool_size;
+    /// Creates a new configuration with the specified connection pool size.
+    pub fn with_connection_pool_size(mut self, connection_pool_size: usize) -> Self {
+        self.connection_pool_size = connection_pool_size;
         self
     }
 
@@ -129,8 +129,8 @@ impl StorageApiConfig {
 impl Default for StorageApiConfig {
     fn default() -> Self {
         Self {
-            pool_size: DEFAULT_POOL_SIZE,
-            max_inflight_requests: DEFAULT_POOL_SIZE * DEFAULT_REQUESTS_PER_CONNECTION,
+            connection_pool_size: DEFAULT_CONNECTION_POOL_SIZE,
+            max_inflight_requests: DEFAULT_CONNECTION_POOL_SIZE * DEFAULT_REQUESTS_PER_CONNECTION,
         }
     }
 }
@@ -653,7 +653,7 @@ pub struct StorageApi {
 impl StorageApi {
     /// Creates a new storage API client instance with a custom configuration.
     pub(crate) async fn with_config(auth: Arc<dyn Authenticator>, config: StorageApiConfig) -> Result<Self, BQError> {
-        let connection_pool = ConnectionPool::new(config.pool_size).await?;
+        let connection_pool = ConnectionPool::new(config.connection_pool_size).await?;
         let request_semaphore = Arc::new(Semaphore::new(config.max_inflight_requests));
 
         Ok(Self {
