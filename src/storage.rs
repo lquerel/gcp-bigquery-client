@@ -53,7 +53,7 @@ static BIGQUERY_STORAGE_API_DOMAIN: &str = "bigquerystorage.googleapis.com";
 ///
 /// Set to 9MB to provide safety margin under the 10MB BigQuery API limit,
 /// accounting for request metadata overhead.
-const MAX_BATCH_SIZE_BYTES: usize = 9 * 1024 * 1024;
+pub const MAX_BATCH_SIZE_BYTES: usize = 9 * 1024 * 1024;
 /// Maximum message size for tonic gRPC client configuration.
 ///
 /// Set to 20MB to accommodate large response messages and provide headroom
@@ -145,7 +145,7 @@ struct ConnectionPool(Pool<BigQueryWriteClientManager>);
 /// Wrapper around BigQueryWriteClient.
 struct PooledClient {
     /// The underlying gRPC client.
-    client: BigQueryWriteClient<Channel>,
+    grpc_client: BigQueryWriteClient<Channel>,
 }
 
 /// Manager for creating and managing BigQuery Storage Write API gRPC clients.
@@ -188,7 +188,7 @@ impl Manager for BigQueryWriteClientManager {
 
         debug!("grpc connection created");
 
-        Ok(PooledClient { client })
+        Ok(PooledClient { grpc_client: client })
     }
 
     /// Recycles a gRPC client connection back into the pool.
@@ -743,7 +743,7 @@ impl StorageApi {
         let mut pooled_client = self.connection_pool.get_client().await?;
 
         pooled_client
-            .client
+            .grpc_client
             .get_write_stream(request)
             .await
             .map(|resp| resp.into_inner())
@@ -780,7 +780,7 @@ impl StorageApi {
         let mut pooled_client = self.connection_pool.get_client().await?;
 
         pooled_client
-            .client
+            .grpc_client
             .append_rows(request)
             .await
             .map(|resp| resp.into_inner())
@@ -797,6 +797,9 @@ impl StorageApi {
     /// responses, metadata, and bytes sent for each batch processed. Results are
     /// ordered by completion, not by submission; use `BatchAppendResult::batch_index`
     /// to correlate with the original input order.
+    ///
+    /// Each table batch will result in its own AppendRequests gRPC request and if a batch exceeds
+    /// the limit of 10mb, it will be split into multiple requests automatically.
     pub async fn append_table_batches_concurrent<M, I>(
         &self,
         table_batches: I,
@@ -842,8 +845,10 @@ impl StorageApi {
                         Ok(pooled_client) => {
                             // Clone the client to get a cheap handle to the underlying HTTP/2 connection,
                             // then return the Object to the pool immediately. This allows multiple tasks
-                            // to share the same connection via HTTP/2 multiplexing.
-                            let mut grpc_client = pooled_client.client.clone();
+                            // to share the same connection via HTTP/2 multiplexing since the pool works
+                            // in FiFo mode, so this connection will be immediately be put back into the
+                            // queue to be used for the next append rows request.
+                            let mut grpc_client = pooled_client.grpc_client.clone();
                             drop(pooled_client);
 
                             match grpc_client.append_rows(request).await {
