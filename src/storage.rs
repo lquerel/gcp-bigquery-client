@@ -31,7 +31,7 @@ use tonic::{
     transport::{Channel, ClientTlsConfig},
     Request, Status, Streaming,
 };
-use tracing::{debug, warn};
+use tracing::{debug, info, warn};
 
 use crate::google::cloud::bigquery::storage::v1::{GetWriteStreamRequest, ProtoRows, WriteStream, WriteStreamView};
 use crate::{
@@ -72,13 +72,11 @@ const DEFAULT_STREAM_NAME: &str = "_default";
 /// rather than increased parallelism.
 const DEFAULT_POOL_SIZE: usize = 4;
 
-/// Default maximum concurrent requests per connection.
+/// Default maximum inflight requests per connection.
 ///
-/// HTTP/2 connections can handle many concurrent streams efficiently. This
-/// value represents a reasonable balance between throughput and not overwhelming
-/// the BigQuery service. Google recommends multiplexing when over 20 concurrent
-/// operations are needed.
-const DEFAULT_REQUESTS_PER_CONNECTION: usize = 10;
+/// HTTP/2 connections can handle many concurrent streams efficiently. Google
+/// recommends up to 100 concurrent streams per connection for optimal throughput.
+const DEFAULT_REQUESTS_PER_CONNECTION: usize = 100;
 /// HTTP/2 keepalive interval in seconds.
 ///
 /// Sends PING frames at this interval to keep connections alive and detect
@@ -93,8 +91,8 @@ const HTTP2_KEEPALIVE_TIMEOUT_SECS: u64 = 10;
 
 /// Configuration for the BigQuery Storage Write API client.
 ///
-/// A single HTTP/2 connection can support 1-10+ MBps throughput with multiple
-/// concurrent gRPC streams. The pool provides fault isolation rather than
+/// A single HTTP/2 connection can support 1-10+ MBps throughput with up to
+/// 100 concurrent gRPC streams. The pool provides fault isolation rather than
 /// increased parallelism.
 #[derive(Debug, Clone)]
 pub struct StorageApiConfig {
@@ -105,20 +103,20 @@ pub struct StorageApiConfig {
     /// so additional connections provide fault isolation rather than parallelism.
     /// Default: 4.
     pub pool_size: usize,
-    /// Maximum number of concurrent gRPC requests across all StorageApi operations.
+    /// Maximum number of inflight gRPC requests across all StorageApi operations.
     ///
     /// This is a global limit shared across all concurrent calls to the StorageApi.
     /// Each request acquires a permit from a shared semaphore before making a gRPC
-    /// call. Google recommends multiplexing when over 20 concurrent operations are
-    /// needed. Default: 40 (pool_size × 10 requests per connection).
-    pub max_concurrent_requests: usize,
+    /// call. Google recommends up to 100 concurrent streams per connection.
+    /// Default: 400 (pool_size × 100 requests per connection).
+    pub max_inflight_requests: usize,
 }
 
 impl Default for StorageApiConfig {
     fn default() -> Self {
         Self {
             pool_size: DEFAULT_POOL_SIZE,
-            max_concurrent_requests: DEFAULT_POOL_SIZE * DEFAULT_REQUESTS_PER_CONNECTION,
+            max_inflight_requests: DEFAULT_POOL_SIZE * DEFAULT_REQUESTS_PER_CONNECTION,
         }
     }
 }
@@ -130,9 +128,9 @@ impl StorageApiConfig {
         self
     }
 
-    /// Creates a new configuration with the specified max concurrent requests.
-    pub fn with_max_concurrent_requests(mut self, max_concurrent_requests: usize) -> Self {
-        self.max_concurrent_requests = max_concurrent_requests;
+    /// Creates a new configuration with the specified max inflight requests.
+    pub fn with_max_inflight_requests(mut self, max_inflight_requests: usize) -> Self {
+        self.max_inflight_requests = max_inflight_requests;
         self
     }
 }
@@ -656,7 +654,7 @@ impl StorageApi {
     /// Creates a new storage API client instance with a custom configuration.
     pub(crate) async fn with_config(auth: Arc<dyn Authenticator>, config: StorageApiConfig) -> Result<Self, BQError> {
         let connection_pool = ConnectionPool::new(config.pool_size).await?;
-        let request_semaphore = Arc::new(Semaphore::new(config.max_concurrent_requests));
+        let request_semaphore = Arc::new(Semaphore::new(config.max_inflight_requests));
 
         Ok(Self {
             connection_pool,
