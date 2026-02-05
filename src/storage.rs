@@ -21,7 +21,7 @@ use std::{
     fmt::Display,
     sync::{
         atomic::{AtomicUsize, Ordering},
-        Arc,
+        Arc, RwLock,
     },
 };
 use tokio::sync::Semaphore;
@@ -139,20 +139,41 @@ impl Default for StorageApiConfig {
 ///
 /// Uses deadpool to maintain a pool of persistent connections with proper
 /// resource management, automatic cleanup, and efficient connection reuse.
+/// Implements epoch-based connection lifecycle to ensure connections created
+/// before a reset aren't reused.
 #[derive(Clone)]
-struct ConnectionPool(Pool<BigQueryWriteClientManager>);
+struct ConnectionPool {
+    /// The underlying deadpool connection pool.
+    pool: Pool<BigQueryWriteClientManager>,
+    /// Current connection epoch for tracking connection generations.
+    ///
+    /// Incremented each time connections are released to prevent reuse
+    /// of connections from previous epochs. Protected by RwLock to ensure
+    /// atomic epoch changes without allowing concurrent connection operations.
+    epoch: Arc<RwLock<u64>>,
+}
 
-/// Wrapper around BigQueryWriteClient.
+/// Wrapper around BigQueryWriteClient with epoch tracking.
 struct PooledClient {
     /// The underlying gRPC client.
     grpc_client: BigQueryWriteClient<Channel>,
+    /// Epoch when this connection was created.
+    ///
+    /// Used to determine if this connection should be recycled or discarded
+    /// when returned to the pool. Connections with epochs older than the
+    /// current pool epoch are discarded.
+    epoch: u64,
 }
 
 /// Manager for creating and managing BigQuery Storage Write API gRPC clients.
 ///
 /// Implements the deadpool Manager trait to handle connection lifecycle
 /// including creation, health checks, and cleanup of gRPC clients.
-struct BigQueryWriteClientManager;
+/// Tracks the current epoch to stamp new connections.
+struct BigQueryWriteClientManager {
+    /// Reference to the current epoch counter shared with the connection pool.
+    epoch: Arc<RwLock<u64>>,
+}
 
 impl Manager for BigQueryWriteClientManager {
     type Type = PooledClient;
@@ -162,7 +183,11 @@ impl Manager for BigQueryWriteClientManager {
     ///
     /// Establishes a secure TLS connection with HTTP/2 keepalive, compression,
     /// and size limits configured for optimal performance and reliability.
+    /// Stamps the connection with the current epoch for lifecycle tracking.
     async fn create(&self) -> Result<Self::Type, Self::Error> {
+        // Acquire read lock to get current epoch. This blocks if epoch is being modified.
+        let current_epoch = *self.epoch.read().unwrap();
+
         // Since Tonic 0.12.0, TLS root certificates are no longer included by default.
         // They must now be specified explicitly.
         // See: https://github.com/hyperium/tonic/pull/1731
@@ -186,21 +211,48 @@ impl Manager for BigQueryWriteClientManager {
             .send_compressed(CompressionEncoding::Gzip)
             .accept_compressed(CompressionEncoding::Gzip);
 
-        debug!("grpc connection created");
+        debug!(epoch = current_epoch, "grpc connection created");
 
-        Ok(PooledClient { grpc_client: client })
+        Ok(PooledClient {
+            grpc_client: client,
+            epoch: current_epoch,
+        })
     }
 
     /// Recycles a gRPC client connection back into the pool.
     ///
-    /// With HTTP/2 keepalive enabled, dead connections are detected automatically
-    /// via PING frames. Age-based recycling is unnecessary and conflicts with
-    /// Google's recommendation to reuse connections for as many writes as possible.
+    /// Checks if the connection's epoch matches the current pool epoch.
+    /// Connections from old epochs are discarded to prevent reuse after
+    /// a connection reset. With HTTP/2 keepalive enabled, dead connections
+    /// are detected automatically via PING frames.
     async fn recycle(
         &self,
-        _conn: &mut Self::Type,
+        conn: &mut Self::Type,
         _metrics: &deadpool::managed::Metrics,
     ) -> deadpool::managed::RecycleResult<Self::Error> {
+        // Acquire read lock to get current epoch. This blocks if epoch is being modified.
+        let current_epoch = *self.epoch.read().unwrap();
+
+        if conn.epoch < current_epoch {
+            // Connection is from an old epoch, discard it.
+            debug!(
+                connection_epoch = conn.epoch,
+                current_epoch = current_epoch,
+                "discarding connection from old epoch"
+            );
+            return Err(deadpool::managed::RecycleError::Message(
+                "connection epoch is outdated".into(),
+            ));
+        }
+
+        // This should never happen - a connection can't be from the future.
+        debug_assert!(
+            conn.epoch == current_epoch,
+            "connection epoch {} > current epoch {}: this is a bug",
+            conn.epoch,
+            current_epoch
+        );
+
         Ok(())
     }
 }
@@ -212,9 +264,11 @@ impl ConnectionPool {
     /// recycles them efficiently for optimal performance. With HTTP/2
     /// multiplexing, a small number of connections (2-4) is typically
     /// sufficient for high throughput, as multiple gRPC streams can
-    /// share the same underlying connection.
+    /// share the same underlying connection. Initializes epoch tracking
+    /// for connection lifecycle management.
     async fn new(max_size: usize) -> Result<Self, BQError> {
-        let manager = BigQueryWriteClientManager;
+        let epoch = Arc::new(RwLock::new(0));
+        let manager = BigQueryWriteClientManager { epoch: epoch.clone() };
         let pool = Pool::builder(manager)
             .max_size(max_size)
             // We must use Fifo since we want to always get the least recently used connection to cycle
@@ -224,15 +278,16 @@ impl ConnectionPool {
             .map_err(|e| BQError::ConnectionPoolError(format!("failed to create connection pool: {e}")))?;
 
         debug!(max_size, "connection pool initialized");
-        Ok(Self(pool))
+        Ok(Self { pool, epoch })
     }
 
     /// Retrieves a client from the pool.
     ///
     /// Returns a managed connection object that automatically returns
-    /// the connection to the pool when dropped.
+    /// the connection to the pool when dropped. Connections are automatically
+    /// validated against the current epoch during recycling.
     async fn get_client(&self) -> Result<Object<BigQueryWriteClientManager>, BQError> {
-        self.0
+        self.pool
             .get()
             .await
             .map_err(|e| BQError::ConnectionPoolError(format!("failed to get connection from pool: {e}")))
@@ -240,12 +295,38 @@ impl ConnectionPool {
 
     /// Releases all connections currently held in the pool.
     ///
-    /// Removes all idle connections, forcing new requests to create fresh
-    /// connections. Useful for recovering from network errors or refreshing
-    /// stale connections.
+    /// Increments the connection epoch to invalidate all existing connections,
+    /// both idle and in-use. Idle connections are immediately cleared from the
+    /// pool, while in-use connections will be discarded when returned during
+    /// recycling. Useful for recovering from network errors or refreshing
+    /// stale connections. Blocks connection creation and release operations
+    /// during the epoch change to ensure consistency.
     fn release_all(&self) {
-        self.0.retain(|_, _| false);
-        debug!("all connections released from pool");
+        // Optimistically clear all idle connections from the pool. In-use connections
+        // will be automatically discarded when returned via the recycle check.
+        //
+        // We do this outside of the lock to minimize critical section and knowing that we are fine
+        // if new connections are created before the new epoch is created since those will be recycled
+        // later on.
+        //
+        // This `retain` call is implemented as an optimization to immediately clear connections and
+        // reduce recycling attempts which could decrease the pool performance since the connection
+        // acquisition in `deadpool` relies on a loop.
+        self.pool.retain(|_, _| false);
+
+        // Acquire write lock to modify epoch. This blocks all connection
+        // creation and recycling operations during the epoch change.
+        let mut epoch = self.epoch.write().unwrap();
+
+        let old_epoch = *epoch;
+        *epoch += 1;
+        let new_epoch = *epoch;
+
+        debug!(
+            old_epoch = old_epoch,
+            new_epoch = new_epoch,
+            "all connections released, epoch bumped"
+        );
     }
 }
 
