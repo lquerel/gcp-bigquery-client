@@ -293,15 +293,15 @@ impl ConnectionPool {
             .map_err(|e| BQError::ConnectionPoolError(format!("failed to get connection from pool: {e}")))
     }
 
-    /// Releases all connections currently held in the pool.
+    /// Invalidates all connections by incrementing the connection epoch.
     ///
     /// Increments the connection epoch to invalidate all existing connections,
     /// both idle and in-use. Idle connections are immediately cleared from the
     /// pool, while in-use connections will be discarded when returned during
-    /// recycling. Useful for recovering from network errors or refreshing
-    /// stale connections. Blocks connection creation and release operations
-    /// during the epoch change to ensure consistency.
-    fn release_all(&self) {
+    /// recycling. Useful for recovering from network errors, after DDL changes,
+    /// or when refreshing stale connections. Blocks connection creation and
+    /// recycling operations during the epoch change to ensure consistency.
+    fn invalidate_all(&self) {
         // Optimistically clear all idle connections from the pool. In-use connections
         // will be automatically discarded when returned via the recycle check.
         //
@@ -994,13 +994,15 @@ impl StorageApi {
         Ok(batch_results)
     }
 
-    /// Releases all connections currently held in the connection pool.
+    /// Invalidates all connections by incrementing the connection epoch.
     ///
-    /// Removes all idle connections, forcing new requests to create fresh
-    /// connections. Useful for recovering from network errors or refreshing
-    /// stale connections.
-    pub fn release_all_connections(&self) {
-        self.connection_pool.release_all();
+    /// Increments the connection epoch to invalidate all existing connections,
+    /// both idle and in-use. Idle connections are immediately cleared from the
+    /// pool, while in-use connections will be discarded when returned during
+    /// recycling. Call this after DDL changes to ensure all subsequent operations
+    /// use fresh connections with updated schema information.
+    pub fn invalidate_all_connections(&self) {
+        self.connection_pool.invalidate_all();
     }
 
     /// Creates an authenticated gRPC request with Bearer token authorization.
