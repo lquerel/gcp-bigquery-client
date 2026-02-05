@@ -77,29 +77,31 @@ pub struct Client {
 }
 
 impl Client {
-    pub async fn from_authenticator(auth: Arc<dyn Authenticator>) -> Result<Self, BQError> {
-        Self::from_authenticator_and_client(auth, Some(reqwest::Client::new())).await
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn new(
+        dataset_api: DatasetApi,
+        table_api: TableApi,
+        job_api: JobApi,
+        tabledata_api: TableDataApi,
+        routine_api: RoutineApi,
+        model_api: ModelApi,
+        project_api: ProjectApi,
+        storage_api: StorageApi,
+    ) -> Self {
+        Self {
+            dataset_api,
+            table_api,
+            job_api,
+            tabledata_api,
+            routine_api,
+            model_api,
+            project_api,
+            storage_api,
+        }
     }
 
-    pub async fn from_authenticator_and_client(
-        auth: Arc<dyn Authenticator>,
-        client: Option<reqwest::Client>,
-    ) -> Result<Self, BQError> {
-        let client = if let Some(client) = client {
-            client
-        } else {
-            reqwest::Client::new()
-        };
-        Ok(Self {
-            dataset_api: DatasetApi::new(client.clone(), Arc::clone(&auth)),
-            table_api: TableApi::new(client.clone(), Arc::clone(&auth)),
-            job_api: JobApi::new(client.clone(), Arc::clone(&auth)),
-            tabledata_api: TableDataApi::new(client.clone(), Arc::clone(&auth)),
-            routine_api: RoutineApi::new(client.clone(), Arc::clone(&auth)),
-            model_api: ModelApi::new(client.clone(), Arc::clone(&auth)),
-            project_api: ProjectApi::new(client, Arc::clone(&auth)),
-            storage_api: StorageApi::new(auth).await?,
-        })
+    pub async fn from_authenticator(auth: Arc<dyn Authenticator>) -> Result<Self, BQError> {
+        ClientBuilder::new().build_from_authenticator(auth).await
     }
 
     /// Constructs a new BigQuery client.
@@ -125,18 +127,6 @@ impl Client {
 
     pub async fn with_workload_identity(readonly: bool) -> Result<Self, BQError> {
         ClientBuilder::new().build_with_workload_identity(readonly).await
-    }
-
-    pub(crate) fn v2_base_url(&mut self, base_url: String) -> &mut Self {
-        self.dataset_api.with_base_url(base_url.clone());
-        self.table_api.with_base_url(base_url.clone());
-        self.job_api.with_base_url(base_url.clone());
-        self.tabledata_api.with_base_url(base_url.clone());
-        self.routine_api.with_base_url(base_url.clone());
-        self.model_api.with_base_url(base_url.clone());
-        self.project_api.with_base_url(base_url.clone());
-        self.storage_api.with_base_url(base_url);
-        self
     }
 
     pub async fn from_installed_flow_authenticator<S: AsRef<[u8]>, P: Into<PathBuf>>(

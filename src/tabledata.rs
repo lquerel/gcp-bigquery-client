@@ -246,7 +246,7 @@ mod test {
             .tabledata()
             .insert_all(project_id, dataset_id, table_id, insert_request)
             .await;
-        assert!(result.is_ok(), "Error: {:?}", result);
+        assert!(result.is_ok(), "Error: {result:?}");
 
         #[cfg(feature = "gzip")]
         {
@@ -267,7 +267,7 @@ mod test {
                 .tabledata()
                 .insert_all_gzipped(project_id, dataset_id, table_id, insert_request_gzipped)
                 .await;
-            assert!(result_gzipped.is_ok(), "Error: {:?}", result_gzipped);
+            assert!(result_gzipped.is_ok(), "Error: {result_gzipped:?}");
         }
 
         // Remove table and dataset
