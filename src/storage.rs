@@ -21,10 +21,10 @@ use std::{
     fmt::Display,
     sync::{
         atomic::{AtomicUsize, Ordering},
-        Arc, RwLock,
+        Arc,
     },
 };
-use tokio::sync::Semaphore;
+use tokio::sync::{RwLock, Semaphore};
 use tokio::task::JoinSet;
 use tonic::{
     codec::CompressionEncoding,
@@ -185,8 +185,8 @@ impl Manager for BigQueryWriteClientManager {
     /// and size limits configured for optimal performance and reliability.
     /// Stamps the connection with the current epoch for lifecycle tracking.
     async fn create(&self) -> Result<Self::Type, Self::Error> {
-        // Acquire read lock to get current epoch. This blocks if epoch is being modified.
-        let current_epoch = *self.epoch.read().unwrap();
+        // Acquire read lock to get current epoch. This awaits if epoch is being modified.
+        let current_epoch = *self.epoch.read().await;
 
         // Since Tonic 0.12.0, TLS root certificates are no longer included by default.
         // They must now be specified explicitly.
@@ -230,8 +230,8 @@ impl Manager for BigQueryWriteClientManager {
         conn: &mut Self::Type,
         _metrics: &deadpool::managed::Metrics,
     ) -> deadpool::managed::RecycleResult<Self::Error> {
-        // Acquire read lock to get current epoch. This blocks if epoch is being modified.
-        let current_epoch = *self.epoch.read().unwrap();
+        // Acquire read lock to get current epoch. This awaits if epoch is being modified.
+        let current_epoch = *self.epoch.read().await;
 
         if conn.epoch < current_epoch {
             // Connection is from an old epoch, discard it.
@@ -299,9 +299,9 @@ impl ConnectionPool {
     /// both idle and in-use. Idle connections are immediately cleared from the
     /// pool, while in-use connections will be discarded when returned during
     /// recycling. Useful for recovering from network errors, after DDL changes,
-    /// or when refreshing stale connections. Blocks connection creation and
+    /// or when refreshing stale connections. Awaits connection creation and
     /// recycling operations during the epoch change to ensure consistency.
-    fn invalidate_all(&self) {
+    async fn invalidate_all(&self) {
         // Optimistically clear all idle connections from the pool. In-use connections
         // will be automatically discarded when returned via the recycle check.
         //
@@ -314,9 +314,9 @@ impl ConnectionPool {
         // acquisition in `deadpool` relies on a loop.
         self.pool.retain(|_, _| false);
 
-        // Acquire write lock to modify epoch. This blocks all connection
+        // Acquire write lock to modify epoch. This awaits all connection
         // creation and recycling operations during the epoch change.
-        let mut epoch = self.epoch.write().unwrap();
+        let mut epoch = self.epoch.write().await;
 
         let old_epoch = *epoch;
         *epoch += 1;
@@ -1001,8 +1001,8 @@ impl StorageApi {
     /// pool, while in-use connections will be discarded when returned during
     /// recycling. Call this after DDL changes to ensure all subsequent operations
     /// use fresh connections with updated schema information.
-    pub fn invalidate_all_connections(&self) {
-        self.connection_pool.invalidate_all();
+    pub async fn invalidate_all_connections(&self) {
+        self.connection_pool.invalidate_all().await;
     }
 
     /// Creates an authenticated gRPC request with Bearer token authorization.
