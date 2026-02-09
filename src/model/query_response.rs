@@ -71,66 +71,75 @@ pub struct ResultSet {
     fields: HashMap<String, usize>,
 }
 
+impl Default for ResultSet {
+    fn default() -> Self {
+        Self {
+            cursor: -1,
+            row_count: 0,
+            rows: Vec::new(),
+            fields: HashMap::new(),
+        }
+    }
+}
+
 impl ResultSet {
     pub fn new_from_query_response(query_response: QueryResponse) -> Self {
-        if query_response.job_complete.unwrap_or(false) && query_response.schema.is_some() {
-            // rows and tables schema are only present for successfully completed jobs.
-            let row_count = query_response.rows.as_ref().map_or(0, Vec::len) as i64;
-            let table_schema = query_response.schema.as_ref().expect("Expecting a schema");
-            let table_fields = table_schema
-                .fields
-                .as_ref()
-                .expect("Expecting a non empty list of fields");
-            let fields: HashMap<String, usize> = table_fields
-                .iter()
-                .enumerate()
-                .map(|(pos, field)| (field.name.clone(), pos))
-                .collect();
-            let rows = query_response.rows.unwrap_or_default();
-            Self {
-                cursor: -1,
-                row_count,
-                rows,
-                fields,
-            }
-        } else {
-            Self {
-                cursor: -1,
-                row_count: 0,
-                rows: vec![],
-                fields: HashMap::new(),
-            }
+        if !query_response.job_complete.unwrap_or(false) {
+            return Self::default();
+        }
+
+        let Some(table_schema) = query_response.schema.as_ref() else {
+            return Self::default();
+        };
+
+        // Rows and tables schema are only present for successfully completed jobs.
+        let row_count = query_response.rows.as_ref().map_or(0, Vec::len) as i64;
+        let table_fields = table_schema
+            .fields
+            .as_ref()
+            .expect("Expecting a non empty list of fields");
+        let fields: HashMap<String, usize> = table_fields
+            .iter()
+            .enumerate()
+            .map(|(pos, field)| (field.name.clone(), pos))
+            .collect();
+        let rows = query_response.rows.unwrap_or_default();
+
+        Self {
+            cursor: -1,
+            row_count,
+            rows,
+            fields,
         }
     }
 
     pub fn new_from_get_query_results_response(get_query_results_response: GetQueryResultsResponse) -> Self {
-        if get_query_results_response.job_complete.unwrap_or(false) && get_query_results_response.schema.is_some() {
-            // rows and tables schema are only present for successfully completed jobs.
-            let row_count = get_query_results_response.rows.as_ref().map_or(0, Vec::len) as i64;
-            let table_schema = get_query_results_response.schema.as_ref().expect("Expecting a schema");
-            let table_fields = table_schema
-                .fields
-                .as_ref()
-                .expect("Expecting a non empty list of fields");
-            let fields: HashMap<String, usize> = table_fields
-                .iter()
-                .enumerate()
-                .map(|(pos, field)| (field.name.clone(), pos))
-                .collect();
-            let rows = get_query_results_response.rows.unwrap_or_default();
-            Self {
-                cursor: -1,
-                row_count,
-                rows,
-                fields,
-            }
-        } else {
-            Self {
-                cursor: -1,
-                row_count: 0,
-                rows: vec![],
-                fields: HashMap::new(),
-            }
+        if !get_query_results_response.job_complete.unwrap_or(false) {
+            return Self::default();
+        }
+
+        let Some(table_schema) = get_query_results_response.schema.as_ref() else {
+            return Self::default();
+        };
+
+        // Rows and tables schema are only present for successfully completed jobs.
+        let row_count = get_query_results_response.rows.as_ref().map_or(0, Vec::len) as i64;
+        let table_fields = table_schema
+            .fields
+            .as_ref()
+            .expect("Expecting a non empty list of fields");
+        let fields: HashMap<String, usize> = table_fields
+            .iter()
+            .enumerate()
+            .map(|(pos, field)| (field.name.clone(), pos))
+            .collect();
+        let rows = get_query_results_response.rows.unwrap_or_default();
+
+        Self {
+            cursor: -1,
+            row_count,
+            rows,
+            fields,
         }
     }
 
