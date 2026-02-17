@@ -9,7 +9,7 @@ use crate::model::table_data_insert_all_request::TableDataInsertAllRequest;
 use crate::model::table_data_insert_all_request::TableDataInsertAllRequestGzipped;
 use crate::model::table_data_insert_all_response::TableDataInsertAllResponse;
 use crate::model::table_data_list_response::TableDataListResponse;
-use crate::{process_response, urlencode, BIG_QUERY_V2_URL};
+use crate::{BIG_QUERY_V2_URL, process_response, urlencode};
 use reqwest::Client;
 
 #[cfg(feature = "gzip")]
@@ -194,7 +194,7 @@ mod test {
     use crate::model::table_data_insert_all_request::TableDataInsertAllRequestGzipped;
     use crate::model::table_field_schema::TableFieldSchema;
     use crate::model::table_schema::TableSchema;
-    use crate::{env_vars, Client};
+    use crate::{Client, env_vars};
 
     #[derive(Serialize)]
     struct Row {

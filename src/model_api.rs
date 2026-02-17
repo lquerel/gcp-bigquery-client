@@ -7,7 +7,7 @@ use crate::auth::Authenticator;
 use crate::error::BQError;
 use crate::model::list_models_response::ListModelsResponse;
 use crate::model::model::Model;
-use crate::{process_response, urlencode, BIG_QUERY_V2_URL};
+use crate::{BIG_QUERY_V2_URL, process_response, urlencode};
 
 /// A model API handler.
 #[derive(Clone)]

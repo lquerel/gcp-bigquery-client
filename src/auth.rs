@@ -4,15 +4,15 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use dyn_clone::{clone_trait_object, DynClone};
+use dyn_clone::{DynClone, clone_trait_object};
 use hyper_util::client::legacy::connect::HttpConnector;
+use yup_oauth2::ApplicationDefaultCredentialsAuthenticator as YupApplicationDefaultCredentialsAuthenticator;
+use yup_oauth2::ApplicationDefaultCredentialsFlowOpts;
+use yup_oauth2::AuthorizedUserAuthenticator as YupAuthorizedUserAuthenticator;
 use yup_oauth2::authenticator::ApplicationDefaultCredentialsTypes;
 use yup_oauth2::authenticator::Authenticator as YupAuthenticator;
 use yup_oauth2::authorized_user::AuthorizedUserSecret;
 use yup_oauth2::hyper_rustls::HttpsConnector;
-use yup_oauth2::ApplicationDefaultCredentialsAuthenticator as YupApplicationDefaultCredentialsAuthenticator;
-use yup_oauth2::ApplicationDefaultCredentialsFlowOpts;
-use yup_oauth2::AuthorizedUserAuthenticator as YupAuthorizedUserAuthenticator;
 use yup_oauth2::{ApplicationSecret, ServiceAccountKey};
 use yup_oauth2::{InstalledFlowAuthenticator as YupInstalledFlowAuthenticator, InstalledFlowReturnMethod};
 
@@ -319,8 +319,8 @@ pub(crate) async fn authorized_user_authenticator<S: AsRef<Path>>(
 
 #[cfg(test)]
 mod test {
-    use crate::error::BQError;
     use crate::Client;
+    use crate::error::BQError;
     use std::env;
 
     /// Test ADC authentication with authorized_user (refresh_token) credentials.

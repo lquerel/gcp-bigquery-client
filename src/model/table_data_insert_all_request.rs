@@ -3,7 +3,7 @@ use crate::model::table_data_insert_all_request_rows::TableDataInsertAllRequestR
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "gzip")]
-use flate2::{write::GzEncoder, Compression};
+use flate2::{Compression, write::GzEncoder};
 #[cfg(feature = "gzip")]
 use std::io::Write;
 

@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 use tokio::sync::AcquireError;
-use tonic::{metadata::errors::InvalidMetadataValue, Status};
+use tonic::{Status, metadata::errors::InvalidMetadataValue};
 
 #[allow(clippy::upper_case_acronyms)]
 #[derive(thiserror::Error, Debug)]
@@ -37,7 +37,9 @@ pub enum BQError {
     #[error("Response error (error: {error:?})")]
     ResponseError { error: ResponseError },
 
-    #[error("No data available. The result set is positioned before the first or after the last row. Try to call the method next on your result set.")]
+    #[error(
+        "No data available. The result set is positioned before the first or after the last row. Try to call the method next on your result set."
+    )]
     NoDataAvailable,
 
     #[error("Invalid column index (col_index: {col_index})")]

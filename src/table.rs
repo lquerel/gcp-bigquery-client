@@ -13,7 +13,7 @@ use crate::model::table::Table;
 use crate::model::table_list::TableList;
 use crate::model::test_iam_permissions_request::TestIamPermissionsRequest;
 use crate::model::test_iam_permissions_response::TestIamPermissionsResponse;
-use crate::{process_response, urlencode, BIG_QUERY_V2_URL};
+use crate::{BIG_QUERY_V2_URL, process_response, urlencode};
 
 /// A table API handler.
 #[derive(Clone)]
@@ -372,7 +372,7 @@ mod test {
     use crate::model::table_field_schema::TableFieldSchema;
     use crate::model::table_schema::TableSchema;
     use crate::table::ListOptions;
-    use crate::{env_vars, Client};
+    use crate::{Client, env_vars};
     use std::time::{Duration, SystemTime};
 
     #[tokio::test]

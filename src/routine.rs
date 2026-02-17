@@ -7,7 +7,7 @@ use crate::auth::Authenticator;
 use crate::error::BQError;
 use crate::model::list_routines_response::ListRoutinesResponse;
 use crate::model::routine::Routine;
-use crate::{process_response, urlencode, BIG_QUERY_V2_URL};
+use crate::{BIG_QUERY_V2_URL, process_response, urlencode};
 
 /// A routine API handler.
 #[derive(Clone)]
