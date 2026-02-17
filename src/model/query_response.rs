@@ -73,10 +73,9 @@ pub struct ResultSet {
 
 impl ResultSet {
     pub fn new_from_query_response(query_response: QueryResponse) -> Self {
-        if query_response.job_complete.unwrap_or(false) && query_response.schema.is_some() {
+        if query_response.job_complete.unwrap_or(false) && let Some(table_schema) = query_response.schema {
             // rows and tables schema are only present for successfully completed jobs.
             let row_count = query_response.rows.as_ref().map_or(0, Vec::len) as i64;
-            let table_schema = query_response.schema.as_ref().expect("Expecting a schema");
             let table_fields = table_schema
                 .fields
                 .as_ref()
@@ -104,10 +103,9 @@ impl ResultSet {
     }
 
     pub fn new_from_get_query_results_response(get_query_results_response: GetQueryResultsResponse) -> Self {
-        if get_query_results_response.job_complete.unwrap_or(false) && get_query_results_response.schema.is_some() {
+        if get_query_results_response.job_complete.unwrap_or(false) && let Some(table_schema) = get_query_results_response.schema {
             // rows and tables schema are only present for successfully completed jobs.
             let row_count = get_query_results_response.rows.as_ref().map_or(0, Vec::len) as i64;
-            let table_schema = get_query_results_response.schema.as_ref().expect("Expecting a schema");
             let table_fields = table_schema
                 .fields
                 .as_ref()

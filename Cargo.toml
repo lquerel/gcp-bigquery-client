@@ -2,7 +2,7 @@
 name = "gcp-bigquery-client"
 version = "0.28.0"
 authors = ["Laurent Querel <laurent.querel@gmail.com>"]
-edition = "2021"
+edition = "2024"
 license = "MIT OR Apache-2.0"
 description = """
 An ergonomic async client library for GCP BigQuery.
