@@ -4,13 +4,13 @@
 //! enabling efficient streaming of structured data to BigQuery tables.
 
 use deadpool::managed::{Manager, Object, Pool, QueueMode};
-use futures::stream::Stream;
 use futures::StreamExt;
+use futures::stream::Stream;
 use pin_project::pin_project;
 use prost::Message;
 use prost_types::{
-    field_descriptor_proto::{Label, Type},
     DescriptorProto, FieldDescriptorProto,
+    field_descriptor_proto::{Label, Type},
 };
 use std::ops::Deref;
 use std::pin::Pin;
@@ -20,28 +20,28 @@ use std::{
     convert::TryInto,
     fmt::Display,
     sync::{
-        atomic::{AtomicUsize, Ordering},
         Arc,
+        atomic::{AtomicUsize, Ordering},
     },
 };
 use tokio::sync::Semaphore;
 use tokio::task::JoinSet;
 use tonic::{
+    Request, Status, Streaming,
     codec::CompressionEncoding,
     transport::{Channel, ClientTlsConfig},
-    Request, Status, Streaming,
 };
 
 use crate::google::cloud::bigquery::storage::v1::{GetWriteStreamRequest, ProtoRows, WriteStream, WriteStreamView};
 use crate::{
+    BIG_QUERY_V2_URL,
     auth::Authenticator,
     error::BQError,
     google::cloud::bigquery::storage::v1::{
+        AppendRowsRequest, AppendRowsResponse, ProtoSchema,
         append_rows_request::{self, MissingValueInterpretation, ProtoData},
         big_query_write_client::BigQueryWriteClient,
-        AppendRowsRequest, AppendRowsResponse, ProtoSchema,
     },
-    BIG_QUERY_V2_URL,
 };
 
 /// Base URL for the BigQuery Storage Write API endpoint.
@@ -864,7 +864,7 @@ pub mod test {
     use crate::storage::{
         ColumnMode, ColumnType, ConnectionPool, FieldDescriptor, StorageApi, StreamName, TableBatch, TableDescriptor,
     };
-    use crate::{env_vars, Client};
+    use crate::{Client, env_vars};
 
     #[derive(Clone, PartialEq, Message)]
     struct Actor {

@@ -7,7 +7,7 @@ use crate::auth::Authenticator;
 use crate::error::BQError;
 use crate::model::get_service_account_response::GetServiceAccountResponse;
 use crate::model::project_list::ProjectList;
-use crate::{process_response, urlencode, BIG_QUERY_V2_URL};
+use crate::{BIG_QUERY_V2_URL, process_response, urlencode};
 
 /// A project API handler.
 #[derive(Clone)]

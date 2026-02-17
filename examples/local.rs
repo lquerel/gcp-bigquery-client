@@ -12,8 +12,8 @@ mod auth_mock {
     use serde::Serialize;
     use std::ops::Deref;
     use wiremock::{
-        matchers::{method, path},
         Mock, MockServer, ResponseTemplate, Times,
+        matchers::{method, path},
     };
 
     pub const AUTH_TOKEN_ENDPOINT: &str = "/:o/oauth2/token";
@@ -91,12 +91,12 @@ mod bq {
 
     use fake::{Fake, StringFaker};
     use gcp_bigquery_client::{
+        Client,
         model::{
             dataset::Dataset, query_request::QueryRequest, query_response::ResultSet, table::Table,
             table_data_insert_all_request::TableDataInsertAllRequest, table_field_schema::TableFieldSchema,
             table_schema::TableSchema,
         },
-        Client,
     };
     use serde::Serialize;
 

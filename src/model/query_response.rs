@@ -73,7 +73,9 @@ pub struct ResultSet {
 
 impl ResultSet {
     pub fn new_from_query_response(query_response: QueryResponse) -> Self {
-        if query_response.job_complete.unwrap_or(false) && let Some(table_schema) = query_response.schema {
+        if query_response.job_complete.unwrap_or(false)
+            && let Some(table_schema) = query_response.schema
+        {
             // rows and tables schema are only present for successfully completed jobs.
             let row_count = query_response.rows.as_ref().map_or(0, Vec::len) as i64;
             let table_fields = table_schema
@@ -103,7 +105,9 @@ impl ResultSet {
     }
 
     pub fn new_from_get_query_results_response(get_query_results_response: GetQueryResultsResponse) -> Self {
-        if get_query_results_response.job_complete.unwrap_or(false) && let Some(table_schema) = get_query_results_response.schema {
+        if get_query_results_response.job_complete.unwrap_or(false)
+            && let Some(table_schema) = get_query_results_response.schema
+        {
             // rows and tables schema are only present for successfully completed jobs.
             let row_count = get_query_results_response.rows.as_ref().map_or(0, Vec::len) as i64;
             let table_fields = table_schema

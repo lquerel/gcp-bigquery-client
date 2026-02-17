@@ -19,7 +19,7 @@ use crate::model::job_reference::JobReference;
 use crate::model::query_request::QueryRequest;
 use crate::model::query_response::QueryResponse;
 use crate::model::table_row::TableRow;
-use crate::{process_response, urlencode, BIG_QUERY_V2_URL};
+use crate::{BIG_QUERY_V2_URL, process_response, urlencode};
 
 /// A job API handler.
 #[derive(Clone)]
@@ -467,7 +467,7 @@ mod test {
     use crate::model::table_data_insert_all_request::TableDataInsertAllRequest;
     use crate::model::table_field_schema::TableFieldSchema;
     use crate::model::table_schema::TableSchema;
-    use crate::{env_vars, Client};
+    use crate::{Client, env_vars};
 
     #[derive(Serialize)]
     struct MyRow {

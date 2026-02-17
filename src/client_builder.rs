@@ -4,11 +4,11 @@ use std::sync::Arc;
 use yup_oauth2::ServiceAccountKey;
 
 use crate::auth::{
-    application_default_credentials_authenticator, authorized_user_authenticator, installed_flow_authenticator,
-    service_account_authenticator, Authenticator, ServiceAccountAuthenticator,
+    Authenticator, ServiceAccountAuthenticator, application_default_credentials_authenticator,
+    authorized_user_authenticator, installed_flow_authenticator, service_account_authenticator,
 };
 use crate::error::BQError;
-use crate::{Client, BIG_QUERY_AUTH_URL, BIG_QUERY_V2_URL};
+use crate::{BIG_QUERY_AUTH_URL, BIG_QUERY_V2_URL, Client};
 
 pub struct ClientBuilder {
     v2_base_url: String,

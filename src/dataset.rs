@@ -11,7 +11,7 @@ use crate::model::datasets::Datasets;
 use crate::model::information_schema::schemata::Schemata;
 use crate::model::query_request::QueryRequest;
 use crate::model::query_response::{QueryResponse, ResultSet};
-use crate::{process_response, urlencode, BIG_QUERY_V2_URL};
+use crate::{BIG_QUERY_V2_URL, process_response, urlencode};
 
 /// A dataset API handler.
 #[derive(Clone)]
@@ -421,7 +421,7 @@ mod test {
     use crate::dataset::ListOptions;
     use crate::error::BQError;
     use crate::model::dataset::Dataset;
-    use crate::{env_vars, Client};
+    use crate::{Client, env_vars};
 
     #[tokio::test]
     async fn test() -> Result<(), BQError> {

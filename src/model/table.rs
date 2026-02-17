@@ -1,3 +1,4 @@
+use crate::Client;
 use crate::error::BQError;
 use crate::model::clustering::Clustering;
 use crate::model::dataset::Dataset;
@@ -12,7 +13,6 @@ use crate::model::table_reference::TableReference;
 use crate::model::table_schema::TableSchema;
 use crate::model::time_partitioning::TimePartitioning;
 use crate::model::view_definition::ViewDefinition;
-use crate::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};

@@ -1,7 +1,7 @@
+use crate::Client;
 use crate::error::BQError;
 use crate::model::dataset_reference::DatasetReference;
 use crate::model::table::Table;
-use crate::Client;
 use std::collections::HashMap;
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
