@@ -444,8 +444,14 @@ struct TableBatchInner<M> {
 /// enabling efficient batch operations and optimal parallelism distribution
 /// across multiple tables in concurrent append operations. Cloning is cheap
 /// as the data is stored behind an [`Arc`].
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct TableBatch<M>(Arc<TableBatchInner<M>>);
+
+impl<M> Clone for TableBatch<M> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 
 impl<M> TableBatch<M> {
     /// Creates a new table batch targeting the specified stream.
