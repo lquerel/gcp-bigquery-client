@@ -119,6 +119,7 @@ pub mod standard_sql_struct_type;
 pub mod streamingbuffer;
 pub mod table;
 pub mod table_cell;
+pub mod table_constraint;
 pub mod table_data_insert_all_request;
 pub mod table_data_insert_all_request_rows;
 pub mod table_data_insert_all_response;

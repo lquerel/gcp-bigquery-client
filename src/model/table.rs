@@ -8,6 +8,7 @@ use crate::model::model_definition::ModelDefinition;
 use crate::model::range_partitioning::RangePartitioning;
 use crate::model::snapshot_definition::SnapshotDefinition;
 use crate::model::streamingbuffer::Streamingbuffer;
+use crate::model::table_constraint::TableConstraints;
 use crate::model::table_reference::TableReference;
 use crate::model::table_schema::TableSchema;
 use crate::model::time_partitioning::TimePartitioning;
@@ -86,6 +87,9 @@ pub struct Table {
     pub snapshot_definition: Option<SnapshotDefinition>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub streaming_buffer: Option<Streamingbuffer>,
+    /// [Optional] The table's primary key and foreign key information.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub table_constraints: Option<TableConstraints>,
     pub table_reference: TableReference,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub time_partitioning: Option<TimePartitioning>,
@@ -124,6 +128,7 @@ impl Table {
             self_link: None,
             snapshot_definition: None,
             streaming_buffer: None,
+            table_constraints: None,
             table_reference: TableReference::new(project_id, dataset_id, table_id),
             time_partitioning: None,
             r#type: None,
@@ -197,6 +202,11 @@ impl Table {
 
     pub fn require_partition_filter(mut self, require_partition_filter: bool) -> Self {
         self.require_partition_filter = Some(require_partition_filter);
+        self
+    }
+
+    pub fn table_constraints(mut self, table_constraints: TableConstraints) -> Self {
+        self.table_constraints = Some(table_constraints);
         self
     }
 
