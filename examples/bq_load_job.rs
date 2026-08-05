@@ -10,52 +10,54 @@ use gcp_bigquery_client::model::job_configuration_load::JobConfigurationLoad;
 use gcp_bigquery_client::model::job_reference::JobReference;
 use gcp_bigquery_client::model::job_status::JobStatus;
 use gcp_bigquery_client::model::table_reference::TableReference;
+#[cfg(feature = "bq_load_job")]
+use gcp_bigquery_client::Client;
 
 /// This example explains how to initiate and supervise a BQ load job (new line delimited json file in GCS).
 use std::env;
+#[cfg(feature = "bq_load_job")]
+use tokio::time::{sleep, Duration};
 
 #[cfg(feature = "bq_load_job")]
 const GCS_BUCKET_NAME: &str = "rust_bq_client";
 
-// #[cfg(not(feature = "bq_load_job"))]
-// fn main() {}
+#[cfg(not(feature = "bq_load_job"))]
+fn main() {}
 
+#[cfg(feature = "bq_load_job")]
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let (_gcp_sa_key, _project_id) = env_vars();
+    let (gcp_sa_key, project_id) = env_vars();
 
     // Create temporary file name
-    let _tmp_file_name = tmp_file_name(30);
+    let tmp_file_name = tmp_file_name(30);
 
     // Load line delimiter json data file
-    let _data = std::fs::read("examples/data.json").expect("data.json not found");
+    let data = std::fs::read("examples/data.json").expect("data.json not found");
 
-    #[cfg(feature = "bq_load_job")]
+    // Store data on GCS
+    let source_uri = store_and_get_gcs_uri(GCS_BUCKET_NAME, data, &tmp_file_name).await?;
+
+    let client = Client::from_service_account_key_file(&gcp_sa_key).await?;
+
+    // Create BQ load job to create/update the test with the content of the json data file
+    // Pre-requisite: test_batch_load dataset already created
+    let job_ref = create_bq_load_job(
+        &client,
+        &project_id,
+        "test_batch_load",
+        "test4",
+        source_uri,
+        &tmp_file_name,
+    )
+    .await?;
+
+    while get_job_status(&client, &project_id, job_ref.job_id.as_ref().unwrap())
+        .await?
+        .state
+        != Some("DONE".to_string())
     {
-        // Store data on GCS
-        let source_uri = store_and_get_gcs_uri(GCS_BUCKET_NAME, data, &tmp_file_name).await?;
-
-        let client = Client::from_service_account_key_file(&gcp_sa_key).await?;
-
-        // Create BQ load job to create/update the test with the content of the json data file
-        // Pre-requisite: test_batch_load dataset already created
-        let job_ref = create_bq_load_job(
-            &client,
-            &project_id,
-            "test_batch_load",
-            "test4",
-            source_uri,
-            &tmp_file_name,
-        )
-        .await?;
-
-        while get_job_status(&client, &project_id, job_ref.job_id.as_ref().unwrap())
-            .await?
-            .state
-            != Some("DONE".to_string())
-        {
-            sleep(Duration::from_secs(1));
-        }
+        sleep(Duration::from_secs(1)).await;
     }
 
     println!("DONE");
@@ -112,6 +114,7 @@ pub async fn get_job_status(
     Ok(job.status.expect("job_status not found"))
 }
 
+#[cfg(feature = "bq_load_job")]
 fn tmp_file_name(file_name_len: usize) -> String {
     use rand::Rng;
     const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
