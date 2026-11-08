@@ -38,7 +38,9 @@ impl Authenticator for ServiceAccountAuthenticator {
     /// Returns an access token.
     async fn access_token(&self) -> Result<String, BQError> {
         let token = if self.is_using_workload_identity {
-            get_access_token_with_workload_identity().await?.access_token
+            get_access_token_with_workload_identity(&self.scopes)
+                .await?
+                .access_token
         } else {
             self.auth
                 .clone()
@@ -94,13 +96,21 @@ pub struct WorkloadIdentityAccessToken {
     pub token_type: String,
 }
 
-pub(crate) async fn get_access_token_with_workload_identity() -> Result<WorkloadIdentityAccessToken, BQError> {
+/// Fetches a token from the GCE/GKE metadata server.
+///
+/// `scopes`, when non-empty, is passed as the `scopes` query parameter. The host can be
+/// overridden with `GCE_METADATA_HOST`, as in Google's own client libraries.
+pub(crate) async fn get_access_token_with_workload_identity(
+    scopes: &[String],
+) -> Result<WorkloadIdentityAccessToken, BQError> {
+    let host = std::env::var("GCE_METADATA_HOST").unwrap_or_else(|_| "metadata".to_string());
+    let url = format!("http://{host}/computeMetadata/v1/instance/service-accounts/default/token");
     let client = reqwest::Client::new();
-    let resp = client
-        .get("http://metadata/computeMetadata/v1/instance/service-accounts/default/token")
-        .header("Metadata-Flavor", "Google")
-        .send()
-        .await?;
+    let mut request = client.get(url).header("Metadata-Flavor", "Google");
+    if !scopes.is_empty() {
+        request = request.query(&[("scopes", scopes.join(","))]);
+    }
+    let resp = request.send().await?;
 
     let content: WorkloadIdentityAccessToken = resp.json().await?;
 
