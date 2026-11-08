@@ -63,6 +63,10 @@ pub mod tabledata;
 const BIG_QUERY_V2_URL: &str = "https://bigquery.googleapis.com/bigquery/v2";
 const BIG_QUERY_AUTH_URL: &str = "https://www.googleapis.com/auth/bigquery";
 
+/// Read-only Google Drive scope, needed to query external tables backed by Google Sheets or
+/// Drive files. Pass it to [`ClientBuilder::with_additional_scopes`](crate::client_builder::ClientBuilder::with_additional_scopes).
+pub const DRIVE_READONLY_SCOPE: &str = "https://www.googleapis.com/auth/drive.readonly";
+
 /// An asynchronous BigQuery client.
 #[derive(Clone)]
 pub struct Client {
